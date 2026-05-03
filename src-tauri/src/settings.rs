@@ -5,8 +5,7 @@
 mod credential {
     use windows::Win32::Foundation::{ERROR_NOT_FOUND, FILETIME};
     use windows::Win32::Security::Credentials::{
-        CredDeleteW, CredReadW, CredWriteW, CREDENTIALW, CRED_FLAGS, CRED_PERSIST_LOCAL_MACHINE,
-        CRED_TYPE_GENERIC,
+        CredDeleteW, CredReadW, CredWriteW, CREDENTIALW, CRED_FLAGS, CRED_TYPE_GENERIC,
     };
     use windows::core::{PCWSTR, PWSTR};
 
@@ -27,7 +26,9 @@ mod credential {
             LastWritten: FILETIME::default(),
             CredentialBlobSize: blob.len() as u32,
             CredentialBlob: blob.as_mut_ptr(),
-            Persist: CRED_PERSIST_LOCAL_MACHINE,
+            // CRED_PERSIST_ENTERPRISE (3): persists for the user's logon session lifetime,
+            // correct for per-user secrets on both local and domain-joined accounts.
+            Persist: windows::Win32::Security::Credentials::CRED_PERSIST(3),
             AttributeCount: 0,
             Attributes: std::ptr::null_mut(),
             TargetAlias: PWSTR::null(),

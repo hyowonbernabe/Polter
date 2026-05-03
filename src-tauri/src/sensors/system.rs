@@ -1,7 +1,8 @@
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use sysinfo::System;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Runtime};
+use tokio::sync::Notify;
 
 #[derive(Debug, Clone)]
 pub struct SystemSnapshot {
@@ -13,6 +14,10 @@ pub struct SystemSnapshot {
     pub on_battery: bool,
     pub window_count: i32,
     pub foreground_app: String,
+    /// Number of foreground-app changes detected since last aggregation drain.
+    pub app_switch_count: i32,
+    /// How long (ms) the current foreground app has been continuously in focus.
+    pub single_window_hold_ms: i64,
 }
 
 impl Default for SystemSnapshot {
@@ -25,6 +30,8 @@ impl Default for SystemSnapshot {
             on_battery: false,
             window_count: 0,
             foreground_app: String::new(),
+            app_switch_count: 0,
+            single_window_hold_ms: 0,
         }
     }
 }
@@ -140,7 +147,14 @@ fn foreground_app() -> String {
 const POLL_INTERVAL_MS: u64 = 30_000;
 const SLEEP_DETECT_MULTIPLIER: u64 = 3;
 
-pub fn start<R: Runtime>(app: AppHandle<R>, snapshot: Arc<RwLock<SystemSnapshot>>) {
+/// `wake_signal` is notified when a sleep/wake gap is detected. Using an internal
+/// Notify rather than a Tauri event keeps the noisy gap heuristic off the frontend
+/// event bus and prevents spurious UI reactions to VM pauses or debugger stops.
+pub fn start<R: Runtime>(
+    _app: AppHandle<R>,
+    snapshot: Arc<RwLock<SystemSnapshot>>,
+    wake_signal: Arc<Notify>,
+) {
     tauri::async_runtime::spawn(async move {
         // sysinfo::System is Send — keep one instance alive for accurate CPU deltas.
         let mut sys = System::new_all();
@@ -149,6 +163,8 @@ pub fn start<R: Runtime>(app: AppHandle<R>, snapshot: Arc<RwLock<SystemSnapshot>
         sys.refresh_cpu_usage();
 
         let mut last_poll_ms: u64 = now_ms();
+        let mut prev_app = String::new();
+        let mut last_app_change_ms: u64 = now_ms();
 
         let mut interval = tokio::time::interval(Duration::from_millis(POLL_INTERVAL_MS));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -160,8 +176,8 @@ pub fn start<R: Runtime>(app: AppHandle<R>, snapshot: Arc<RwLock<SystemSnapshot>
             let gap_ms = now.saturating_sub(last_poll_ms);
 
             if gap_ms > POLL_INTERVAL_MS * SLEEP_DETECT_MULTIPLIER {
-                eprintln!("[system] detected likely sleep/wake — gap {}ms", gap_ms);
-                let _ = app.emit("wisp_wake", ());
+                tracing::info!("[system] sleep/wake detected — gap {}ms", gap_ms);
+                wake_signal.notify_one();
             }
             last_poll_ms = now;
 
@@ -184,18 +200,26 @@ pub fn start<R: Runtime>(app: AppHandle<R>, snapshot: Arc<RwLock<SystemSnapshot>
                 .await
                 .unwrap_or_default();
 
-            let snap = SystemSnapshot {
-                timestamp_ms: now_ms(),
-                cpu_percent: cpu,
-                ram_percent: ram_pct,
-                battery_percent: battery_pct,
-                on_battery: on_bat,
-                window_count: wins,
-                foreground_app: app_name,
-            };
+            // Track foreground app switches and hold duration.
+            if !prev_app.is_empty() && app_name != prev_app {
+                last_app_change_ms = now;
+                if let Ok(mut guard) = snapshot.write() {
+                    guard.app_switch_count += 1;
+                }
+            }
+            let hold_ms = now.saturating_sub(last_app_change_ms) as i64;
+            prev_app = app_name.clone();
 
             if let Ok(mut guard) = snapshot.write() {
-                *guard = snap;
+                guard.timestamp_ms = now_ms();
+                guard.cpu_percent = cpu;
+                guard.ram_percent = ram_pct;
+                guard.battery_percent = battery_pct;
+                guard.on_battery = on_bat;
+                guard.window_count = wins;
+                guard.foreground_app = app_name;
+                guard.single_window_hold_ms = hold_ms;
+                // app_switch_count is updated above and reset by the aggregator
             }
         }
     });
@@ -211,6 +235,8 @@ mod tests {
         assert_eq!(snap.battery_percent, -1);
         assert!(!snap.on_battery);
         assert_eq!(snap.window_count, 0);
+        assert_eq!(snap.app_switch_count, 0);
+        assert_eq!(snap.single_window_hold_ms, 0);
     }
 
     #[cfg(windows)]

@@ -21,6 +21,8 @@ pub struct BehavioralSnapshot {
     pub on_battery: bool,
     pub window_count: i32,
     pub foreground_app: String,
+    pub app_switch_count: i32,
+    pub single_window_hold_ms: i64,
 }
 
 // ── Pure computation ──────────────────────────────────────────────────────────
@@ -126,6 +128,8 @@ pub fn compute_snapshot(
         on_battery: system.on_battery,
         window_count: system.window_count,
         foreground_app: system.foreground_app.clone(),
+        app_switch_count: system.app_switch_count,
+        single_window_hold_ms: system.single_window_hold_ms,
     }
 }
 
@@ -155,7 +159,13 @@ pub fn start(
             };
 
             let events = ring.lock().unwrap().drain_all();
-            let sys = system.read().unwrap().clone();
+            // Capture system snapshot and atomically reset the per-window counter.
+            let sys = {
+                let mut guard = system.write().unwrap();
+                let snap = guard.clone();
+                guard.app_switch_count = 0;
+                snap
+            };
             let snap = compute_snapshot(&events, &sys, sid, window_end_ms, 60.0);
 
             let _ = crate::storage::queries::insert_snapshot(write_pool.as_ref(), &snap).await;
@@ -234,11 +244,15 @@ mod tests {
         s.on_battery = true;
         s.window_count = 12;
         s.foreground_app = "code.exe".to_string();
+        s.app_switch_count = 3;
+        s.single_window_hold_ms = 5000;
         let snap = compute_snapshot(&[], &s, 99, 60_000, 60.0);
         assert!((snap.cpu_percent - 42.5).abs() < 0.01);
         assert_eq!(snap.battery_percent, 80);
         assert!(snap.on_battery);
         assert_eq!(snap.window_count, 12);
         assert_eq!(snap.foreground_app, "code.exe");
+        assert_eq!(snap.app_switch_count, 3);
+        assert_eq!(snap.single_window_hold_ms, 5000);
     }
 }

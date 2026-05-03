@@ -64,9 +64,12 @@ pub fn start_inactivity_watcher(
                 .unwrap_or_default()
                 .as_millis() as u64;
 
+            // None means the ring buffer has never received an event this session
+            // (e.g. machine idle at startup). Treat as 0 idle time — don't end the
+            // session until real activity has actually started and then lapsed.
             let idle_ms = match last_ts {
                 Some(ts) => now_u64.saturating_sub(ts),
-                None => u64::MAX,
+                None => 0,
             };
 
             if idle_ms >= 600_000 {

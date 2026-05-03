@@ -18,8 +18,12 @@ enum IpcEvent {
 fn monitor_binary_path() -> PathBuf {
     #[cfg(debug_assertions)]
     {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("target/debug/input-monitor.exe")
+        // Respect CARGO_TARGET_DIR if set (e.g. in CI); fall back to workspace default.
+        if let Some(target_dir) = option_env!("CARGO_TARGET_DIR") {
+            PathBuf::from(target_dir).join("debug/input-monitor.exe")
+        } else {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/debug/input-monitor.exe")
+        }
     }
     #[cfg(not(debug_assertions))]
     {
@@ -60,10 +64,11 @@ pub fn start(ring: Arc<Mutex<RingBuffer>>) {
             match Command::new(&path)
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
+                .kill_on_drop(true)
                 .spawn()
             {
                 Err(e) => {
-                    eprintln!("[input_host] failed to spawn: {e}");
+                    tracing::error!("[input_host] failed to spawn {path:?}: {e}");
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
                 Ok(mut child) => {
@@ -71,13 +76,18 @@ pub fn start(ring: Arc<Mutex<RingBuffer>>) {
                     let mut reader = BufReader::new(stdout).lines();
                     while let Ok(Some(line)) = reader.next_line().await {
                         if let Ok(ipc) = serde_json::from_str::<IpcEvent>(&line) {
+                            // KeyUp events are buffered but never consumed by the
+                            // aggregator — skip them to preserve ring buffer capacity.
+                            if matches!(ipc, IpcEvent::KeyUp { .. }) {
+                                continue;
+                            }
                             let raw = ipc_to_raw(ipc);
                             if let Ok(mut buf) = ring.lock() {
                                 buf.push(raw);
                             }
                         }
                     }
-                    eprintln!("[input_host] child exited — restarting in 1s");
+                    tracing::warn!("[input_host] child exited — restarting in 1s");
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 }
             }

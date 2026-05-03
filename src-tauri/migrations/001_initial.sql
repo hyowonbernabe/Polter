@@ -21,8 +21,10 @@ CREATE TABLE IF NOT EXISTS behavioral_snapshots (
     ram_percent     REAL    NOT NULL DEFAULT 0,
     battery_percent INTEGER NOT NULL DEFAULT -1,
     on_battery      INTEGER NOT NULL DEFAULT 0,
-    window_count    INTEGER NOT NULL DEFAULT 0,
-    foreground_app  TEXT    NOT NULL DEFAULT ''
+    window_count           INTEGER NOT NULL DEFAULT 0,
+    foreground_app         TEXT    NOT NULL DEFAULT '',
+    app_switch_count       INTEGER NOT NULL DEFAULT 0,
+    single_window_hold_ms  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_session ON behavioral_snapshots(session_id);

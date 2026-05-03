@@ -10,10 +10,12 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    Emitter, Listener, Manager,
+    Emitter, Manager,
 };
 
 pub fn run() {
+    tracing_subscriber::fmt::init();
+
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
 
     tauri::Builder::default()
@@ -71,9 +73,12 @@ pub fn run() {
                 });
             }
 
+            // Wake signal: system poller notifies this instead of emitting a frontend event.
+            let wake_signal = Arc::new(tokio::sync::Notify::new());
+
             // Start sensors.
             sensors::input_host::start(ring.clone());
-            sensors::system::start(app.handle().clone(), system_snap.clone());
+            sensors::system::start(app.handle().clone(), system_snap.clone(), wake_signal.clone());
 
             // Start 60-second aggregation loop.
             pipeline::aggregator::start(
@@ -86,16 +91,15 @@ pub fn run() {
             // Start inactivity watcher (ends session after 10 min idle).
             session::start_inactivity_watcher(ring.clone(), pools.clone(), session_id.clone());
 
-            // Handle sleep/wake events from the system poller.
+            // Handle sleep/wake: loop on the internal Notify rather than the event bus.
             {
                 let pools_wake = pools.clone();
                 let sid_wake = session_id.clone();
-                app.listen("wisp_wake", move |_event| {
-                    let p = pools_wake.clone();
-                    let s = sid_wake.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let _ = session::handle_wake(&p, &s).await;
-                    });
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        wake_signal.notified().await;
+                        let _ = session::handle_wake(&pools_wake, &sid_wake).await;
+                    }
                 });
             }
 
