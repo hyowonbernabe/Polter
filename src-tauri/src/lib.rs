@@ -1,5 +1,7 @@
 mod click_through;
 mod commands;
+pub mod pipeline;
+pub mod sensors;
 
 use std::sync::{Arc, Mutex};
 use tauri::{
