@@ -1,0 +1,305 @@
+/* =========================================================================
+   Wisp Design System — colors_and_type.css
+   The single source of truth for color, type, spacing, radii, glow, motion.
+   ========================================================================= */
+
+/* ---- Webfonts -------------------------------------------------------- */
+/* Body face — Inter (per brief "something like Inter or DM Sans") */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Pixel display face — Departure Mono.
+   Substitution flagged in README; replace with custom pixel font if/when delivered. */
+@import url('https://fonts.cdnfonts.com/css/departure-mono');
+
+:root {
+  /* ===== Color =========================================================
+     Names follow the metaphor (ink, moon, glow, state-*) rather than
+     functional names like "primary". The brand IS the metaphor. */
+
+  /* Ink — backgrounds, panel fills. Never pure black. */
+  --ink-900: #0b0d14;        /* deepest — desktop "void" behind everything */
+  --ink-850: #11141d;        /* panel base before alpha */
+  --ink-800: #161a25;        /* raised panel */
+  --ink-700: #1f2433;        /* hairline / elevated chip */
+  --ink-600: #2a3145;        /* divider */
+
+  /* Moon — warmed whites for body text on ink */
+  --moon-50:  #f4f1ea;       /* primary text on ink */
+  --moon-100: #e6e2d6;
+  --moon-200: #cfcabd;       /* secondary text */
+  --moon-300: #a8a395;       /* tertiary, icons */
+  --moon-400: #6f6c63;       /* quaternary, timestamps */
+  --moon-500: #4a4842;       /* hairline label */
+
+  /* State colors — the wisp's hue IS information.
+     Pair: solid + glow (use glow in box-shadow / radial bloom). */
+
+  /* focused / neutral — cool teals & blues */
+  --state-focus:    #6fb6d9;   /* clear, attentive */
+  --glow-focus:     rgba(111, 182, 217, 0.55);
+
+  --state-calm:     #7c92e8;   /* ambient, drifting */
+  --glow-calm:      rgba(124, 146, 232, 0.50);
+
+  --state-deep:     #9b7fe0;   /* deep work, flow */
+  --glow-deep:      rgba(155, 127, 224, 0.55);
+
+  /* high-energy — warm ambers & golds */
+  --state-spark:    #e8b86a;   /* engaged, lively */
+  --glow-spark:     rgba(232, 184, 106, 0.60);
+
+  --state-burn:     #e89466;   /* high arousal, possibly stressed */
+  --glow-burn:      rgba(232, 148, 102, 0.55);
+
+  /* low / fatigued — desaturated greys with violet undertone */
+  --state-fade:     #8a8298;   /* tired, drifting away */
+  --glow-fade:      rgba(138, 130, 152, 0.40);
+
+  --state-rest:     #5d6478;   /* asleep / very low */
+  --glow-rest:      rgba(93, 100, 120, 0.30);
+
+  /* ===== Surfaces ======================================================
+     Two surfaces only: frosted glass panel, and the pixel layer (no chrome).
+     `panel-bg` is intentionally translucent — there's always wallpaper behind. */
+  --panel-bg:        rgba(17, 20, 29, 0.72);
+  --panel-bg-strong: rgba(17, 20, 29, 0.88);     /* dashboard */
+  --panel-border:    rgba(255, 255, 255, 0.06);
+  --panel-inset:     rgba(255, 255, 255, 0.04);  /* 1px inset highlight */
+  --panel-blur:      blur(24px) saturate(140%);
+
+  /* ===== Type =========================================================
+     Two families. Pixel is texture, sans is voice. */
+  --font-pixel: 'Departure Mono', 'VT323', 'Courier New', ui-monospace, monospace;
+  --font-body:  'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Body sizes — start at 15px because panels sit over busy wallpaper */
+  --text-xs:   12px;   /* timestamps, fine print (still readable on glass) */
+  --text-sm:   13px;
+  --text-base: 15px;   /* default body */
+  --text-md:   17px;   /* insight body */
+  --text-lg:   20px;   /* dashboard subhead */
+  --text-xl:   28px;   /* dashboard headline */
+  --text-2xl:  40px;   /* hero/marketing */
+
+  /* Pixel sizes — pixel font is sized in clean integer multiples */
+  --pixel-xs: 10px;
+  --pixel-sm: 12px;
+  --pixel-md: 14px;
+  --pixel-lg: 18px;
+
+  /* Line heights */
+  --lh-tight:   1.25;
+  --lh-normal:  1.45;
+  --lh-comfy:   1.55;   /* default for body & insights */
+  --lh-loose:   1.70;
+
+  /* Tracking */
+  --track-pixel:   0.12em;   /* pixel labels: wide */
+  --track-tight:  -0.01em;
+  --track-normal:  0;
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+
+  /* ===== Spacing ======================================================
+     4px base. */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;   /* default panel padding */
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ===== Radii ======================================================== */
+  --radius-pixel: 0;        /* sprites, pixel labels — sharp */
+  --radius-chip:  6px;
+  --radius-panel: 14px;     /* the frosted-glass panels */
+  --radius-card:  18px;     /* dashboard inner cards */
+  --radius-pill:  999px;
+
+  /* ===== Shadow & glow ================================================
+     Two systems: panel float, and wisp bloom. */
+  --shadow-panel:
+    0 24px 64px -12px rgba(0, 0, 0, 0.60),
+    0 4px 16px -4px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 var(--panel-inset);
+
+  --shadow-panel-strong:
+    0 32px 80px -8px rgba(0, 0, 0, 0.75),
+    0 6px 24px -4px rgba(0, 0, 0, 0.50),
+    inset 0 1px 0 var(--panel-inset);
+
+  /* Wisp bloom — multi-layer radial blur. Use as box-shadow on a circle
+     positioned behind the sprite, OR as drop-shadow filter on the sprite. */
+  --bloom-focus:
+    0 0 24px 4px var(--glow-focus),
+    0 0 48px 12px var(--glow-focus),
+    0 0 96px 24px rgba(111, 182, 217, 0.18);
+  --bloom-spark:
+    0 0 24px 4px var(--glow-spark),
+    0 0 48px 12px var(--glow-spark),
+    0 0 96px 24px rgba(232, 184, 106, 0.20);
+  --bloom-deep:
+    0 0 24px 4px var(--glow-deep),
+    0 0 48px 12px var(--glow-deep),
+    0 0 96px 24px rgba(155, 127, 224, 0.18);
+  --bloom-fade:
+    0 0 18px 3px var(--glow-fade),
+    0 0 36px 8px var(--glow-fade);
+
+  /* ===== Motion ======================================================
+     Slow. Always slow. */
+  --ease-bloom: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-fade:  cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-quick:  200ms;
+  --dur-base:   320ms;
+  --dur-bloom:  600ms;
+  --dur-breathe: 4000ms;
+}
+
+/* ===== Semantic role aliases ==========================================
+   So component code can say `var(--fg)` instead of remembering the name. */
+:root {
+  --fg:        var(--moon-50);
+  --fg-muted:  var(--moon-200);
+  --fg-faint:  var(--moon-300);
+  --fg-ghost:  var(--moon-400);
+
+  --bg:        var(--ink-900);
+  --bg-panel:  var(--panel-bg);
+  --bg-elev:   var(--panel-bg-strong);
+  --border:    var(--panel-border);
+
+  --accent:        var(--state-focus);
+  --accent-glow:   var(--glow-focus);
+}
+
+/* ===== Type ramp — ready-made classes ================================ */
+.type-display {
+  font-family: var(--font-body);
+  font-size: var(--text-2xl);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+}
+.type-h1 {
+  font-family: var(--font-body);
+  font-size: var(--text-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+}
+.type-h2 {
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  line-height: var(--lh-normal);
+  font-weight: var(--weight-medium);
+  color: var(--fg);
+}
+.type-insight {
+  /* The thing the wisp says. The single most important type style. */
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: var(--lh-comfy);
+  font-weight: var(--weight-regular);
+  color: var(--fg);
+  text-wrap: pretty;
+}
+.type-body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--lh-comfy);
+  color: var(--fg-muted);
+}
+.type-caption {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--lh-normal);
+  color: var(--fg-faint);
+}
+.type-pixel-label {
+  /* State name labels, dashboard data labels */
+  font-family: var(--font-pixel);
+  font-size: var(--pixel-sm);
+  letter-spacing: var(--track-pixel);
+  text-transform: lowercase;
+  color: var(--fg-faint);
+}
+.type-pixel-data {
+  font-family: var(--font-pixel);
+  font-size: var(--pixel-lg);
+  letter-spacing: var(--track-pixel);
+  color: var(--fg);
+}
+.type-timestamp {
+  font-family: var(--font-pixel);
+  font-size: var(--pixel-xs);
+  letter-spacing: var(--track-pixel);
+  text-transform: uppercase;
+  color: var(--fg-ghost);
+}
+
+/* ===== Surface helpers ============================================== */
+.panel {
+  background: var(--bg-panel);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+.panel-strong {
+  background: var(--bg-elev);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel-strong);
+}
+
+/* ===== Pixel rendering ============================================== */
+.pixel-render {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+
+/* ===== Motion primitives ============================================ */
+@keyframes wisp-breathe {
+  0%, 100% { transform: scale(1)    translateY(0); }
+  50%      { transform: scale(1.02) translateY(-1px); }
+}
+@keyframes wisp-bloom-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+@keyframes panel-bloom-in {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes insight-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.anim-breathe {
+  animation: wisp-breathe var(--dur-breathe) ease-in-out infinite;
+}
+.anim-bloom-pulse {
+  animation: wisp-bloom-pulse var(--dur-breathe) ease-in-out infinite;
+}
+.anim-panel-in {
+  animation: panel-bloom-in var(--dur-base) var(--ease-bloom) both;
+}
+.anim-insight-in {
+  animation: insight-rise var(--dur-bloom) var(--ease-bloom) both;
+}

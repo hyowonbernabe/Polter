@@ -1,0 +1,211 @@
+# Wisp — Roadmap
+
+A feature-by-feature build guide. This is not an implementation plan — it describes what gets built and in what order, not how. Check off each item as it is completed.
+
+Progress is tracked by group. A group is not "done" until every item in it is checked.
+
+---
+
+## Group 1 — Foundation
+*The app exists as a real thing on the desktop.*
+
+- [ ] Tauri project scaffolded — Rust backend, React frontend, builds and runs
+- [ ] Transparent borderless window renders on screen
+- [ ] Window is always on top of other applications
+- [ ] System tray icon appears — bare minimum: icon and Quit
+- [ ] App launches at Windows startup automatically
+- [ ] Rust-to-React bridge confirmed working — at least one event fires from backend to frontend
+- [ ] Single static sprite renders on canvas at correct scale
+- [ ] Creature position is saved on close and restored on next launch
+
+---
+
+## Group 2 — Data Pipeline
+*The app observes.*
+
+- [ ] Keyboard events captured — timing metadata only, no content ever recorded
+- [ ] Mouse events captured — movement, clicks, scroll
+- [ ] System signals collected — CPU, RAM, battery level, power source (plugged vs battery), display brightness, night mode state, open window count, notification response speed, audio device state, file save frequency
+- [ ] Raw events aggregated into computed feature windows
+- [ ] SQLite database created and schema defined
+- [ ] Computed feature snapshots written to database — raw events discarded after aggregation
+- [ ] State history log written per session — required later by the dashboard
+- [ ] Settings persistence layer in place — key-value store for user preferences
+- [ ] Resource usage verified acceptable — CPU and RAM footprint confirmed within target under sustained use
+
+---
+
+## Group 3 — Baseline and State Machine
+*The app understands what it is seeing.*
+
+- [ ] Cold start mode active — app flags that no baseline exists yet, no state classification runs
+- [ ] Personal baseline builds from accumulated snapshots — rolling calculation
+- [ ] Rule-based state classifier runs — 7 states derived from relative deviation from personal baseline
+- [ ] State transition debounce — a state must persist for a minimum duration before the creature changes
+- [ ] Session detection — app correctly identifies when a work session starts and ends
+- [ ] Daily summaries computed — snapshots aggregated into per-day focus, deep, and burn minutes
+
+---
+
+## Group 4 — Creature Comes Alive
+*The core product loop is complete. The creature reflects real behavior.*
+
+- [ ] All 7 sprite states render and are wired to state machine output
+- [ ] Breathing animation runs continuously
+- [ ] State transitions crossfade — no snapping between states
+- [ ] Glow and bloom effect renders and matches current state color
+- [ ] Creature dims during idle periods and sharpens when activity resumes
+- [ ] "Still learning" visual — distinct appearance shown during cold start period
+- [ ] Returning user animation — creature reacts when user comes back after a long absence
+- [ ] Extended burn distress — creature shows visible strain after 90+ consecutive minutes in burn state
+- [ ] Best session recognition — creature briefly brightens when a personal focus record is broken
+- [ ] System tray icon color reflects current creature state
+- [ ] System tray tooltip shows current state label on hover
+
+---
+
+## Group 5 — Core Controls
+*The app can be paused. Always.*
+
+- [ ] Sleep mode — toggling sleep pauses all data collection and changes creature visual
+- [ ] Wake animation — creature unfurls and resumes when woken from sleep
+- [ ] Privacy mode — instant full pause distinct from sleep, creature shows a dedicated paused visual
+- [ ] Sleep and privacy mode accessible from system tray menu
+- [ ] Auto-sleep schedule — user can set quiet hours during which Wisp sleeps automatically
+
+---
+
+## Group 6 — AI Inference
+*The app has something to say.*
+
+- [ ] Ollama detected on startup — app checks whether it is running locally
+- [ ] Local inference working — app sends a prompt to Ollama and receives a valid response
+- [ ] OpenRouter integration working — app falls back to cloud when Ollama is unavailable
+- [ ] Inference mode state tracked — local, cloud, or unavailable — re-checked every 60 seconds
+- [ ] Inference trigger logic — fires on behavioral state change and on a time floor, never on less than 5 minutes of active data
+- [ ] Prompt construction — behavioral features described in natural language, not raw numbers
+- [ ] Response parsed and validated — state label and insight text extracted from structured output
+- [ ] Malformed or failed responses handled gracefully — no crash, no data loss
+- [ ] Cloud inference consent — user is informed the first time behavioral data leaves the device via OpenRouter
+- [ ] No-AI indicator visible — when inference is unavailable, this is clearly communicated on hover and in tray
+
+---
+
+## Group 7 — Chat Bubbles
+*The app speaks.*
+
+- [ ] Bubble UI component renders — frosted glass panel with a directional tail pointing at the creature
+- [ ] Bubble positioning is intelligent — appears on whichever side has more screen space, never clips off screen
+- [ ] Creature glows and pulses before a bubble appears — a visible tell that it is about to speak
+- [ ] Bubble blooms in with animation
+- [ ] Bubble auto-dismisses after 45 seconds if not interacted with
+- [ ] "Tell me more" expands the bubble — extended text is pre-generated, not a second API call
+- [ ] "Ok" dismisses the bubble — creature gives a small nod
+- [ ] Bubble queue — only one bubble shows at a time, others wait
+- [ ] Stale insights discarded — bubbles generated during long AFK periods are dropped if no longer relevant on return
+- [ ] Flow detection insight type working
+- [ ] Fatigue signal insight type working
+- [ ] Pattern revelation insight type working
+- [ ] Avoidance detection insight type working
+- [ ] Peak performance insight type working
+- [ ] Stress tell insight type working
+- [ ] Anomaly insight type working
+- [ ] Break signal insight type working
+- [ ] Comparative insight type working
+- [ ] Returning user insight type working
+- [ ] First-ever insight has special treatment — longer pre-glow, deeper bloom, distinct energy
+- [ ] Insight deduplication — same topic not repeated within 48 hours
+- [ ] All generated insights stored in database
+- [ ] Pending insight dot indicator appears on tray icon when a bubble is waiting
+
+---
+
+## Group 8 — Dashboard
+*The app remembers.*
+
+- [ ] Dashboard panel opens from system tray — frosted glass, pinned to corner
+- [ ] Open and close animate smoothly
+- [ ] State header shows current state label and how long the creature has been in it
+- [ ] Today at a glance — total active time, longest focus block today, insights surfaced today
+- [ ] 7-day activity chart — stacked bars showing focus, deep, and burn minutes per day
+- [ ] State distribution this week — breakdown of time spent in each state
+- [ ] Insight history log — all past bubbles in reverse chronological order, full text readable
+- [ ] Personal bests — longest focus session ever recorded, best day this week
+- [ ] "What Wisp knows" panel — plain language summary of what has been collected and inferred this session
+- [ ] Day-one empty state — chart and history sections show a calm, informative message when no data exists yet
+
+---
+
+## Group 9 — Settings
+*The app is configurable.*
+
+- [ ] Full settings panel UI renders and is accessible from dashboard and tray
+- [ ] Inference mode badge always visible at the top — shows local or cloud at all times
+- [ ] OpenRouter API key can be entered, saved, and cleared
+- [ ] Tier 2 permission toggles — screen content, clipboard, calendar — each with plain-language description
+- [ ] Active sensors list — live view of exactly which signals are currently running
+- [ ] Insight frequency cap — user can set maximum bubbles per day (1 to 5)
+- [ ] Sound toggle — optional chime when a bubble appears, off by default
+- [ ] Creature size selector — small, medium, large
+- [ ] Default corner selector — four corners
+- [ ] Idle opacity control — how faded the creature becomes during inactivity
+- [ ] Auto-sleep schedule — set start and end of quiet hours
+- [ ] Data retention display — shows current retention windows in plain language
+- [ ] Clear raw data — with plain-language confirmation dialog
+- [ ] Export insights — downloads all insight text as a plain file
+- [ ] Privacy mode keyboard shortcut — configurable hotkey for instant pause
+- [ ] "Review permissions" entry point — re-enters the Tier 2 opt-in flow for users who want to change earlier choices
+
+---
+
+## Group 10 — Onboarding
+*The app welcomes.*
+
+- [ ] Welcome screen — what Wisp is, in plain language, no jargon
+- [ ] Tier 1 disclosure screen — exactly what is collected automatically, before collection starts
+- [ ] Screen content opt-in screen — what it is, what it is not, yes or no
+- [ ] Clipboard activity opt-in screen — what it is, what it is not, yes or no
+- [ ] Calendar context opt-in screen — what it is, what it is not, yes or no
+- [ ] Summary screen — shows exactly what Wisp will and will not collect based on the choices just made
+- [ ] Creature appears on screen for the first time at the end of onboarding
+- [ ] First bubble appears — "give me a few days. i'll tell you something when i know something."
+- [ ] Settings reminder — user is told they can change any of this at any time
+
+---
+
+## Group 11 — Polish: Creature Interactions
+*The app delights.*
+
+- [ ] Hover reveals state label and duration in pixel font
+- [ ] Slow cursor movement across creature triggers a content, settled reaction
+- [ ] Single click — bounce and wing flutter, reaction varies subtly by current state
+- [ ] Double click — stronger surprise animation, wing flare
+- [ ] Click while a bubble is visible — bubble dismisses, creature acknowledges
+- [ ] Click during deep or flow state — gentler reaction so as not to disrupt
+- [ ] Drag pick-up — creature squishes on grab, wings spread as if caught
+- [ ] Slow drag — creature floats calmly, slight lag behind cursor
+- [ ] Fast drag — creature stretches in direction of movement
+- [ ] Release at low velocity — creature settles gently with a small landing bounce
+- [ ] Release at high velocity — creature carries momentum, decelerates, lands harder
+- [ ] Landing bounce scales with landing speed
+- [ ] Screen edge collision — creature bumps into edges and bounces back slightly
+- [ ] Post-landing shake-off animation
+- [ ] Right-click directly on creature opens a minimal context menu
+
+---
+
+## Status Summary
+
+| Group | Name | Status |
+|---|---|---|
+| 1 | Foundation | Not started |
+| 2 | Data Pipeline | Not started |
+| 3 | Baseline and State Machine | Not started |
+| 4 | Creature Comes Alive | Not started |
+| 5 | Core Controls | Not started |
+| 6 | AI Inference | Not started |
+| 7 | Chat Bubbles | Not started |
+| 8 | Dashboard | Not started |
+| 9 | Settings | Not started |
+| 10 | Onboarding | Not started |
+| 11 | Polish: Creature Interactions | Not started |

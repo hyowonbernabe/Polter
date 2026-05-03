@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Wisp – Insight Card</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;height:100%;background:
+    radial-gradient(ellipse at 30% 20%, rgba(111,182,217,.07), transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(155,127,224,.08), transparent 60%),
+    #0b0d14;color:var(--fg);font-family:var(--font-body);}
+  .stage{height:200px;display:flex;align-items:center;justify-content:center;gap:16px;padding:20px;}
+  .insight{width:340px;padding:18px 20px;border-radius:14px;
+           background:rgba(17,20,29,.72);backdrop-filter:blur(24px) saturate(140%);
+           border:1px solid rgba(255,255,255,.06);
+           box-shadow:0 24px 64px -12px rgba(0,0,0,.6),0 4px 16px -4px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);}
+  .head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .pip{width:6px;height:6px;border-radius:50%;background:#6fb6d9;box-shadow:0 0 8px rgba(111,182,217,.7);}
+  .lbl{font-family:var(--font-pixel);font-size:10px;letter-spacing:.16em;color:var(--moon-300);text-transform:lowercase;}
+  .when{margin-left:auto;font-family:var(--font-pixel);font-size:10px;letter-spacing:.14em;color:var(--moon-400);text-transform:uppercase;}
+  .text{font-size:17px;line-height:1.55;color:var(--moon-50);text-wrap:pretty;}
+</style></head>
+<body>
+<div class="stage">
+  <div class="insight">
+    <div class="head"><span class="pip"></span><span class="lbl">noticed</span><span class="when">14:22</span></div>
+    <div class="text">you've been still for a while. that's unusual for a tuesday.</div>
+  </div>
+</div>
+</body></html>

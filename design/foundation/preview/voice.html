@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Wisp – Voice Examples</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;background:#0b0d14;color:var(--fg);font-family:var(--font-body);}
+  .wrap{padding:22px 26px;display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;}
+  .col h3{font-family:var(--font-pixel);font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin:0 0 8px;}
+  .yes h3{color:#6fb6d9;}
+  .no h3{color:#e89466;}
+  .yes p,.no p{font-size:14px;line-height:1.5;margin:0 0 8px;text-wrap:pretty;}
+  .yes p{color:var(--moon-100);}
+  .no p{color:var(--moon-300);text-decoration:line-through;text-decoration-color:rgba(232,148,102,.4);}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="col yes">
+    <h3>says</h3>
+    <p>you've been still for a while.</p>
+    <p>three days in a row, you opened figma between 9 and 10pm.</p>
+    <p>you typed faster after the second coffee. you also made more mistakes.</p>
+  </div>
+  <div class="col no">
+    <h3>does not say</h3>
+    <p>🎯 great job staying focused!</p>
+    <p>Hey there! Time for a break? 😊</p>
+    <p>ALERT: high distraction detected.</p>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Wisp – State Chips</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;background:#0b0d14;color:var(--fg);font-family:var(--font-body);}
+  .wrap{padding:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;border-radius:999px;
+        background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+        font-family:var(--font-pixel);font-size:11px;letter-spacing:.14em;text-transform:lowercase;color:var(--moon-200);}
+  .pip{width:8px;height:8px;border-radius:50%;}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="chip"><span class="pip" style="background:#6fb6d9;box-shadow:0 0 8px rgba(111,182,217,.7);"></span>focusing</div>
+  <div class="chip"><span class="pip" style="background:#7c92e8;box-shadow:0 0 8px rgba(124,146,232,.6);"></span>drifting</div>
+  <div class="chip"><span class="pip" style="background:#9b7fe0;box-shadow:0 0 10px rgba(155,127,224,.7);"></span>in flow</div>
+  <div class="chip"><span class="pip" style="background:#e8b86a;box-shadow:0 0 10px rgba(232,184,106,.7);"></span>engaged</div>
+  <div class="chip"><span class="pip" style="background:#e89466;box-shadow:0 0 10px rgba(232,148,102,.7);"></span>burning</div>
+  <div class="chip"><span class="pip" style="background:#8a8298;"></span>fading</div>
+  <div class="chip"><span class="pip" style="background:#5d6478;"></span>resting</div>
+</div>
+</body></html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Wisp – Sprite States</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;background:#0b0d14;font-family:var(--font-body);color:var(--fg);}
+  .wrap{display:flex;justify-content:space-around;align-items:flex-end;padding:24px 16px 20px;gap:8px;
+        background:radial-gradient(ellipse at center bottom, rgba(124,146,232,0.06), transparent 70%), #0b0d14;}
+  .cell{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .stage{position:relative;width:80px;height:120px;display:flex;align-items:center;justify-content:center;}
+  .bloom{position:absolute;inset:0;border-radius:50%;filter:blur(20px);opacity:.55;}
+  .sprite{position:relative;width:48px;height:96px;image-rendering:pixelated;}
+  .label{font-family:var(--font-pixel);font-size:11px;letter-spacing:0.14em;text-transform:lowercase;color:var(--moon-300);}
+  .b-focus{background:radial-gradient(circle,#6fb6d9,transparent 65%);}
+  .b-calm {background:radial-gradient(circle,#7c92e8,transparent 65%);}
+  .b-deep {background:radial-gradient(circle,#9b7fe0,transparent 65%);}
+  .b-spark{background:radial-gradient(circle,#e8b86a,transparent 65%);}
+  .b-burn {background:radial-gradient(circle,#e89466,transparent 65%);}
+  .b-fade {background:radial-gradient(circle,#8a8298,transparent 70%);opacity:.4;}
+  .b-rest {background:radial-gradient(circle,#5d6478,transparent 75%);opacity:.3;}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="cell"><div class="stage"><div class="bloom b-focus"></div><img class="sprite" src="../assets/sprites/wisp-focus.png"></div><span class="label">focus</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-calm"></div><img class="sprite" src="../assets/sprites/wisp-calm.png"></div><span class="label">calm</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-deep"></div><img class="sprite" src="../assets/sprites/wisp-deep.png"></div><span class="label">deep</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-spark"></div><img class="sprite" src="../assets/sprites/wisp-spark.png"></div><span class="label">spark</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-burn"></div><img class="sprite" src="../assets/sprites/wisp-burn.png"></div><span class="label">burn</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-fade"></div><img class="sprite" src="../assets/sprites/wisp-fade.png"></div><span class="label">fade</span></div>
+  <div class="cell"><div class="stage"><div class="bloom b-rest"></div><img class="sprite" src="../assets/sprites/wisp-rest.png"></div><span class="label">rest</span></div>
+</div>
+</body></html>
