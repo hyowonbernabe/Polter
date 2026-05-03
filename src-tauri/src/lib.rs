@@ -6,11 +6,11 @@ pub mod session;
 pub mod settings;
 pub mod storage;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    Emitter, Manager,
+    Emitter, Listener, Manager,
 };
 
 pub fn run() {
@@ -46,9 +46,57 @@ pub fn run() {
                 autostart.enable()?;
             }
 
+            // Initialize SQLite database.
+            let db_path = app.path().app_data_dir()?.join("wisp.db");
+            let db_path_str = db_path.to_string_lossy().to_string();
+            let pools = tauri::async_runtime::block_on(storage::init(&db_path_str))?;
+            let write_pool = pools.write.clone();
+
+            // Shared pipeline state.
+            let ring: Arc<Mutex<pipeline::RingBuffer>> =
+                Arc::new(Mutex::new(pipeline::RingBuffer::new(10_000)));
+            let system_snap: Arc<RwLock<sensors::system::SystemSnapshot>> =
+                Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
+            let session_id: session::SessionId = Arc::new(Mutex::new(None));
+
+            // Start the first session.
+            {
+                let pools_ref = pools.clone();
+                let sid_ref = session_id.clone();
+                tauri::async_runtime::block_on(async move {
+                    let _ = session::start_new_session(&pools_ref, &sid_ref).await;
+                });
+            }
+
+            // Start sensors.
+            sensors::input_host::start(ring.clone());
+            sensors::system::start(app.handle().clone(), system_snap.clone());
+
+            // Start 60-second aggregation loop.
+            pipeline::aggregator::start(
+                ring.clone(),
+                system_snap.clone(),
+                session_id.clone(),
+                write_pool,
+            );
+
+            // Start inactivity watcher (ends session after 10 min idle).
+            session::start_inactivity_watcher(ring.clone(), pools.clone(), session_id.clone());
+
+            // Handle sleep/wake events from the system poller.
+            {
+                let pools_wake = pools.clone();
+                let sid_wake = session_id.clone();
+                app.listen("wisp_wake", move |_event| {
+                    let p = pools_wake.clone();
+                    let s = sid_wake.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = session::handle_wake(&p, &s).await;
+                    });
+                });
+            }
+
             // Size the window to the primary monitor work area, then show it.
-            // The window starts hidden (visible: false in tauri.conf.json) so
-            // there is no flash before it is correctly positioned.
             let window = app.get_webview_window("main").expect("main window missing");
             let wa = commands::get_work_area();
             window.set_position(tauri::PhysicalPosition::new(wa.x, wa.y))?;

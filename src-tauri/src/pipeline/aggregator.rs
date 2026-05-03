@@ -135,10 +135,32 @@ pub fn start(
     ring: Arc<Mutex<RingBuffer>>,
     system: Arc<RwLock<SystemSnapshot>>,
     session_id: Arc<Mutex<Option<i64>>>,
+    write_pool: Arc<crate::storage::DbWritePool>,
 ) {
-    // Full implementation wired in Task 11 once storage is available.
-    // Placeholder keeps the module compiling through Task 10.
-    let _ = (ring, system, session_id);
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        interval.tick().await; // skip immediate first tick
+        loop {
+            interval.tick().await;
+            let window_end_ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+
+            let sid = *session_id.lock().unwrap();
+            let sid = match sid {
+                Some(id) => id,
+                None => continue, // no active session — skip
+            };
+
+            let events = ring.lock().unwrap().drain_all();
+            let sys = system.read().unwrap().clone();
+            let snap = compute_snapshot(&events, &sys, sid, window_end_ms, 60.0);
+
+            let _ = crate::storage::queries::insert_snapshot(write_pool.as_ref(), &snap).await;
+        }
+    });
 }
 
 #[cfg(test)]

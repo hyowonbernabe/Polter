@@ -1,5 +1,5 @@
 use crate::pipeline::ring_buffer::RingBuffer;
-use crate::storage::{self, DbPools};
+use crate::storage::DbPools;
 use crate::storage::queries;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -79,6 +79,7 @@ pub fn start_inactivity_watcher(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage;
     use tempfile::TempDir;
 
     async fn temp_pools() -> (DbPools, TempDir) {
