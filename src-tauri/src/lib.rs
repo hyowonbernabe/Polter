@@ -3,6 +3,7 @@ mod commands;
 pub mod pipeline;
 pub mod sensors;
 pub mod session;
+pub mod settings;
 pub mod storage;
 
 use std::sync::{Arc, Mutex};
@@ -32,6 +33,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_work_area,
             commands::set_creature_bounds,
+            commands::set_api_key,
+            commands::get_api_key,
+            commands::clear_api_key,
+            commands::has_api_key,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.

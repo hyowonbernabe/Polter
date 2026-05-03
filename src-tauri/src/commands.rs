@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use crate::click_through::Rect;
+use crate::settings;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WorkArea {
@@ -58,6 +59,26 @@ pub fn set_creature_bounds(
     b.y = y;
     b.width = width;
     b.height = height;
+}
+
+#[tauri::command]
+pub fn set_api_key(key: String) -> Result<(), String> {
+    settings::set_api_key(&key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_api_key() -> Option<String> {
+    settings::get_api_key()
+}
+
+#[tauri::command]
+pub fn clear_api_key() -> Result<(), String> {
+    settings::clear_api_key().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn has_api_key() -> bool {
+    settings::has_api_key()
 }
 
 #[cfg(test)]

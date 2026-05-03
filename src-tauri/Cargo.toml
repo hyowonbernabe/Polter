@@ -25,7 +25,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 sysinfo = "0.33"
-keyring = "3"
 tokio = { version = "1", features = ["full"] }
 
 [target.'cfg(windows)'.dependencies]
@@ -35,6 +34,7 @@ windows = { version = "0.58", features = [
     "Win32_System_Power",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",
+    "Win32_Security_Credentials",
 ] }
 
 [dev-dependencies]

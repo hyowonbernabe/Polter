@@ -1,7 +1,6 @@
 use crate::pipeline::ring_buffer::{RawInputEvent, RingBuffer};
 use crate::sensors::system::SystemSnapshot;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
