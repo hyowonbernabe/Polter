@@ -9,16 +9,16 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 1 — Foundation
 *The app exists as a real thing on the desktop.*
 
-- [ ] Tauri project scaffolded — Rust backend, React frontend, builds and runs
-- [ ] Transparent borderless window renders on screen
-- [ ] Window is always on top of other applications
-- [ ] System tray icon appears — bare minimum: icon and Quit
-- [ ] App launches at Windows startup automatically
-- [ ] Single instance enforced — second launch brings existing instance to front
-- [ ] Rust-to-React bridge confirmed working — at least one event fires from backend to frontend
-- [ ] Single static sprite renders on canvas at correct scale — fixed canvas size, CSS scale
-- [ ] Creature position saved as percentage of work area, restored on next launch
-- [ ] Click-through working — Rust polling loop passes clicks through transparent areas, captures on sprite
+- [x] Tauri project scaffolded — Rust backend, React frontend, builds and runs
+- [x] Transparent borderless window renders on screen
+- [x] Window is always on top of other applications
+- [x] System tray icon appears — bare minimum: icon and Quit
+- [x] App launches at Windows startup automatically
+- [x] Single instance enforced — second launch brings existing instance to front
+- [x] Rust-to-React bridge confirmed working — at least one event fires from backend to frontend
+- [x] Single static sprite renders on canvas at correct scale — fixed canvas size, CSS scale
+- [x] Creature position saved as percentage of work area, restored on next launch
+- [x] Click-through working — Rust polling loop passes clicks through transparent areas, captures on sprite
 
 ---
 
@@ -207,7 +207,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 
 | Group | Name | Status |
 |---|---|---|
-| 1 | Foundation | Not started |
+| 1 | Foundation | Complete ✅ |
 | 2 | Data Pipeline | Not started |
 | 3 | Baseline and State Machine | Not started |
 | 4 | Creature Comes Alive | Not started |

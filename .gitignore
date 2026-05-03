@@ -12,6 +12,7 @@ dist/
 # Tauri
 src-tauri/target/
 src-tauri/WixTools/
+src-tauri/gen/
 
 # SQLite
 *.db
@@ -44,3 +45,6 @@ yarn-error.log*
 # Tauri signing key (never commit)
 *.key
 *.pem
+
+# Superpowers/obra working artifacts (never commit)
+docs/superpowers/
