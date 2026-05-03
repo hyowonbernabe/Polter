@@ -14,23 +14,29 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 - [ ] Window is always on top of other applications
 - [ ] System tray icon appears — bare minimum: icon and Quit
 - [ ] App launches at Windows startup automatically
+- [ ] Single instance enforced — second launch brings existing instance to front
 - [ ] Rust-to-React bridge confirmed working — at least one event fires from backend to frontend
-- [ ] Single static sprite renders on canvas at correct scale
-- [ ] Creature position is saved on close and restored on next launch
+- [ ] Single static sprite renders on canvas at correct scale — fixed canvas size, CSS scale
+- [ ] Creature position saved as percentage of work area, restored on next launch
+- [ ] Click-through working — Rust polling loop passes clicks through transparent areas, captures on sprite
 
 ---
 
 ## Group 2 — Data Pipeline
 *The app observes.*
 
-- [ ] Keyboard events captured — timing metadata only, no content ever recorded
+- [ ] rdevin input-monitor child process spawns and communicates via stdin/stdout
+- [ ] Keyboard events captured — timing metadata only (key-down and key-up timestamps), no content ever recorded
 - [ ] Mouse events captured — movement, clicks, scroll
-- [ ] System signals collected — CPU, RAM, battery level, power source (plugged vs battery), display brightness, night mode state, open window count, notification response speed, audio device state, file save frequency
-- [ ] Raw events aggregated into computed feature windows
-- [ ] SQLite database created and schema defined
+- [ ] System signals collected — CPU, RAM, battery level, power source, display brightness, open window count, audio device state
+- [ ] Windows power events listened to — system sleep and wake detected
+- [ ] Raw events held in ring buffer — never written to disk
+- [ ] Raw events aggregated into 60-second computed feature snapshots
+- [ ] SQLite database created and schema defined — WAL mode, separate read/write pools
 - [ ] Computed feature snapshots written to database — raw events discarded after aggregation
+- [ ] Session boundaries correctly detected — 10-minute inactivity, manual sleep, system wake
 - [ ] State history log written per session — required later by the dashboard
-- [ ] Settings persistence layer in place — key-value store for user preferences
+- [ ] Settings persistence layer in place — Tauri store plugin for preferences, keyring crate for API key
 - [ ] Resource usage verified acceptable — CPU and RAM footprint confirmed within target under sustained use
 
 ---
@@ -38,12 +44,15 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 3 — Baseline and State Machine
 *The app understands what it is seeing.*
 
-- [ ] Cold start mode active — app flags that no baseline exists yet, no state classification runs
-- [ ] Personal baseline builds from accumulated snapshots — rolling calculation
+- [ ] Cold start mode active — app flags no personal baseline exists yet, uses population-level defaults for first 30 days
+- [ ] Anomaly detection suppressed during cold start period
+- [ ] Personal baseline builds from accumulated snapshots — EMA with 14-day decay, segmented by time-of-day and day-of-week
+- [ ] Baseline updates once daily at end of last session
+- [ ] Silent switch from population defaults to personal baseline at day 30
 - [ ] Rule-based state classifier runs — 7 states derived from relative deviation from personal baseline
-- [ ] State transition debounce — a state must persist for a minimum duration before the creature changes
-- [ ] Session detection — app correctly identifies when a work session starts and ends
-- [ ] Daily summaries computed — snapshots aggregated into per-day focus, deep, and burn minutes
+- [ ] State transition debounce — 3-minute dwell required before state commits, timer resets on drift
+- [ ] Anomaly detection — 1.96 SD on log-transformed metrics, sustained 5 minutes, 2-hour cooldown per type
+- [ ] Daily summaries pre-aggregated at session end into daily_summaries table
 
 ---
 

@@ -78,25 +78,21 @@ The pet is a sprite sheet (PNG with transparent background). CSS sets `image-ren
 
 ## Input Monitoring
 
-**rdev** (Rust crate)
+**rdevin** (Rust crate — actively maintained fork of rdev)
 
 Listens to global keyboard and mouse events on Windows without requiring elevated permissions. Captures event type (key down, key up, mouse move, click, scroll) and timestamp in nanoseconds.
 
-**What Wisp takes from rdev:**
-- Timestamp of each key event (inter-keystroke interval)
-- Key hold duration (time between keydown and keyup)
-- Whether the event was a backspace, delete, undo, redo, save shortcut, or other special key — key identity is used only to classify these behavioral categories, then discarded
-- Mouse position delta (movement distance between samples, not absolute coordinates)
-- Mouse click type and frequency
-- Scroll events
+**Why rdevin and not rdev:** rdev has a confirmed bug in Tauri 2 on Windows where all keyboard events silently stop firing whenever the Tauri window holds focus. rdevin is an actively maintained fork that addresses this. Additionally, the input listener runs in a **separate child process** spawned via `std::process::Command` — not a thread inside the Tauri process. This process isolation eliminates the focus-driven event drop entirely. The child process communicates events back to the main process via stdin/stdout.
+
+**What Wisp captures per event:**
+- Keyboard: timestamp when key went down, timestamp when key came back up. Nothing else. No key identity, no content.
+- Mouse: position (x, y) + timestamp on move events. Click type + timestamp on clicks.
 
 **What is explicitly thrown away:**
-- The actual character value of any key press
-- Absolute mouse coordinates
+- Which key was pressed
+- Any text content
 
-The listener runs in a dedicated Rust thread spawned at app startup, separate from the Tauri window thread. This avoids a known `rdev` issue where keyboard events stop arriving when the Tauri window has focus.
-
-**Known limitation:** `rdev` requires no special permissions on Windows. On macOS (future), it requires Accessibility API permission — plan for a permission prompt in the V2 Mac port.
+**Known limitation:** rdevin requires no special permissions on Windows. On macOS (V2), it requires Accessibility API permission — plan for a permission prompt in the Mac port.
 
 ---
 
@@ -120,7 +116,7 @@ Used to read system-level state that requires no user permission and contains no
 | Audio device state (headphones, volume) | Core Audio API via `IMMDeviceEnumerator` |
 | Network activity level | `GetIfTable2` (bytes in/out delta) |
 
-All polling runs on a background Rust thread at a configurable interval (default: 1 second for input events, 5 seconds for system metrics).
+System signals are polled on a background Rust thread every **30 seconds**. Input events are not polled — they are purely event-driven via rdevin (see above).
 
 ---
 
@@ -150,8 +146,8 @@ Fallback model: **Gemma 4 E4B Q4_K_M** — the 4B edge-optimized variant. Faster
 
 **OpenRouter** is an API aggregator that provides access to 300+ models through a single OpenAI-compatible endpoint. Used when Ollama is not installed or the user's hardware cannot run the local model.
 
-**Default cloud model: DeepSeek V3.2** (best quality-per-cost for reasoning tasks as of May 2026)
-**Backup cloud model: Gemini 3.1 Flash** (faster, slightly lower quality)
+**Default cloud model: DeepSeek V4 Flash** or **Gemini 2.5 Flash-Lite** — both optimized for low latency and low cost, ideal for short constrained generation (~300 tokens). Model is a configurable string so it can be swapped without a release.
+**Backup:** any OpenRouter-compatible model the user specifies in settings.
 
 **Privacy:** OpenRouter does not store prompts by default. Zero Data Retention is enforced per-request via the `zdr: true` parameter. However, underlying model providers have their own policies — Wisp surfaces this clearly in the UI with a "running locally" vs "using cloud" badge. The user always knows which mode is active.
 
@@ -205,8 +201,16 @@ All signal data is stored locally on the user's machine. No cloud database. The 
 Schema design priorities:
 - Time-series optimized: signal readings stored as timestamped rows, not wide columns
 - Append-only for raw readings — never update or delete historical data
-- Aggregated summaries computed and cached separately to avoid re-scanning history on every query
-- Retention policy: raw readings kept for 90 days by default, aggregates kept indefinitely. User-configurable.
+- Aggregated summaries pre-computed at session end into a `daily_summaries` table — dashboard queries never scan raw snapshots
+- WAL mode + `synchronous=NORMAL` + `busy_timeout=5000` — crash-safe, concurrent reads during writes
+- Separate read and write connection pools — write pool of 1 connection, read pool of N
+
+**Retention policy:**
+| Data | Kept for |
+|---|---|
+| Raw behavioral snapshots | 30 days |
+| Daily summaries | 1 year |
+| Insight history | Indefinitely |
 
 ---
 
@@ -216,31 +220,37 @@ Schema design priorities:
 wisp/
 ├── src-tauri/              # Rust backend (Tauri)
 │    ├── src/
-│    │    ├── main.rs           # App entry, Tauri builder
-│    │    ├── sensors/          # Input and system signal collectors
-│    │    │    ├── keyboard.rs      # rdev listener, keystroke dynamics
-│    │    │    ├── mouse.rs         # rdev listener, mouse behavior
-│    │    │    └── system.rs        # windows-rs system metrics
+│    │    ├── main.rs           # App entry, Tauri builder, plugin registration
+│    │    ├── sensors/          # Signal collectors
+│    │    │    ├── input_host.rs    # Spawns input-monitor child process, reads stdin/stdout
+│    │    │    └── system.rs        # windows-rs system signal poller (30s interval)
 │    │    ├── inference/        # AI inference layer
-│    │    │    ├── mod.rs           # Route to local or cloud
+│    │    │    ├── mod.rs           # Route to local or cloud, mode state machine
 │    │    │    ├── local.rs         # ollama-rs integration
-│    │    │    └── cloud.rs         # openrouter-rs integration
-│    │    ├── scoring/          # Signal aggregation and scoring
-│    │    │    └── mod.rs           # Focus score, stress level, baseline
-│    │    ├── storage/          # SQLite read/write
+│    │    │    └── cloud.rs         # reqwest → OpenRouter HTTP calls
+│    │    ├── scoring/          # Baseline, state machine, anomaly detection
+│    │    │    ├── baseline.rs      # EMA calculation, per time-of-day segments
+│    │    │    ├── classifier.rs    # 7-state rule engine, debounce
+│    │    │    └── aggregator.rs    # Ring buffer → 60s feature summary
+│    │    ├── storage/          # SQLite read/write (separate pools)
 │    │    │    └── mod.rs
 │    │    └── commands.rs       # Tauri commands exposed to frontend
-│    └── Cargo.toml
+│    ├── Cargo.toml
+│    └── input-monitor/       # Separate child process binary (rdevin listener)
+│         ├── src/main.rs         # rdevin listener, outputs events via stdout
+│         └── Cargo.toml
 ├── src/                    # React + TypeScript frontend
 │    ├── components/
-│    │    ├── Pet/               # Pixel art pet canvas and animation
-│    │    ├── Dashboard/         # Insight panel (shown on click/hover)
-│    │    └── StatusBar/         # Local vs cloud badge, sensor indicators
+│    │    ├── Creature/          # Pixel art canvas, sprite animation, physics
+│    │    ├── Bubble/            # Chat bubble, pre-glow sequence
+│    │    ├── Dashboard/         # State history, charts, insight log
+│    │    └── Tray/              # Tray menu state sync
 │    ├── hooks/                  # Tauri event listeners, state management
 │    └── App.tsx
 ├── assets/
-│    └── sprites/            # Pixel art sprite sheets (PNG)
-└── tauri.conf.json         # Tauri config (transparent window, tray, etc.)
+│    ├── sprites/            # Pixel art sprite sheets (PNG, per state)
+│    └── sounds/             # Bundled audio files (chime, V2 effects)
+└── tauri.conf.json         # Tauri config (transparent window, tray, CSP)
 ```
 
 ---
@@ -250,13 +260,16 @@ wisp/
 | Crate / Package | Version | Purpose |
 |---|---|---|
 | `tauri` | 2.x | Desktop shell, window management, system tray |
-| `rdev` | latest | Global keyboard and mouse event hooks |
-| `windows` (windows-rs) | latest | Windows API — system metrics, display, audio |
-| `ollama-rs` | latest | Local AI inference via Ollama |
-| `openrouter-rs` | latest | Cloud AI inference via OpenRouter |
-| `rusqlite` or `sqlx` | latest | Local SQLite database |
+| `tauri-plugin-single-instance` | 2.x | Single instance enforcement — register first in plugin chain |
+| `tauri-plugin-store` | 2.x | Key-value settings persistence |
+| `tauri-plugin-updater` | 2.x | Auto-update via GitHub Releases |
+| `rdevin` | latest | Global keyboard and mouse event hooks (rdev fork, actively maintained) |
+| `windows` (windows-rs) | latest | Windows API — system metrics, display, audio, power events |
+| `keyring` | latest | API key storage via Windows Credential Manager (safe Rust, cross-platform) |
+| `ollama-rs` | latest (pepperoni21 fork) | Local AI inference via Ollama |
+| `reqwest` | latest | HTTP client — OpenRouter calls use this directly |
+| `sqlx` | latest (SQLite feature) | Async SQLite with compile-time query checking |
 | `tokio` | 1.x | Async runtime (required by Tauri and most crates) |
-| `reqwest` | latest | HTTP client (used by inference crates) |
 | `serde` + `serde_json` | latest | Serialization for IPC and storage |
 | `ort` | latest | ONNX Runtime — deferred to V2 |
 | React | 18.x | Frontend framework |
