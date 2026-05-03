@@ -141,7 +141,7 @@ const POLL_INTERVAL_MS: u64 = 30_000;
 const SLEEP_DETECT_MULTIPLIER: u64 = 3;
 
 pub fn start<R: Runtime>(app: AppHandle<R>, snapshot: Arc<RwLock<SystemSnapshot>>) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // sysinfo::System is Send — keep one instance alive for accurate CPU deltas.
         let mut sys = System::new_all();
         sys.refresh_cpu_usage();

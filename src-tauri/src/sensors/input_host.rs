@@ -54,7 +54,7 @@ fn ipc_to_raw(ipc: IpcEvent) -> RawInputEvent {
 }
 
 pub fn start(ring: Arc<Mutex<RingBuffer>>) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let path = monitor_binary_path();
         loop {
             match Command::new(&path)

@@ -138,7 +138,7 @@ pub fn start(
     write_pool: Arc<crate::storage::DbWritePool>,
 ) {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
         interval.tick().await; // skip immediate first tick
         loop {

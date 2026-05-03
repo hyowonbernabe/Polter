@@ -48,6 +48,9 @@ pub fn run() {
 
             // Initialize SQLite database.
             let db_path = app.path().app_data_dir()?.join("wisp.db");
+            if let Some(parent) = db_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             let db_path_str = db_path.to_string_lossy().to_string();
             let pools = tauri::async_runtime::block_on(storage::init(&db_path_str))?;
             let write_pool = pools.write.clone();

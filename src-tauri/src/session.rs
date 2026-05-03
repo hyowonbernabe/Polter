@@ -50,7 +50,7 @@ pub fn start_inactivity_watcher(
     pools: DbPools,
     session_id: SessionId,
 ) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_secs(60));
         ticker.tick().await; // skip the immediate first tick
         loop {
