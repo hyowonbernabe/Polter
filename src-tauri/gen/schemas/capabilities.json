@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default capabilities for the Wisp main window","local":true,"windows":["main"],"permissions":["core:default","store:allow-load","store:allow-get","store:allow-set","store:allow-save","autostart:allow-enable","autostart:allow-disable","autostart:allow-is-enabled"]}}
