@@ -15,4 +15,7 @@ export default defineConfig(async () => ({
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
+  test: {
+    environment: "node",
+  },
 }));
