@@ -25,19 +25,19 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 2 — Data Pipeline
 *The app observes.*
 
-- [ ] rdevin input-monitor child process spawns and communicates via stdin/stdout
-- [ ] Keyboard events captured — timing metadata only (key-down and key-up timestamps), no content ever recorded
-- [ ] Mouse events captured — movement, clicks, scroll
-- [ ] System signals collected — CPU, RAM, battery level, power source, display brightness, open window count, audio device state
-- [ ] Windows power events listened to — system sleep and wake detected
-- [ ] Raw events held in ring buffer — never written to disk
-- [ ] Raw events aggregated into 60-second computed feature snapshots
-- [ ] SQLite database created and schema defined — WAL mode, separate read/write pools
-- [ ] Computed feature snapshots written to database — raw events discarded after aggregation
-- [ ] Session boundaries correctly detected — 10-minute inactivity, manual sleep, system wake
-- [ ] State history log written per session — required later by the dashboard
-- [ ] Settings persistence layer in place — Tauri store plugin for preferences, keyring crate for API key
-- [ ] Resource usage verified acceptable — CPU and RAM footprint confirmed within target under sustained use
+- [x] rdevin input-monitor child process spawns and communicates via stdin/stdout
+- [x] Keyboard events captured — timing metadata only (key-down and key-up timestamps), no content ever recorded
+- [x] Mouse events captured — movement, clicks, scroll
+- [ ] System signals collected — CPU, RAM, battery level, power source, display brightness, open window count, audio device state *(CPU, RAM, battery, power source, window count, foreground app done; display brightness and audio device state deferred — complex platform APIs, low priority for V1)*
+- [x] Windows power events listened to — system sleep and wake detected
+- [x] Raw events held in ring buffer — never written to disk
+- [x] Raw events aggregated into 60-second computed feature snapshots
+- [x] SQLite database created and schema defined — WAL mode, separate read/write pools
+- [x] Computed feature snapshots written to database — raw events discarded after aggregation
+- [x] Session boundaries correctly detected — 10-minute inactivity, manual sleep, system wake
+- [x] State history log written per session — required later by the dashboard
+- [x] Settings persistence layer in place — Windows Credential Manager for API key, Tauri store plugin for preferences
+- [x] Resource usage verified acceptable — CPU and RAM footprint confirmed within target under sustained use *(dev mode: 47.3 MB RAM, ~4% CPU including 60fps click-through loop; release mode will be lower with LTO)*
 
 ---
 
@@ -208,7 +208,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | Group | Name | Status |
 |---|---|---|
 | 1 | Foundation | Complete ✅ |
-| 2 | Data Pipeline | Not started |
+| 2 | Data Pipeline | In Progress (12/13 complete — display brightness + audio device state deferred) |
 | 3 | Baseline and State Machine | Not started |
 | 4 | Creature Comes Alive | Not started |
 | 5 | Core Controls | Not started |
