@@ -789,6 +789,7 @@ pub struct Tier2Choices {
     pub screen: bool,
     pub clipboard: bool,
     pub calendar: bool,
+    pub inference_provider: String,
 }
 
 #[tauri::command]
@@ -813,6 +814,10 @@ pub fn complete_onboarding(
     store.set(
         "tier2_choices",
         serde_json::to_value(&choices).unwrap_or(serde_json::Value::Null),
+    );
+    store.set(
+        "inference_provider",
+        serde_json::Value::String(choices.inference_provider.clone()),
     );
     let _ = store.save();
 
@@ -888,6 +893,18 @@ pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tier2_choices_includes_inference_provider() {
+        let c = Tier2Choices {
+            screen: true,
+            clipboard: false,
+            calendar: false,
+            inference_provider: "openrouter".to_string(),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        assert!(json.contains("\"inference_provider\":\"openrouter\""));
+    }
 
     #[test]
     fn work_area_struct_serializes() {
