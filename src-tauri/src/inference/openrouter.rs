@@ -1,9 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::json;
 
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL: &str = "deepseek/deepseek-chat-v3-0324:free";
+pub const DEFAULT_MODEL: &str = "google/gemini-2.5-flash";
 const TIMEOUT_SECS: u64 = 10;
 
+const VALID_STATES: &[&str] = &["focus", "calm", "deep", "spark", "burn", "fade", "rest"];
 const VALID_TYPES: &[&str] = &[
     "flow_detection", "fatigue_signal", "pattern_revelation", "avoidance_detection",
     "peak_performance", "stress_tell", "anomaly", "break_signal", "comparative",
@@ -17,26 +19,6 @@ pub struct InsightResponse {
     pub extended: String,
     #[serde(rename = "type")]
     pub insight_type: String,
-}
-
-#[derive(Serialize)]
-struct ChatMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Serialize)]
-struct ChatRequest {
-    model: String,
-    messages: Vec<ChatMessage>,
-    response_format: ResponseFormat,
-    max_tokens: u32,
-}
-
-#[derive(Serialize)]
-struct ResponseFormat {
-    #[serde(rename = "type")]
-    format_type: String,
 }
 
 #[derive(Deserialize)]
@@ -54,6 +36,33 @@ struct MessageContent {
     content: String,
 }
 
+fn insight_json_schema() -> serde_json::Value {
+    json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "wisp_insight",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": VALID_STATES
+                    },
+                    "insight": { "type": "string" },
+                    "extended": { "type": "string" },
+                    "type": {
+                        "type": "string",
+                        "enum": VALID_TYPES
+                    }
+                },
+                "required": ["state", "insight", "extended", "type"],
+                "additionalProperties": false
+            }
+        }
+    })
+}
+
 pub async fn call_openrouter(
     api_key: &str,
     system_prompt: &str,
@@ -64,15 +73,15 @@ pub async fn call_openrouter(
         .build()
         .map_err(|e| e.to_string())?;
 
-    let request = ChatRequest {
-        model: DEFAULT_MODEL.to_string(),
-        messages: vec![
-            ChatMessage { role: "system".to_string(), content: system_prompt.to_string() },
-            ChatMessage { role: "user".to_string(), content: user_message.to_string() },
+    let body = json!({
+        "model": DEFAULT_MODEL,
+        "messages": [
+            { "role": "system", "content": system_prompt },
+            { "role": "user",   "content": user_message  }
         ],
-        response_format: ResponseFormat { format_type: "json_object".to_string() },
-        max_tokens: 300,
-    };
+        "response_format": insight_json_schema(),
+        "max_tokens": 300
+    });
 
     let response = client
         .post(OPENROUTER_URL)
@@ -80,7 +89,7 @@ pub async fn call_openrouter(
         .header("Content-Type", "application/json")
         .header("HTTP-Referer", "https://github.com/hyowonbernabe/wisp")
         .header("X-Title", "Wisp")
-        .json(&request)
+        .json(&body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -103,10 +112,14 @@ pub async fn call_openrouter(
     let insight: InsightResponse =
         serde_json::from_str(&content).map_err(|e| format!("parse error: {e}"))?;
 
+    // Strict schema should catch these, but defend at runtime too
+    if !VALID_STATES.contains(&insight.state.as_str()) {
+        return Err(format!("unknown state: {}", insight.state));
+    }
     if !VALID_TYPES.contains(&insight.insight_type.as_str()) {
         return Err(format!("unknown insight type: {}", insight.insight_type));
     }
-    if insight.state.is_empty() || insight.insight.is_empty() || insight.extended.is_empty() {
+    if insight.insight.is_empty() || insight.extended.is_empty() {
         return Err("incomplete insight response".to_string());
     }
 
