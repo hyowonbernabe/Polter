@@ -103,7 +103,7 @@ export default function InsightBubble({
 
       {isExpanded && (
         <p style={{
-          margin: '0 0 10px',
+          margin: '0 0 6px',
           fontSize: 12,
           color: 'rgba(255,255,255,0.65)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
