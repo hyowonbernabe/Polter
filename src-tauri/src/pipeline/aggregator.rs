@@ -135,6 +135,8 @@ pub fn compute_snapshot(
 
 // ── Aggregation task ──────────────────────────────────────────────────────────
 
+const AGGREGATION_SECS: u64 = 60;
+
 pub fn start(
     ring: Arc<Mutex<RingBuffer>>,
     system: Arc<RwLock<SystemSnapshot>>,
@@ -143,7 +145,7 @@ pub fn start(
 ) {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     tauri::async_runtime::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        let mut interval = tokio::time::interval(Duration::from_secs(AGGREGATION_SECS));
         interval.tick().await; // skip immediate first tick
         loop {
             interval.tick().await;
@@ -155,20 +157,31 @@ pub fn start(
             let sid = *session_id.lock().unwrap();
             let sid = match sid {
                 Some(id) => id,
-                None => continue, // no active session — skip
+                None => {
+                    tracing::warn!("[aggregator] no active session — skipping");
+                    continue;
+                }
             };
 
             let events = ring.lock().unwrap().drain_all();
-            // Capture system snapshot and atomically reset the per-window counter.
             let sys = {
                 let mut guard = system.write().unwrap();
                 let snap = guard.clone();
                 guard.app_switch_count = 0;
                 snap
             };
-            let snap = compute_snapshot(&events, &sys, sid, window_end_ms, 60.0);
 
-            let _ = crate::storage::queries::insert_snapshot(write_pool.as_ref(), &snap).await;
+            tracing::info!(
+                "[aggregator] firing — session={} events={} cpu={:.1} ram={:.1} wins={}",
+                sid, events.len(), sys.cpu_percent, sys.ram_percent, sys.window_count
+            );
+
+            let snap = compute_snapshot(&events, &sys, sid, window_end_ms, AGGREGATION_SECS as f64);
+
+            match crate::storage::queries::insert_snapshot(write_pool.as_ref(), &snap).await {
+                Ok(_) => tracing::info!("[aggregator] snapshot written ok"),
+                Err(e) => tracing::error!("[aggregator] insert failed: {e}"),
+            }
         }
     });
 }
