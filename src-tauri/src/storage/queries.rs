@@ -389,6 +389,81 @@ pub async fn get_total_insight_count(pool: &DbReadPool) -> Result<i64, sqlx::Err
     Ok(row.0)
 }
 
+// ── Dashboard queries ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct InsightRow {
+    pub id: i64,
+    pub timestamp: i64,
+    pub state: String,
+    pub insight_text: String,
+    pub extended_text: String,
+    pub insight_type: String,
+}
+
+pub async fn get_last_7_daily_summaries(pool: &DbReadPool) -> Result<Vec<DailySummaryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT date, total_active_minutes, focus_minutes, calm_minutes, deep_minutes,
+                spark_minutes, burn_minutes, fade_minutes, rest_minutes,
+                longest_focus_block_minutes, session_count
+         FROM daily_summaries
+         ORDER BY date DESC
+         LIMIT 7",
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        DailySummaryRow {
+            date:                        r.get(0),
+            total_active_minutes:        r.get(1),
+            focus_minutes:               r.get(2),
+            calm_minutes:                r.get(3),
+            deep_minutes:                r.get(4),
+            spark_minutes:               r.get(5),
+            burn_minutes:                r.get(6),
+            fade_minutes:                r.get(7),
+            rest_minutes:                r.get(8),
+            longest_focus_block_minutes: r.get(9),
+            session_count:               r.get(10),
+        }
+    }).collect())
+}
+
+pub async fn get_recent_insights(pool: &DbReadPool, limit: i64) -> Result<Vec<InsightRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT id, timestamp, state, insight_text, extended_text, insight_type
+         FROM insights
+         ORDER BY timestamp DESC
+         LIMIT ?",
+    )
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        InsightRow {
+            id:           r.get(0),
+            timestamp:    r.get(1),
+            state:        r.get(2),
+            insight_text: r.get(3),
+            extended_text: r.get(4),
+            insight_type: r.get(5),
+        }
+    }).collect())
+}
+
+pub async fn get_best_day_this_week_minutes(pool: &DbReadPool) -> Result<i64, sqlx::Error> {
+    let row: (Option<i64>,) = sqlx::query_as(
+        "SELECT MAX(total_active_minutes) FROM (
+             SELECT total_active_minutes FROM daily_summaries ORDER BY date DESC LIMIT 7
+         )",
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0.unwrap_or(0))
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -691,5 +766,87 @@ mod tests {
         insert_insight(pools.write.as_ref(), 1_000, None, "focus", "a.", "b.", "anomaly").await.unwrap();
         let count = get_total_insight_count(pools.read.as_ref()).await.unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn get_last_7_daily_summaries_returns_empty_on_empty_db() {
+        let (pools, _dir) = temp_db().await;
+        let rows = get_last_7_daily_summaries(pools.read.as_ref()).await.unwrap();
+        assert!(rows.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_last_7_daily_summaries_returns_at_most_7() {
+        let (pools, _dir) = temp_db().await;
+        for day in 1..=10u32 {
+            let date = format!("2026-05-{:02}", day);
+            upsert_daily_summary(pools.write.as_ref(), &date, 30, 10, 5, 8, 3, 2, 1, 1, 12, 1)
+                .await.unwrap();
+        }
+        let rows = get_last_7_daily_summaries(pools.read.as_ref()).await.unwrap();
+        assert_eq!(rows.len(), 7);
+    }
+
+    #[tokio::test]
+    async fn get_last_7_daily_summaries_ordered_most_recent_first() {
+        let (pools, _dir) = temp_db().await;
+        upsert_daily_summary(pools.write.as_ref(), "2026-05-01", 10, 5, 2, 2, 0, 0, 0, 1, 5, 1).await.unwrap();
+        upsert_daily_summary(pools.write.as_ref(), "2026-05-02", 20, 8, 3, 4, 1, 1, 1, 2, 8, 1).await.unwrap();
+        upsert_daily_summary(pools.write.as_ref(), "2026-05-03", 30, 12, 4, 6, 2, 2, 2, 2, 10, 1).await.unwrap();
+        let rows = get_last_7_daily_summaries(pools.read.as_ref()).await.unwrap();
+        assert_eq!(rows[0].date, "2026-05-03");
+        assert_eq!(rows[1].date, "2026-05-02");
+        assert_eq!(rows[2].date, "2026-05-01");
+    }
+
+    #[tokio::test]
+    async fn get_recent_insights_returns_empty_on_empty_db() {
+        let (pools, _dir) = temp_db().await;
+        let rows = get_recent_insights(pools.read.as_ref(), 10).await.unwrap();
+        assert!(rows.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_recent_insights_respects_limit() {
+        let (pools, _dir) = temp_db().await;
+        for i in 0..5i64 {
+            insert_insight(pools.write.as_ref(), i * 1_000, None, "focus", "text", "ext", "type_a")
+                .await.unwrap();
+        }
+        let rows = get_recent_insights(pools.read.as_ref(), 3).await.unwrap();
+        assert_eq!(rows.len(), 3);
+        // most recent first
+        assert!(rows[0].timestamp > rows[1].timestamp);
+    }
+
+    #[tokio::test]
+    async fn get_recent_insights_fields_populated() {
+        let (pools, _dir) = temp_db().await;
+        insert_insight(pools.write.as_ref(), 9_000, None, "spark", "hello", "world", "flow")
+            .await.unwrap();
+        let rows = get_recent_insights(pools.read.as_ref(), 1).await.unwrap();
+        let row = &rows[0];
+        assert_eq!(row.state, "spark");
+        assert_eq!(row.insight_text, "hello");
+        assert_eq!(row.extended_text, "world");
+        assert_eq!(row.insight_type, "flow");
+        assert_eq!(row.timestamp, 9_000);
+    }
+
+    #[tokio::test]
+    async fn get_best_day_this_week_minutes_returns_zero_on_empty() {
+        let (pools, _dir) = temp_db().await;
+        let result = get_best_day_this_week_minutes(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, 0);
+    }
+
+    #[tokio::test]
+    async fn get_best_day_this_week_minutes_returns_max_of_last_7_days() {
+        let (pools, _dir) = temp_db().await;
+        upsert_daily_summary(pools.write.as_ref(), "2026-04-27", 10, 5, 2, 2, 0, 0, 0, 1, 5, 1).await.unwrap();
+        upsert_daily_summary(pools.write.as_ref(), "2026-04-28", 55, 20, 5, 10, 5, 5, 5, 5, 20, 1).await.unwrap();
+        upsert_daily_summary(pools.write.as_ref(), "2026-04-29", 40, 15, 5, 8, 3, 3, 3, 3, 15, 1).await.unwrap();
+        let result = get_best_day_this_week_minutes(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, 55);
     }
 }
