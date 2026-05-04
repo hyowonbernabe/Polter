@@ -37,13 +37,14 @@ export interface BubblePosition {
 export function getBubblePosition(
   creatureX: number,
   creatureY: number,
-  spriteSize: number,
+  spriteW: number,
+  spriteH: number,
   monitors: MonitorInfo[],
   bubbleW: number,
   viewportH: number,
 ): BubblePosition {
-  const cx = creatureX + spriteSize / 2;
-  const cy = creatureY + spriteSize / 2;
+  const cx = creatureX + spriteW / 2;
+  const cy = creatureY + spriteH / 2;
   const mon = nearestMonitor(cx, cy, monitors);
   const monCy = mon.y + mon.height / 2;
 
@@ -54,14 +55,12 @@ export function getBubblePosition(
   let tailSide: TailSide;
 
   if (aboveCreature) {
-    // Anchor bubble's bottom edge to just above the creature.
-    // y = CSS `bottom` value: distance from viewport bottom to bubble bottom edge.
+    // y = CSS `bottom` value: anchors bubble's bottom edge near the creature top.
     y = viewportH - creatureY + GAP;
     tailSide = 'bottom';
   } else {
-    // Anchor bubble's top edge to just below the creature.
-    // y = CSS `top` value.
-    y = creatureY + spriteSize + GAP;
+    // y = CSS `top` value: anchors bubble's top edge near the creature bottom.
+    y = creatureY + spriteH + GAP;
     tailSide = 'top';
   }
 
