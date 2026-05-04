@@ -1,3 +1,4 @@
+pub mod classifier;
 mod click_through;
 mod commands;
 pub mod pipeline;
@@ -12,6 +13,25 @@ use tauri::{
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
+
+/// Returns (x, y, width, height) of the bounding rectangle covering all monitors.
+/// On Windows this is the virtual screen; falls back to 1920×1080 on other platforms.
+fn virtual_screen_rect() -> (i32, i32, u32, u32) {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
+            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+        };
+        let x = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
+        let y = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
+        let w = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
+        (x, y, w as u32, h as u32)
+    }
+    #[cfg(not(target_os = "windows"))]
+    (0, 0, 1920, 1080)
+}
 
 pub fn run() {
     tracing_subscriber::fmt::init();
@@ -33,6 +53,7 @@ pub fn run() {
         ))
         .manage(bounds.clone())
         .invoke_handler(tauri::generate_handler![
+            commands::get_debug_info,
             commands::get_work_area,
             commands::set_creature_bounds,
             commands::set_api_key,
@@ -56,6 +77,7 @@ pub fn run() {
             let db_path_str = db_path.to_string_lossy().to_string();
             let pools = tauri::async_runtime::block_on(storage::init(&db_path_str))?;
             let write_pool = pools.write.clone();
+            app.manage(pools.clone());
 
             // Shared pipeline state.
             let ring: Arc<Mutex<pipeline::RingBuffer>> =
@@ -63,6 +85,7 @@ pub fn run() {
             let system_snap: Arc<RwLock<sensors::system::SystemSnapshot>> =
                 Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
             let session_id: session::SessionId = Arc::new(Mutex::new(None));
+            app.manage(session_id.clone());
 
             // Start the first session.
             {
@@ -103,11 +126,12 @@ pub fn run() {
                 });
             }
 
-            // Size the window to the primary monitor work area, then show it.
+            // Size the window to the full virtual screen (spans all monitors), then show it.
+            // Creature positioning is clamped to per-monitor work areas separately.
             let window = app.get_webview_window("main").expect("main window missing");
-            let wa = commands::get_work_area();
-            window.set_position(tauri::PhysicalPosition::new(wa.x, wa.y))?;
-            window.set_size(tauri::PhysicalSize::new(wa.width, wa.height))?;
+            let (vx, vy, vw, vh) = virtual_screen_rect();
+            window.set_position(tauri::PhysicalPosition::new(vx, vy))?;
+            window.set_size(tauri::PhysicalSize::new(vw, vh))?;
             window.show()?;
 
             // Signal to the React frontend that the backend is ready.
