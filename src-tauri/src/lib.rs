@@ -83,6 +83,10 @@ pub fn run() {
             commands::dismiss_insight,
             commands::set_bubble_bounds,
             commands::clear_bubble_bounds,
+            commands::get_dashboard_data,
+            commands::get_current_state_info,
+            commands::open_dashboard,
+            commands::close_dashboard,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -211,6 +215,7 @@ pub fn run() {
 
             // System tray: Sleep · Privacy Mode · [Developer] · Quit.
             // CheckMenuItems show a checkmark when active.
+            let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "Open Dashboard").build(app)?;
             let sleep_check   = CheckMenuItemBuilder::with_id("sleep_toggle",   "Sleep")
                 .checked(false).build(app)?;
             let privacy_check = CheckMenuItemBuilder::with_id("privacy_toggle", "Privacy Mode")
@@ -226,9 +231,9 @@ pub fn run() {
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
                     .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first])
                     .build()?;
-                MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &dev_sub, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &sleep_check, &privacy_check, &dev_sub, &quit]).build()?
             } else {
-                MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &sleep_check, &privacy_check, &quit]).build()?
             };
 
             // Clone items: one pair for the event handler, one pair for the schedule watcher.
@@ -246,6 +251,10 @@ pub fn run() {
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "quit" => app.exit(0),
+
+                        "open_dashboard" => {
+                            let _ = commands::do_open_dashboard(app);
+                        }
 
                         // Sleep and Privacy are mutually exclusive.
                         // Enabling one always disables the other.

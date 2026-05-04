@@ -414,6 +414,188 @@ pub fn dismiss_insight(
     crate::tray::update_tray(false, None, &app_handle);
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardDaySummary {
+    pub date: String,
+    pub focus_minutes: i64,
+    pub deep_minutes: i64,
+    pub spark_minutes: i64,
+    pub burn_minutes: i64,
+    pub calm_minutes: i64,
+    pub fade_minutes: i64,
+    pub total_active_minutes: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardInsight {
+    pub id: i64,
+    pub timestamp: i64,
+    pub state: String,
+    pub insight_text: String,
+    pub extended_text: String,
+    pub insight_type: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardData {
+    pub today_active_minutes: i64,
+    pub today_longest_focus_minutes: i64,
+    pub today_insight_count: i64,
+    pub days: Vec<DashboardDaySummary>,
+    pub recent_insights: Vec<DashboardInsight>,
+    pub longest_focus_ever_minutes: i64,
+    pub best_day_this_week_minutes: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CurrentStateInfo {
+    pub state: String,
+    pub state_entered_ms: Option<u64>,
+}
+
+fn today_start_ms() -> i64 {
+    use chrono::{Datelike, Local, TimeZone};
+    let now = Local::now();
+    Local
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+        .single()
+        .map(|dt| dt.timestamp_millis())
+        .unwrap_or_else(|| now.timestamp_millis())
+}
+
+fn today_date_str() -> String {
+    chrono::Local::now().format("%Y-%m-%d").to_string()
+}
+
+#[tauri::command]
+pub async fn get_dashboard_data(
+    pools: tauri::State<'_, DbPools>,
+) -> Result<DashboardData, String> {
+    use crate::storage::queries::{
+        get_best_day_this_week_minutes, get_daily_insight_count, get_daily_summary,
+        get_last_7_daily_summaries, get_longest_focus_block_ms, get_recent_insights,
+    };
+    let today_str = today_date_str();
+    let today_ms = today_start_ms();
+
+    let today = get_daily_summary(pools.read.as_ref(), &today_str)
+        .await
+        .map_err(|e| e.to_string())?;
+    let today_active_minutes = today.as_ref().map(|r| r.total_active_minutes).unwrap_or(0);
+    let today_longest_focus_minutes = today.as_ref().map(|r| r.longest_focus_block_minutes).unwrap_or(0);
+    let today_insight_count = get_daily_insight_count(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let days = get_last_7_daily_summaries(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|r| DashboardDaySummary {
+            date: r.date,
+            focus_minutes: r.focus_minutes,
+            deep_minutes: r.deep_minutes,
+            spark_minutes: r.spark_minutes,
+            burn_minutes: r.burn_minutes,
+            calm_minutes: r.calm_minutes,
+            fade_minutes: r.fade_minutes,
+            total_active_minutes: r.total_active_minutes,
+        })
+        .collect();
+
+    let recent_insights = get_recent_insights(pools.read.as_ref(), 20)
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|r| DashboardInsight {
+            id: r.id,
+            timestamp: r.timestamp,
+            state: r.state,
+            insight_text: r.insight_text,
+            extended_text: r.extended_text,
+            insight_type: r.insight_type,
+        })
+        .collect();
+
+    let longest_focus_ever_minutes = get_longest_focus_block_ms(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?
+        / 60_000;
+
+    let best_day_this_week_minutes = get_best_day_this_week_minutes(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(DashboardData {
+        today_active_minutes,
+        today_longest_focus_minutes,
+        today_insight_count,
+        days,
+        recent_insights,
+        longest_focus_ever_minutes,
+        best_day_this_week_minutes,
+    })
+}
+
+#[tauri::command]
+pub fn get_current_state_info(
+    state_machine: tauri::State<'_, Arc<Mutex<StateMachine>>>,
+) -> CurrentStateInfo {
+    let sm = state_machine.lock().unwrap();
+    CurrentStateInfo {
+        state: sm.current_state.as_str().to_string(),
+        state_entered_ms: sm.state_entered_ms,
+    }
+}
+
+pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY, MONITORINFO,
+        };
+        let scale = app
+            .get_webview_window("main")
+            .map(|w| w.scale_factor().unwrap_or(1.0))
+            .unwrap_or(1.0);
+        let hmon = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        let _ = GetMonitorInfoW(hmon, &mut info);
+        let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
+        let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        if let Some(dash) = app.get_webview_window("dashboard") {
+            dash.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
+                .map_err(|e| e.to_string())?;
+            dash.show().map_err(|e| e.to_string())?;
+            dash.set_focus().map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    if let Some(dash) = app.get_webview_window("dashboard") {
+        dash.show().map_err(|e| e.to_string())?;
+        dash.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_dashboard(app_handle: tauri::AppHandle) -> Result<(), String> {
+    do_open_dashboard(&app_handle)
+}
+
+#[tauri::command]
+pub fn close_dashboard(app_handle: tauri::AppHandle) {
+    if let Some(dash) = app_handle.get_webview_window("dashboard") {
+        let _ = dash.hide();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -474,5 +656,56 @@ mod tests {
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"days_since_first_session\":null"));
         assert!(json.contains("\"session_id\":null"));
+    }
+
+    #[test]
+    fn dashboard_day_summary_serializes() {
+        let d = DashboardDaySummary {
+            date: "2026-05-04".into(),
+            focus_minutes: 45,
+            deep_minutes: 30,
+            spark_minutes: 10,
+            burn_minutes: 5,
+            calm_minutes: 15,
+            fade_minutes: 5,
+            total_active_minutes: 110,
+        };
+        let json = serde_json::to_string(&d).unwrap();
+        assert!(json.contains("\"date\":\"2026-05-04\""));
+        assert!(json.contains("\"focus_minutes\":45"));
+        assert!(json.contains("\"total_active_minutes\":110"));
+    }
+
+    #[test]
+    fn current_state_info_serializes_with_entered_ms() {
+        let s = CurrentStateInfo {
+            state: "spark".into(),
+            state_entered_ms: Some(1_714_800_000_000),
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("\"state\":\"spark\""));
+        assert!(json.contains("\"state_entered_ms\":1714800000000"));
+    }
+
+    #[test]
+    fn current_state_info_serializes_none_entered_ms() {
+        let s = CurrentStateInfo {
+            state: "rest".into(),
+            state_entered_ms: None,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("\"state_entered_ms\":null"));
+    }
+
+    #[test]
+    fn today_start_ms_is_before_now() {
+        let start = today_start_ms();
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        assert!(start <= now_ms);
+        // midnight of today is at most 24 hours before now
+        assert!(now_ms - start < 86_400_000);
     }
 }
