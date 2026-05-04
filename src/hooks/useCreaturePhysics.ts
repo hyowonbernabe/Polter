@@ -590,12 +590,31 @@ export function useCreaturePhysics(): PhysicsOutput {
       cursorPosRef.current = { x: e.clientX, y: e.clientY };
       lastCursorRef.current = { pos: { x: e.clientX, y: e.clientY }, t: now };
     }
+
+    // Safety net: if pointerup fires anywhere on the window while dragging, end the drag.
+    // This catches the case where the user releases the button while the cursor is not
+    // over the creature element (e.g. after a fast drag where the spring lags behind).
+    function onWindowPointerUp(e: PointerEvent) {
+      if (e.button !== 0 || !isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setDragSquishR({ x: 1, y: 1 });
+      pointerHistoryRef.current = [];
+      invoke('set_drag_active', { active: false }).catch(() => {});
+      vel.current = {
+        x: clamp(vel.current.x, -900, 900),
+        y: clamp(vel.current.y, -900, 900),
+      };
+      transitionTo('thrown', 500);
+    }
+
     window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onWindowPointerUp);
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onWindowPointerUp);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
     };
@@ -651,6 +670,8 @@ export function useCreaturePhysics(): PhysicsOutput {
     isDraggingRef.current = true;
     dragOffsetRef.current = { x: clientX - pos.current.x, y: clientY - pos.current.y };
     pointerHistoryRef.current = [];
+    // Keep window fully interactive for the entire drag so pointerup is never swallowed
+    invoke('set_drag_active', { active: true }).catch(() => {});
     transitionTo('tether_grab');
     setDragSquishR({ x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y });
     setTimeout(() => setDragSquishR({ x: 1, y: 1 }), 150);
@@ -693,6 +714,8 @@ export function useCreaturePhysics(): PhysicsOutput {
     isDraggingRef.current = false;
     setDragSquishR({ x: 1, y: 1 });
     pointerHistoryRef.current = [];
+    // Restore normal cursor hit-testing now that the drag is over
+    invoke('set_drag_active', { active: false }).catch(() => {});
 
     // Spring velocity at release IS the throw velocity — already reflects the flick momentum.
     vel.current = {

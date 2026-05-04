@@ -48,6 +48,7 @@ pub fn run() {
 
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
     let bubble_bounds: commands::BubbleBoundsState = Arc::new(Mutex::new(None));
+    let drag_active: commands::DragActiveState = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let sleep_state: sleep::SleepState = Arc::new(Mutex::new(sleep::SleepStateInner::default()));
     let tray_dot: commands::TrayDotState = Arc::new(Mutex::new(false));
 
@@ -66,12 +67,14 @@ pub fn run() {
         ))
         .manage(bounds.clone())
         .manage(bubble_bounds.clone())
+        .manage(drag_active.clone())
         .manage(sleep_state.clone())
         .manage(tray_dot.clone())
         .invoke_handler(tauri::generate_handler![
             commands::get_debug_info,
             commands::get_work_area,
             commands::get_monitors,
+            commands::set_drag_active,
             commands::set_creature_bounds,
             commands::set_api_key,
             commands::get_api_key,
@@ -447,7 +450,7 @@ pub fn run() {
             }
 
             // Start the ~60fps click-through polling loop.
-            click_through::start(app.handle().clone(), bounds.clone(), bubble_bounds.clone());
+            click_through::start(app.handle().clone(), bounds.clone(), bubble_bounds.clone(), drag_active.clone());
 
             Ok(())
         })

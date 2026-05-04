@@ -1,5 +1,7 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 pub type TrayDotState = Arc<Mutex<bool>>;
+pub type DragActiveState = Arc<AtomicBool>;
 pub type BubbleBoundsState = Arc<Mutex<Option<crate::click_through::Rect>>>;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
@@ -129,6 +131,11 @@ pub async fn get_debug_info(
         cold_start,
         days_since_first_session,
     })
+}
+
+#[tauri::command]
+pub fn set_drag_active(active: bool, drag_active: tauri::State<'_, DragActiveState>) {
+    drag_active.store(active, Ordering::Relaxed);
 }
 
 #[tauri::command]

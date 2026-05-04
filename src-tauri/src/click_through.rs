@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
@@ -17,14 +18,19 @@ pub fn point_in_rect(px: f64, py: f64, r: &Rect) -> bool {
 /// Polls cursor position at ~60fps and toggles click-through on the main window.
 /// Captures events when the cursor is inside the creature bounds OR inside the
 /// bubble bounds (when a bubble is showing). Passes through otherwise.
+/// When `drag_active` is set, the window stays fully interactive regardless of
+/// cursor position — this prevents pointer-up from being lost during fast drags.
 pub fn start<R: Runtime>(
     app: AppHandle<R>,
     creature_bounds: Arc<Mutex<Rect>>,
     bubble_bounds: Arc<Mutex<Option<Rect>>>,
+    drag_active: Arc<AtomicBool>,
 ) {
     std::thread::spawn(move || loop {
-        let (cx, cy) = cursor_pos_screen();
-        let inside = {
+        let inside = if drag_active.load(Ordering::Relaxed) {
+            true
+        } else {
+            let (cx, cy) = cursor_pos_screen();
             let cb = creature_bounds.lock().unwrap();
             let bb = bubble_bounds.lock().unwrap();
             point_in_rect(cx, cy, &*cb)
