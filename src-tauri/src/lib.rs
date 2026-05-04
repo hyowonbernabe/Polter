@@ -6,6 +6,7 @@ pub mod sensors;
 pub mod session;
 pub mod settings;
 pub mod storage;
+pub mod tray;
 
 use classifier::{
     anomaly::AnomalyDetector,
@@ -183,7 +184,7 @@ pub fn run() {
             // System tray: icon + Quit.
             let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&quit]).build()?;
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| {

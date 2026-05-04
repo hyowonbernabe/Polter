@@ -236,10 +236,18 @@ pub fn start<R: tauri::Runtime>(
                     acc.on_state_change(state, window_end_ms);
                     acc.take_completed_focus_block_ms()
                 };
+                let state_str = state.as_str().to_string();
                 let _ = app_handle.emit("state_changed", StateChangedPayload {
-                    state: state.as_str().to_string(),
+                    state: state_str.clone(),
                     cold_start,
                 });
+                if let Some(tray) = app_handle.tray_by_id("main") {
+                    let (r, g, b) = crate::tray::state_to_tray_color(&state_str);
+                    let rgba = crate::tray::tray_icon_rgba(r, g, b);
+                    let icon = tauri::image::Image::new_owned(rgba, 32, 32);
+                    let _ = tray.set_icon(Some(icon));
+                    let _ = tray.set_tooltip(Some(&format!("Wisp — {state_str}")));
+                }
                 if let Some(block_ms) = completed_block_ms {
                     let prev_best_ms = crate::storage::queries::get_longest_focus_block_ms(
                         pools.read.as_ref(),
