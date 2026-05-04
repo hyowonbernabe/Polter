@@ -47,6 +47,7 @@ pub fn run() {
 
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
     let sleep_state: sleep::SleepState = Arc::new(Mutex::new(sleep::SleepStateInner::default()));
+    let tray_dot: commands::TrayDotState = Arc::new(Mutex::new(false));
 
     tauri::Builder::default()
         // Single instance MUST be first per architecture rules.
@@ -63,6 +64,7 @@ pub fn run() {
         ))
         .manage(bounds.clone())
         .manage(sleep_state.clone())
+        .manage(tray_dot.clone())
         .invoke_handler(tauri::generate_handler![
             commands::get_debug_info,
             commands::get_work_area,
@@ -76,6 +78,7 @@ pub fn run() {
             commands::toggle_sleep,
             commands::toggle_privacy,
             commands::set_sleep_schedule,
+            commands::dismiss_insight,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.

@@ -55,6 +55,7 @@ pub struct InsightReadyPayload {
     pub extended: String,
     #[serde(rename = "type")]
     pub insight_type: String,
+    pub is_first_ever: bool,
 }
 
 pub async fn maybe_trigger<R: tauri::Runtime>(
@@ -158,6 +159,11 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
         prior_occurrences: 0, // we'll do a post-call dedup check; pre-call count not needed
     };
 
+    // Check first-ever BEFORE inserting so we know if this will be insight #1
+    let is_first_ever = queries::get_total_insight_count(pools.read.as_ref())
+        .await
+        .unwrap_or(1) == 0;
+
     let system = prompt::build_system_prompt();
     let user = prompt::build_user_message(&ctx);
 
@@ -208,6 +214,8 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
             // Mark engine time
             engine.lock().unwrap().last_inference_ms = now_ms;
 
+            let insight_state_copy = insight.state.clone();
+
             let _ = app_handle.emit(
                 "insight_ready",
                 InsightReadyPayload {
@@ -215,8 +223,17 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
                     insight: insight.insight,
                     extended: insight.extended,
                     insight_type: insight.insight_type,
+                    is_first_ever,
                 },
             );
+
+            // Show tray dot — a pending bubble is waiting
+            if let Some(tray) = app_handle.tray_by_id("main") {
+                let (r, g, b) = crate::tray::state_to_tray_color(&insight_state_copy);
+                let rgba = crate::tray::tray_icon_rgba_with_dot(r, g, b, true);
+                let icon = tauri::image::Image::new_owned(rgba, 32, 32);
+                let _ = tray.set_icon(Some(icon));
+            }
 
             tracing::info!("[inference] insight emitted");
         }

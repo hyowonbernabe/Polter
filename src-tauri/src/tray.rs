@@ -32,6 +32,43 @@ pub fn tray_icon_rgba(r: u8, g: u8, b: u8) -> Vec<u8> {
     data
 }
 
+/// Same as tray_icon_rgba but draws a small white dot in the top-right corner
+/// to indicate a pending insight bubble.
+pub fn tray_icon_rgba_with_dot(r: u8, g: u8, b: u8, has_dot: bool) -> Vec<u8> {
+    let mut data = tray_icon_rgba(r, g, b);
+    if !has_dot {
+        return data;
+    }
+    const SIZE: u32 = 32;
+    const DOT_CX: f32 = 24.5;
+    const DOT_CY: f32 = 7.5;
+    const DOT_R: f32 = 4.5;
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            let dx = x as f32 + 0.5 - DOT_CX;
+            let dy = y as f32 + 0.5 - DOT_CY;
+            if (dx * dx + dy * dy).sqrt() <= DOT_R {
+                let idx = ((y * SIZE + x) * 4) as usize;
+                data[idx]     = 255;
+                data[idx + 1] = 255;
+                data[idx + 2] = 255;
+                data[idx + 3] = 255;
+            }
+        }
+    }
+    data
+}
+
+/// Re-renders the tray icon using the given state color, with or without the dot.
+pub fn update_tray(has_dot: bool, state_str: Option<&str>, app_handle: &tauri::AppHandle) {
+    let Some(tray) = app_handle.tray_by_id("main") else { return };
+    let state = state_str.unwrap_or("rest");
+    let (r, g, b) = state_to_tray_color(state);
+    let rgba = tray_icon_rgba_with_dot(r, g, b, has_dot);
+    let icon = tauri::image::Image::new_owned(rgba, 32, 32);
+    let _ = tray.set_icon(Some(icon));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,5 +117,30 @@ mod tests {
         assert_eq!(data[idx], r);
         assert_eq!(data[idx + 1], g);
         assert_eq!(data[idx + 2], b);
+    }
+
+    #[test]
+    fn dot_icon_differs_from_plain() {
+        let plain = tray_icon_rgba(107, 163, 214);
+        let dotted = tray_icon_rgba_with_dot(107, 163, 214, true);
+        assert_ne!(plain, dotted);
+    }
+
+    #[test]
+    fn no_dot_icon_equals_plain() {
+        let plain = tray_icon_rgba(107, 163, 214);
+        let no_dot = tray_icon_rgba_with_dot(107, 163, 214, false);
+        assert_eq!(plain, no_dot);
+    }
+
+    #[test]
+    fn dot_pixel_is_white() {
+        let data = tray_icon_rgba_with_dot(107, 163, 214, true);
+        // Pixel at (24, 7) should be white
+        let idx = (7 * 32 + 24) * 4;
+        assert_eq!(data[idx],     255);
+        assert_eq!(data[idx + 1], 255);
+        assert_eq!(data[idx + 2], 255);
+        assert_eq!(data[idx + 3], 255);
     }
 }

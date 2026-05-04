@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+pub type TrayDotState = Arc<Mutex<bool>>;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use crate::classifier::{daily_summary::DailySummaryAccumulator, state_machine::StateMachine};
@@ -369,6 +370,17 @@ pub async fn apply_sleep_change(
         .emit("sleep_changed", SleepChangedPayload { sleeping: new_sleeping, privacy: false })
         .map_err(|e| e.to_string())?;
     Ok(new_sleeping)
+}
+
+// ── Tray dot ─────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn dismiss_insight(
+    tray_dot: tauri::State<'_, TrayDotState>,
+    app_handle: tauri::AppHandle,
+) {
+    *tray_dot.lock().unwrap() = false;
+    crate::tray::update_tray(false, None, &app_handle);
 }
 
 #[cfg(test)]

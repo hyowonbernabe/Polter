@@ -382,6 +382,13 @@ pub async fn upsert_dedup_entry(
     Ok(())
 }
 
+pub async fn get_total_insight_count(pool: &DbReadPool) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM insights")
+        .fetch_one(pool)
+        .await?;
+    Ok(row.0)
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -669,5 +676,20 @@ mod tests {
         let now_ms: u64 = old_ms as u64 + 48 * 60 * 60 * 1_000 + 1;
         let count = get_dedup_count_48h(pools.read.as_ref(), "anomaly", now_ms).await.unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn get_total_insight_count_returns_zero_on_empty() {
+        let (pools, _dir) = temp_db().await;
+        let count = get_total_insight_count(pools.read.as_ref()).await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn get_total_insight_count_increments_after_insert() {
+        let (pools, _dir) = temp_db().await;
+        insert_insight(pools.write.as_ref(), 1_000, None, "focus", "a.", "b.", "anomaly").await.unwrap();
+        let count = get_total_insight_count(pools.read.as_ref()).await.unwrap();
+        assert_eq!(count, 1);
     }
 }
