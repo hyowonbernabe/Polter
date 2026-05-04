@@ -17,7 +17,7 @@ import {
 import wispPng from "../assets/sprites/wisp.png";
 import { onboarding as copy } from "../lib/dialogue";
 
-const STEPS = ["welcome", "tier1", "screen", "clipboard", "calendar", "summary"] as const;
+const STEPS = ["welcome", "tier1", "screen", "clipboard", "calendar", "ai_choice", "ai_provider", "ai_key", "summary"] as const;
 type Step = typeof STEPS[number];
 
 interface Choices {
@@ -99,6 +99,21 @@ const btnPrimary: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "inherit",
   width: "100%",
+  transition: "background 150ms ease",
+};
+
+const btnBack: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.09)",
+  borderRadius: 10,
+  padding: "11px 16px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.40)",
+  cursor: "pointer",
+  fontFamily: "inherit",
+  flexShrink: 0,
+  width: "auto",
   transition: "background 150ms ease",
 };
 
@@ -262,9 +277,46 @@ export default function Onboarding() {
   }>({ screen: null, clipboard: null, calendar: null });
   const [finishing, setFinishing] = useState(false);
 
+  // AI inference state
+  const [inferenceChoice, setInferenceChoice] = useState<"cloud" | "local" | "skip" | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeyError, setApiKeyError] = useState("");
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [apiKeySaving, setApiKeySaving] = useState(false);
+
   function next() {
+    if (step === "ai_choice") {
+      if (inferenceChoice === "cloud") { setStep("ai_provider"); return; }
+      // skip and local both go to summary (local shows dead-end inline, skip handled via button)
+      setStep("summary");
+      return;
+    }
+    if (step === "ai_key") { setStep("summary"); return; }
     const idx = STEPS.indexOf(step);
     if (idx < STEPS.length - 1) setStep(STEPS[idx + 1]);
+  }
+
+  function back() {
+    if (step === "ai_key") { setStep("ai_provider"); return; }
+    if (step === "ai_provider") { setStep("ai_choice"); return; }
+  }
+
+  async function handleSaveApiKey() {
+    const trimmed = apiKey.trim();
+    if (!trimmed.startsWith("sk-or-")) {
+      setApiKeyError("Key must start with sk-or-");
+      return;
+    }
+    setApiKeySaving(true);
+    setApiKeyError("");
+    try {
+      await invoke("set_api_key", { key: trimmed });
+      setApiKeySaved(true);
+    } catch {
+      setApiKeyError("Failed to save key. Please try again.");
+    } finally {
+      setApiKeySaving(false);
+    }
   }
 
   function dismiss() {
@@ -278,7 +330,8 @@ export default function Onboarding() {
         screen: choices.screen ?? false,
         clipboard: choices.clipboard ?? false,
         calendar: choices.calendar ?? false,
-      } satisfies Choices,
+        inference_provider: apiKeySaved ? "openrouter" : "skipped",
+      } satisfies Choices & { inference_provider: string },
     }).catch(console.error);
   }
 
@@ -419,6 +472,329 @@ export default function Onboarding() {
             );
           })()}
 
+          {/* ── AI Choice ── */}
+          {step === "ai_choice" && (
+            <>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 5 }}>
+                  how should wisp think?
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
+                  Wisp needs an AI to turn your behavioral patterns into insights. Choose how it should work.
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Cloud card */}
+                <button
+                  onClick={() => setInferenceChoice("cloud")}
+                  style={{
+                    background: inferenceChoice === "cloud" ? "rgba(107,163,214,0.12)" : "rgba(255,255,255,0.025)",
+                    border: `1px solid ${inferenceChoice === "cloud" ? "rgba(107,163,214,0.40)" : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "background 150ms ease, border-color 150ms ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>Cloud</div>
+                    <div style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      padding: "2px 7px",
+                      borderRadius: 4,
+                      background: "rgba(107,214,163,0.10)",
+                      border: "1px solid rgba(107,214,163,0.22)",
+                      color: "rgba(107,214,163,0.80)",
+                    }}>
+                      recommended
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.6, marginBottom: 8 }}>
+                    Fast and powerful. Uses OpenRouter to access frontier models — completely free to set up with your own API key.
+                    Wisp is designed to be lightweight, and local AI consumes too much RAM and CPU for a passive background app.
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,160,60,0.50)", lineHeight: 1.55, display: "flex", gap: 6, alignItems: "flex-start" }}>
+                    <AlertTriangle size={11} strokeWidth={1.8} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>
+                      This is the only part of Wisp that leaves your device. What's sent is a plain-language behavioral description — no raw input, no content, no personal identifiers.
+                    </span>
+                  </div>
+                </button>
+
+                {/* Local card — coming soon */}
+                <button
+                  onClick={() => setInferenceChoice("local")}
+                  style={{
+                    background: inferenceChoice === "local" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.015)",
+                    border: `1px solid ${inferenceChoice === "local" ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.06)"}`,
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    opacity: 0.6,
+                    transition: "background 150ms ease, border-color 150ms ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.70)" }}>Local</div>
+                    <div style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      padding: "2px 7px",
+                      borderRadius: 4,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.35)",
+                    }}>
+                      coming soon
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", lineHeight: 1.6 }}>
+                    Fully private — nothing ever leaves your device. Requires Ollama running locally.
+                  </div>
+                </button>
+              </div>
+
+              {/* Local dead-end message */}
+              {inferenceChoice === "local" && (
+                <div style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.38)",
+                  lineHeight: 1.6,
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.025)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 9,
+                }}>
+                  Local inference via Ollama is on our roadmap. For now, you can skip AI entirely or use Cloud.
+                </div>
+              )}
+
+              {/* Skip link */}
+              <button
+                onClick={() => { setInferenceChoice("skip"); setStep("summary"); }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.28)",
+                  fontFamily: "inherit",
+                  padding: 0,
+                  textAlign: "center",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Skip for now — Wisp will still track your state, just won't generate insights
+              </button>
+
+              {/* Continue button — only visible when Cloud is selected */}
+              {inferenceChoice === "cloud" && (
+                <button style={btnPrimary} onClick={next}>
+                  Continue &rarr;
+                </button>
+              )}
+            </>
+          )}
+
+          {/* ── AI Provider ── */}
+          {step === "ai_provider" && (
+            <>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 5 }}>
+                  choose a provider
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
+                  Your API key stays on your device. Wisp sends a short plain-text description — never raw data.
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* OpenRouter — real option, pre-selected */}
+                <div style={{
+                  background: "rgba(107,163,214,0.12)",
+                  border: "1px solid rgba(107,163,214,0.40)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>OpenRouter</div>
+                    <div style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      padding: "2px 7px",
+                      borderRadius: 4,
+                      background: "rgba(107,163,214,0.14)",
+                      border: "1px solid rgba(107,163,214,0.30)",
+                      color: "rgba(107,163,214,0.85)",
+                    }}>
+                      selected
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.6 }}>
+                    Access to GPT-4o, Claude, Gemini, and more. Free API key, pay only for what you use.
+                  </div>
+                </div>
+
+                {/* Anthropic Direct — stub */}
+                <div style={{
+                  background: "rgba(255,255,255,0.015)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  opacity: 0.45,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.55)" }}>Anthropic Direct</div>
+                  <div style={{
+                    fontSize: 10,
+                    padding: "2px 7px",
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    color: "rgba(255,255,255,0.30)",
+                  }}>
+                    coming soon
+                  </div>
+                </div>
+
+                {/* Google AI Studio — stub */}
+                <div style={{
+                  background: "rgba(255,255,255,0.015)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  opacity: 0.45,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.55)" }}>Google AI Studio</div>
+                  <div style={{
+                    fontSize: 10,
+                    padding: "2px 7px",
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    color: "rgba(255,255,255,0.30)",
+                  }}>
+                    coming soon
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={back} style={btnBack}>← Back</button>
+                <button style={{ ...btnPrimary, flex: 1, width: "auto" }} onClick={next}>
+                  Use OpenRouter &rarr;
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── AI Key ── */}
+          {step === "ai_key" && (
+            <>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 5 }}>
+                  add your openrouter key
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
+                  Paste your key below. Wisp will start generating insights as soon as it has enough data.
+                </div>
+              </div>
+
+              {apiKeySaved ? (
+                <div style={{
+                  background: "rgba(107,214,163,0.07)",
+                  border: "1px solid rgba(107,214,163,0.22)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                }}>
+                  <Check size={14} strokeWidth={2} style={{ color: "rgba(107,214,163,0.80)", flexShrink: 0 }} />
+                  <div style={{ fontSize: 12, color: "rgba(107,214,163,0.80)" }}>Key saved securely.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="password"
+                      placeholder="sk-or-…"
+                      value={apiKey}
+                      onChange={(e) => { setApiKey(e.target.value); setApiKeyError(""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && apiKey.trim()) handleSaveApiKey(); }}
+                      style={{
+                        flex: 1,
+                        background: "rgba(255,255,255,0.06)",
+                        border: `1px solid ${apiKeyError ? "rgba(204,68,0,0.50)" : "rgba(255,255,255,0.12)"}`,
+                        borderRadius: 8,
+                        padding: "9px 12px",
+                        fontSize: 12,
+                        color: "rgba(255,255,255,0.85)",
+                        fontFamily: "monospace",
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={handleSaveApiKey}
+                      disabled={!apiKey.trim() || apiKeySaving}
+                      style={{
+                        background: apiKey.trim() ? "rgba(107,163,214,0.18)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${apiKey.trim() ? "rgba(107,163,214,0.40)" : "rgba(255,255,255,0.09)"}`,
+                        borderRadius: 8,
+                        padding: "9px 14px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: apiKey.trim() ? "rgba(107,163,214,0.90)" : "rgba(255,255,255,0.25)",
+                        cursor: apiKey.trim() ? "pointer" : "default",
+                        fontFamily: "inherit",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {apiKeySaving ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                  {apiKeyError && (
+                    <div style={{ fontSize: 11, color: "rgba(204,68,0,0.85)" }}>{apiKeyError}</div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", lineHeight: 1.6 }}>
+                Your key is stored only in Windows Credential Manager on this device. Wisp never transmits it, never logs it, never sees it after you save it.{" "}
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "rgba(107,163,214,0.55)", textDecoration: "underline", textUnderlineOffset: 2 }}
+                >
+                  Get a free API key →
+                </a>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={back} style={btnBack}>← Back</button>
+                <button
+                  style={{ ...btnPrimary, flex: 1, width: "auto" }}
+                  onClick={() => setStep("summary")}
+                >
+                  {apiKeySaved ? "Continue →" : "Skip for now →"}
+                </button>
+              </div>
+            </>
+          )}
+
           {/* ── Summary ── */}
           {step === "summary" && (
             <>
@@ -461,6 +837,21 @@ export default function Onboarding() {
                     </span>
                   </div>
                 ))}
+                {/* AI inference row */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 8 }}>
+                  <div style={{ color: "rgba(255,255,255,0.52)" }}>AI insights</div>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: apiKeySaved ? "rgba(107,214,163,0.80)" : "rgba(255,255,255,0.22)",
+                    background: apiKeySaved ? "rgba(107,214,163,0.07)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${apiKeySaved ? "rgba(107,214,163,0.16)" : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: 5,
+                    padding: "2px 8px",
+                  }}>
+                    {apiKeySaved ? "Cloud" : inferenceChoice === "skip" || inferenceChoice === null ? "Off" : "Off"}
+                  </span>
+                </div>
                 <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 10, fontSize: 10, color: "rgba(255,255,255,0.18)", fontStyle: "italic" }}>
                   <Lock size={10} strokeWidth={1.8} />
                   {s.settingsNote}
