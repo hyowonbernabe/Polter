@@ -144,11 +144,25 @@ pub fn run() {
                 let pools_wake = pools.clone();
                 let sid_wake = session_id.clone();
                 let summary_wake = summary_acc.clone();
+                let app_wake = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     loop {
                         wake_signal.notified().await;
+                        let now_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+                        let last_end = crate::storage::queries::get_last_session_end_ms(
+                            pools_wake.read.as_ref(),
+                        ).await.ok().flatten();
                         let _ = session::handle_wake(&pools_wake, &sid_wake).await;
                         session::finalize_session(&pools_wake, &summary_wake).await;
+                        let is_returning = last_end.map_or(false, |end| {
+                            now_ms.saturating_sub(end as u64) >= 4 * 60 * 60 * 1_000
+                        });
+                        if is_returning {
+                            let _ = app_wake.emit("returning_user", ());
+                        }
                     }
                 });
             }

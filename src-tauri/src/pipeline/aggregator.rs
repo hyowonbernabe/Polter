@@ -228,13 +228,26 @@ pub fn start<R: tauri::Runtime>(
 
             let z = compute_z_scores(&snap, AGGREGATION_SECS as f64, &baselines);
 
-            if let Some(state) = state_machine.lock().unwrap().update(&z, window_end_ms) {
+            let state_opt = state_machine.lock().unwrap().update(&z, window_end_ms);
+            if let Some(state) = state_opt {
                 tracing::info!("[classifier] state committed: {:?}", state);
-                summary_acc.lock().unwrap().on_state_change(state, window_end_ms);
+                let completed_block_ms = {
+                    let mut acc = summary_acc.lock().unwrap();
+                    acc.on_state_change(state, window_end_ms);
+                    acc.take_completed_focus_block_ms()
+                };
                 let _ = app_handle.emit("state_changed", StateChangedPayload {
                     state: state.as_str().to_string(),
                     cold_start,
                 });
+                if let Some(block_ms) = completed_block_ms {
+                    let prev_best_ms = crate::storage::queries::get_longest_focus_block_ms(
+                        pools.read.as_ref(),
+                    ).await.unwrap_or(0) as u64;
+                    if block_ms > prev_best_ms {
+                        let _ = app_handle.emit("best_session", ());
+                    }
+                }
             }
 
             let anomalies = anomaly_detector.lock().unwrap().check(&z, window_end_ms, cold_start);
