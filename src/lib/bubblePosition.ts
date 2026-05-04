@@ -7,12 +7,6 @@ export interface MonitorInfo {
 
 export type TailSide = 'top' | 'bottom';
 
-export interface BubblePosition {
-  x: number;
-  y: number;
-  tailSide: TailSide;
-}
-
 const GAP = 12;
 
 function nearestMonitor(cx: number, cy: number, monitors: MonitorInfo[]): MonitorInfo {
@@ -32,13 +26,21 @@ function nearestMonitor(cx: number, cy: number, monitors: MonitorInfo[]): Monito
   return best;
 }
 
+export interface BubblePosition {
+  x: number;
+  /** For tailSide 'bottom': CSS `bottom` offset (anchors bubble bottom edge near wisp).
+   *  For tailSide 'top':    CSS `top` offset (anchors bubble top edge near wisp). */
+  y: number;
+  tailSide: TailSide;
+}
+
 export function getBubblePosition(
   creatureX: number,
   creatureY: number,
   spriteSize: number,
   monitors: MonitorInfo[],
   bubbleW: number,
-  bubbleH: number,
+  viewportH: number,
 ): BubblePosition {
   const cx = creatureX + spriteSize / 2;
   const cy = creatureY + spriteSize / 2;
@@ -52,15 +54,18 @@ export function getBubblePosition(
   let tailSide: TailSide;
 
   if (aboveCreature) {
-    y = creatureY - bubbleH - GAP;
+    // Anchor bubble's bottom edge to just above the creature.
+    // y = CSS `bottom` value: distance from viewport bottom to bubble bottom edge.
+    y = viewportH - creatureY + GAP;
     tailSide = 'bottom';
   } else {
+    // Anchor bubble's top edge to just below the creature.
+    // y = CSS `top` value.
     y = creatureY + spriteSize + GAP;
     tailSide = 'top';
   }
 
   x = Math.max(mon.x, Math.min(x, mon.x + mon.width - bubbleW));
-  y = Math.max(mon.y, Math.min(y, mon.y + mon.height - bubbleH));
 
   return { x, y, tailSide };
 }

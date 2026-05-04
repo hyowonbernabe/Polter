@@ -71,12 +71,16 @@ export default function InsightBubble({
     return () => { invoke('clear_bubble_bounds'); };
   }, [x, y, isExpanded]);
 
+  const posStyle: React.CSSProperties = tailSide === 'bottom'
+    ? { bottom: y }
+    : { top: y };
+
   return (
     <div
       style={{
         position: 'fixed',
         left: x,
-        top: y,
+        ...posStyle,
         width: BUBBLE_W,
         zIndex: 9000,
         background: BG,
