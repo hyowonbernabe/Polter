@@ -84,7 +84,7 @@ export default function InsightBubble({
         WebkitBackdropFilter: 'blur(16px)',
         border: BORDER,
         borderRadius: 14,
-        padding: '14px 16px 12px',
+        padding: '14px 16px 8px',
         boxShadow: `0 8px 32px rgba(0,0,0,0.5)${isFirstEver ? ', 0 0 40px rgba(180,160,255,0.25)' : ''}`,
         color: 'rgba(255,255,255,0.90)',
         fontFamily: 'system-ui, -apple-system, sans-serif',
