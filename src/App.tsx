@@ -19,6 +19,13 @@ interface SleepChangedPayload {
   privacy: boolean;
 }
 
+export interface InsightPayload {
+  state: string;
+  insight: string;
+  extended: string;
+  type: string;
+}
+
 export default function App() {
   const [wispState, setWispState] = useState<WispState>("rest");
   const [coldStart, setColdStart] = useState(true);
@@ -28,6 +35,8 @@ export default function App() {
   const [sleeping, setSleeping] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [showWake, setShowWake] = useState(false);
+  const [inferenceMode, setInferenceMode] = useState<"cloud" | "unavailable">("unavailable");
+  const [pendingInsight, setPendingInsight] = useState<InsightPayload | null>(null);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,6 +90,13 @@ export default function App() {
     const unlistenWake = listen("wake_animation", () => {
       setShowWake(true);
     });
+    const unlistenInferenceMode = listen<string>("inference_mode_changed", (event) => {
+      setInferenceMode(event.payload as "cloud" | "unavailable");
+    });
+    const unlistenInsight = listen<InsightPayload>("insight_ready", (event) => {
+      console.log("[wisp] insight received:", event.payload.type);
+      setPendingInsight(event.payload);
+    });
     return () => {
       unlistenReady.then((f) => f());
       unlistenState.then((f) => f());
@@ -88,6 +104,8 @@ export default function App() {
       unlistenBest.then((f) => f());
       unlistenSleep.then((f) => f());
       unlistenWake.then((f) => f());
+      unlistenInferenceMode.then((f) => f());
+      unlistenInsight.then((f) => f());
     };
   }, []);
 

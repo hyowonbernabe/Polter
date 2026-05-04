@@ -1,6 +1,7 @@
 pub mod classifier;
 mod click_through;
 mod commands;
+pub mod inference;
 pub mod pipeline;
 pub mod sensors;
 pub mod session;
@@ -112,9 +113,12 @@ pub fn run() {
                 Arc::new(Mutex::new(AnomalyDetector::new()));
             let summary_acc: Arc<Mutex<DailySummaryAccumulator>> =
                 Arc::new(Mutex::new(DailySummaryAccumulator::new(now_setup_ms)));
+            let inference_engine: Arc<Mutex<inference::InferenceEngine>> =
+                Arc::new(Mutex::new(inference::InferenceEngine::new()));
             app.manage(state_machine.clone());
             app.manage(anomaly_detector.clone());
             app.manage(summary_acc.clone());
+            app.manage(inference_engine.clone());
 
             // Start the first session.
             {
@@ -143,6 +147,7 @@ pub fn run() {
                 anomaly_detector.clone(),
                 summary_acc.clone(),
                 sleep_state.clone(),
+                inference_engine.clone(),
             );
 
             // Start inactivity watcher (ends session after 10 min idle).
@@ -156,6 +161,7 @@ pub fn run() {
                 let sid_wake = session_id.clone();
                 let summary_wake = summary_acc.clone();
                 let app_wake = app.handle().clone();
+                let inf_wake = inference_engine.clone();
                 tauri::async_runtime::spawn(async move {
                     loop {
                         wake_signal.notified().await;
@@ -168,6 +174,7 @@ pub fn run() {
                         ).await.ok().flatten();
                         let _ = session::handle_wake(&pools_wake, &sid_wake).await;
                         session::finalize_session(&pools_wake, &summary_wake).await;
+                        inf_wake.lock().unwrap().reset_session();
                         let is_returning = last_end.map_or(false, |end| {
                             now_ms.saturating_sub(end as u64) >= 4 * 60 * 60 * 1_000
                         });
@@ -190,6 +197,10 @@ pub fn run() {
             app.emit("wisp_ready", commands::WispReadyPayload {
                 version: app.package_info().version.to_string(),
             })?;
+
+            // Emit initial inference mode: "cloud" if API key set, otherwise "unavailable".
+            let initial_mode = if settings::has_api_key() { "cloud" } else { "unavailable" };
+            app.emit("inference_mode_changed", initial_mode)?;
 
             // System tray: Sleep · Privacy Mode · Quit.
             // CheckMenuItems show a checkmark when active.

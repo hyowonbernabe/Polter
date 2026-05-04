@@ -39,6 +39,10 @@ pub async fn init(db_path: &str) -> Result<DbPools, sqlx::Error> {
         .execute(&write)
         .await?;
 
+    sqlx::raw_sql(include_str!("../../migrations/003_group6.sql"))
+        .execute(&write)
+        .await?;
+
     Ok(DbPools {
         write: Arc::new(write),
         read: Arc::new(read),
@@ -102,6 +106,26 @@ mod tests {
     async fn daily_summaries_table_exists() {
         let (pools, _dir) = temp_db().await;
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM daily_summaries")
+            .fetch_one(pools.read.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(row.0, 0);
+    }
+
+    #[tokio::test]
+    async fn insights_table_exists() {
+        let (pools, _dir) = temp_db().await;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM insights")
+            .fetch_one(pools.read.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(row.0, 0);
+    }
+
+    #[tokio::test]
+    async fn insight_dedup_log_table_exists() {
+        let (pools, _dir) = temp_db().await;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM insight_dedup_log")
             .fetch_one(pools.read.as_ref())
             .await
             .unwrap();

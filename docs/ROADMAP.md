@@ -87,16 +87,16 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 6 — AI Inference
 *The app has something to say.*
 
-- [ ] Ollama detected on startup — app checks whether it is running locally
-- [ ] Local inference working — app sends a prompt to Ollama and receives a valid response
-- [ ] OpenRouter integration working — app falls back to cloud when Ollama is unavailable
-- [ ] Inference mode state tracked — local, cloud, or unavailable — re-checked every 60 seconds
-- [ ] Inference trigger logic — fires on behavioral state change and on a time floor, never on less than 5 minutes of active data
-- [ ] Prompt construction — behavioral features described in natural language, not raw numbers
-- [ ] Response parsed and validated — state label and insight text extracted from structured output
-- [ ] Malformed or failed responses handled gracefully — no crash, no data loss
-- [ ] Cloud inference consent — user is informed the first time behavioral data leaves the device via OpenRouter
-- [ ] No-AI indicator visible — when inference is unavailable, this is clearly communicated on hover and in tray
+- [ ] Ollama detected on startup — app checks whether it is running locally *(deferred — OpenRouter only for now)*
+- [ ] Local inference working — app sends a prompt to Ollama and receives a valid response *(deferred)*
+- [x] OpenRouter integration working — HTTP client with 10s timeout, JSON response, model configurable via DEFAULT_MODEL constant
+- [x] Inference mode state tracked — "cloud" or "unavailable" emitted on startup via `inference_mode_changed` event
+- [x] Inference trigger logic — fires on state transition, anomaly, or 90-min floor; guards: cold start, sleep/privacy, 5-min active floor, 3/day cap, dedup
+- [x] Prompt construction — behavioral features described in natural language (z-scores converted to plain language deviations)
+- [x] Response parsed and validated — state label, insight text, extended text, and type extracted from structured JSON output; all 10 valid types enforced
+- [x] Malformed or failed responses handled gracefully — silently logged, no crash, no data loss
+- [ ] Cloud inference consent — user is informed the first time behavioral data leaves the device via OpenRouter *(pending — Settings UI in Group 9)*
+- [ ] No-AI indicator visible — when inference is unavailable, this is clearly communicated on hover and in tray *(pending — UI in Group 7/9)*
 
 ---
 
@@ -212,7 +212,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 3 | Baseline and State Machine | Complete ✅ |
 | 4 | Creature Comes Alive | Complete ✅ |
 | 5 | Core Controls | Complete ✅ |
-| 6 | AI Inference | Not started |
+| 6 | AI Inference | In Progress (6/10 complete — Ollama + consent UI + no-AI indicator deferred) |
 | 7 | Chat Bubbles | Not started |
 | 8 | Dashboard | Not started |
 | 9 | Settings | Not started |

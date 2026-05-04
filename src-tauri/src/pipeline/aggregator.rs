@@ -168,6 +168,7 @@ pub fn start<R: tauri::Runtime>(
     anomaly_detector: Arc<Mutex<AnomalyDetector>>,
     summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
     sleep_state: crate::sleep::SleepState,
+    inference_engine: Arc<Mutex<crate::inference::InferenceEngine>>,
 ) {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     tauri::async_runtime::spawn(async move {
@@ -211,6 +212,11 @@ pub fn start<R: tauri::Runtime>(
 
             let has_activity = !events.is_empty();
             let _ = app_handle.emit("activity_pulse", ActivityPulsePayload { has_activity });
+
+            // Track active time for inference floor guard.
+            if has_activity {
+                inference_engine.lock().unwrap().tick_active(AGGREGATION_SECS);
+            }
 
             let snap = compute_snapshot(&events, &sys, sid, window_end_ms, AGGREGATION_SECS as f64);
 
@@ -270,6 +276,28 @@ pub fn start<R: tauri::Runtime>(
             for a in &anomalies {
                 tracing::info!("[classifier] anomaly: {} {:?}", a.signal, a.direction);
             }
+
+            // ── Inference trigger ─────────────────────────────────────────────
+            let trigger_kind = if state_opt.is_some() {
+                // Record when the new state was committed so duration is meaningful.
+                inference_engine.lock().unwrap().on_state_committed(window_end_ms);
+                crate::inference::trigger::TriggerKind::StateTransition
+            } else if !anomalies.is_empty() {
+                crate::inference::trigger::TriggerKind::Anomaly
+            } else {
+                crate::inference::trigger::TriggerKind::TimerFloor
+            };
+
+            crate::inference::trigger::maybe_trigger(
+                inference_engine.clone(),
+                trigger_kind,
+                &z,
+                state_machine.clone(),
+                cold_start,
+                &sleep_state,
+                &pools,
+                &app_handle,
+            ).await;
         }
     });
 }

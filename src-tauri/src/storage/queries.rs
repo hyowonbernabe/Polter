@@ -299,6 +299,91 @@ pub async fn get_longest_focus_block_ms(pool: &DbReadPool) -> Result<i64, sqlx::
     Ok(row.0.unwrap_or(0) * 60_000)
 }
 
+// ── Insights ──────────────────────────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+pub async fn insert_insight(
+    pool: &DbWritePool,
+    timestamp_ms: i64,
+    session_id: Option<i64>,
+    state: &str,
+    insight_text: &str,
+    extended_text: &str,
+    insight_type: &str,
+) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as(
+        r#"INSERT INTO insights
+               (timestamp, session_id, state, insight_text, extended_text, insight_type)
+           VALUES (?, ?, ?, ?, ?, ?) RETURNING id"#,
+    )
+    .bind(timestamp_ms)
+    .bind(session_id)
+    .bind(state)
+    .bind(insight_text)
+    .bind(extended_text)
+    .bind(insight_type)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0)
+}
+
+pub async fn get_daily_insight_count(
+    pool: &DbReadPool,
+    day_start_ms: i64,
+) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM insights WHERE timestamp >= ?",
+    )
+    .bind(day_start_ms)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0)
+}
+
+pub async fn get_dedup_count_48h(
+    pool: &DbReadPool,
+    insight_type: &str,
+    now_ms: u64,
+) -> Result<i64, sqlx::Error> {
+    let cutoff = now_ms.saturating_sub(48 * 60 * 60 * 1_000) as i64;
+    let row: Option<(i64, i64)> = sqlx::query_as(
+        "SELECT count_in_48h, last_seen_ms FROM insight_dedup_log WHERE insight_type = ?",
+    )
+    .bind(insight_type)
+    .fetch_optional(pool)
+    .await?;
+    Ok(match row {
+        Some((count, last_seen)) if last_seen >= cutoff => count,
+        _ => 0,
+    })
+}
+
+pub async fn upsert_dedup_entry(
+    pool: &DbWritePool,
+    insight_type: &str,
+    now_ms: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO insight_dedup_log (insight_type, last_seen_ms, count_in_48h)
+           VALUES (?, ?, 1)
+           ON CONFLICT(insight_type) DO UPDATE SET
+               count_in_48h = CASE
+                   WHEN (? - last_seen_ms) >= 172800000 THEN 1
+                   ELSE count_in_48h + 1
+               END,
+               last_seen_ms = ?"#,
+    )
+    .bind(insight_type)
+    .bind(now_ms)
+    .bind(now_ms)
+    .bind(now_ms)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -535,5 +620,54 @@ mod tests {
         // MAX(20, 35) = 35 minutes = 35 * 60_000 = 2_100_000 ms
         let result = get_longest_focus_block_ms(pools.read.as_ref()).await.unwrap();
         assert_eq!(result, 2_100_000);
+    }
+
+    #[tokio::test]
+    async fn insert_insight_and_daily_count() {
+        let (pools, _dir) = temp_db().await;
+        insert_insight(pools.write.as_ref(), 1_000_000, None, "focus", "something noticed.", "more detail.", "flow_detection")
+            .await.unwrap();
+        insert_insight(pools.write.as_ref(), 2_000_000, None, "burn", "another observation.", "even more.", "fatigue_signal")
+            .await.unwrap();
+        let count = get_daily_insight_count(pools.read.as_ref(), 0).await.unwrap();
+        assert_eq!(count, 2);
+        // Only count from after the first insight
+        let count2 = get_daily_insight_count(pools.read.as_ref(), 1_500_000).await.unwrap();
+        assert_eq!(count2, 1);
+    }
+
+    #[tokio::test]
+    async fn dedup_count_zero_on_fresh() {
+        let (pools, _dir) = temp_db().await;
+        let count = get_dedup_count_48h(pools.read.as_ref(), "flow_detection", 1_000_000)
+            .await.unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn upsert_dedup_increments_count() {
+        let (pools, _dir) = temp_db().await;
+        let now_ms: u64 = 1_000_000_000;
+        upsert_dedup_entry(pools.write.as_ref(), "flow_detection", now_ms as i64).await.unwrap();
+        let count = get_dedup_count_48h(pools.read.as_ref(), "flow_detection", now_ms).await.unwrap();
+        assert_eq!(count, 1);
+
+        // Second occurrence
+        let later = now_ms + 3600_000; // 1 hour later
+        upsert_dedup_entry(pools.write.as_ref(), "flow_detection", later as i64).await.unwrap();
+        let count2 = get_dedup_count_48h(pools.read.as_ref(), "flow_detection", later).await.unwrap();
+        assert_eq!(count2, 2);
+    }
+
+    #[tokio::test]
+    async fn dedup_count_resets_after_48h() {
+        let (pools, _dir) = temp_db().await;
+        let old_ms: i64 = 1_000_000;
+        upsert_dedup_entry(pools.write.as_ref(), "anomaly", old_ms).await.unwrap();
+        upsert_dedup_entry(pools.write.as_ref(), "anomaly", old_ms).await.unwrap();
+        // Query from 48h + 1ms later — count should reset
+        let now_ms: u64 = old_ms as u64 + 48 * 60 * 60 * 1_000 + 1;
+        let count = get_dedup_count_48h(pools.read.as_ref(), "anomaly", now_ms).await.unwrap();
+        assert_eq!(count, 0);
     }
 }
