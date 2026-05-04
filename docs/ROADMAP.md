@@ -59,17 +59,17 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 4 — Creature Comes Alive
 *The core product loop is complete. The creature reflects real behavior.*
 
-- [ ] All 7 sprite states render and are wired to state machine output
-- [ ] Breathing animation runs continuously
-- [ ] State transitions crossfade — no snapping between states
-- [ ] Glow and bloom effect renders and matches current state color
-- [ ] Creature dims during idle periods and sharpens when activity resumes
-- [ ] "Still learning" visual — distinct appearance shown during cold start period
-- [ ] Returning user animation — creature reacts when user comes back after a long absence
-- [ ] Extended burn distress — creature shows visible strain after 90+ consecutive minutes in burn state
-- [ ] Best session recognition — creature briefly brightens when a personal focus record is broken
-- [ ] System tray icon color reflects current creature state
-- [ ] System tray tooltip shows current state label on hover
+- [x] All 7 sprite states render and are wired to state machine output
+- [x] Breathing animation runs continuously
+- [x] State transitions crossfade — no snapping between states
+- [x] Glow and bloom effect renders and matches current state color
+- [x] Creature dims during idle periods and sharpens when activity resumes
+- [x] "Still learning" visual — distinct appearance shown during cold start period
+- [x] Returning user animation — creature reacts when user comes back after a long absence
+- [x] Extended burn distress — creature shows visible strain after 90+ consecutive minutes in burn state
+- [x] Best session recognition — creature briefly brightens when a personal focus record is broken
+- [x] System tray icon color reflects current creature state
+- [x] System tray tooltip shows current state label on hover
 
 ---
 
@@ -209,8 +209,8 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 |---|---|---|
 | 1 | Foundation | Complete ✅ |
 | 2 | Data Pipeline | In Progress (12/13 complete — display brightness + audio device state deferred) |
-| 3 | Baseline and State Machine | Not started |
-| 4 | Creature Comes Alive | Not started |
+| 3 | Baseline and State Machine | Complete ✅ |
+| 4 | Creature Comes Alive | Complete ✅ |
 | 5 | Core Controls | Not started |
 | 6 | AI Inference | Not started |
 | 7 | Chat Bubbles | Not started |

@@ -6,13 +6,7 @@ This document is a parking lot for unresolved decisions. Questions get resolved 
 
 ## Open Questions
 
-### Q46 — Debug overlay needs classifier state (Group 4 task)
-
-`get_debug_info` (commands.rs) was written in Group 2 and has no visibility into classifier state after Group 3. It currently shows sensor and snapshot data but cannot report the current `WispState`, whether cold start is active, or how many days until the personal baseline activates.
-
-**Where to add it:** Extend `DebugInfo` in `commands.rs` with fields: `current_state: String`, `cold_start: bool`, `days_since_first_session: Option<i64>`. Read `StateMachine` from Tauri managed state (`State<Arc<Mutex<StateMachine>>>`), and call `get_first_session_ms` to compute days elapsed. The `DebugOverlay.tsx` component was removed in Group 3 Task 0 — if the overlay is resurrected for Group 4 debugging, wire these fields there.
-
-**Why deferred:** The debug overlay was removed as part of Group 3 cleanup. The correct time to add classifier visibility is when Group 4 begins using state to drive creature animations, at which point live state inspection becomes actively useful for debugging visual behavior.
+*No open questions.*
 
 ---
 
@@ -67,3 +61,4 @@ All of the following were answered during the architecture brainstorming session
 | Q43 | Anomaly definition | 1.96 SD (95th percentile) on log-transformed metric values vs personal baseline, sustained 5 minutes. |
 | Q44 | Screen edge snapping | 20px snap zone, drag only. Corner snap if within 20px of both edges. |
 | Q45 | Audio system | Web Audio API, bundled files, opt-out (on by default). convertFileSrc + asset:// protocol for production builds. CSP must allow media-src asset:. |
+| Q46 | Debug overlay classifier state | Extended `DebugInfo` in `commands.rs` with `current_state: String`, `cold_start: bool`, `days_since_first_session: Option<i64>`. Reads `StateMachine` from Tauri managed state and calls `get_first_session_ms` for days elapsed. Implemented in Group 4. |
