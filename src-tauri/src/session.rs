@@ -1,7 +1,7 @@
 use crate::classifier::{
     baseline::update_baseline,
     daily_summary::DailySummaryAccumulator,
-    local_time_parts, time_of_day_bucket, today_date_str,
+    local_date_and_time, time_of_day_bucket,
 };
 use crate::pipeline::ring_buffer::RingBuffer;
 use crate::storage::DbPools;
@@ -55,7 +55,9 @@ pub async fn finalize_session(
     summary_acc: &Arc<Mutex<DailySummaryAccumulator>>,
 ) {
     let now = now_ms() as u64;
-    let date = today_date_str();
+    // Single syscall for both the date string and the time-bucket values.
+    let (date, hour, dow) = local_date_and_time();
+    let tod_bucket = time_of_day_bucket(hour);
 
     // Extract all data while holding the lock, then release before any await.
     let (write_params, daily_avgs) = {
@@ -74,9 +76,6 @@ pub async fn finalize_session(
         tracing::error!("[session] daily summary write failed: {e}");
     }
 
-    let (hour, dow) = local_time_parts();
-    let tod_bucket = time_of_day_bucket(hour);
-
     let already = crate::classifier::baseline::already_updated_today(
         pools.read.as_ref(), tod_bucket, dow as i32,
     ).await.unwrap_or(false);
@@ -90,6 +89,10 @@ pub async fn finalize_session(
             Err(e) => tracing::error!("[session] baseline update failed: {e}"),
         }
     }
+
+    // Reset accumulator so the next session starts clean.
+    let new_start = now_ms() as u64;
+    summary_acc.lock().unwrap().reset(new_start);
 }
 
 /// Polls every 60 seconds for inactivity. Ends the session if the ring buffer

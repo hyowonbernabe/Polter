@@ -229,7 +229,10 @@ pub fn start<R: tauri::Runtime>(
                 });
             }
 
-            anomaly_detector.lock().unwrap().check(&z, window_end_ms, cold_start);
+            let anomalies = anomaly_detector.lock().unwrap().check(&z, window_end_ms, cold_start);
+            for a in &anomalies {
+                tracing::info!("[classifier] anomaly: {} {:?}", a.signal, a.direction);
+            }
         }
     });
 }

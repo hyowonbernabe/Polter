@@ -76,6 +76,24 @@ pub fn today_date_str() -> String {
     }
 }
 
+/// Returns (date "YYYY-MM-DD", hour 0–23, day_of_week 0=Sunday..6) from a single syscall.
+/// Use this when both the date and the time parts are needed together.
+pub fn local_date_and_time() -> (String, u32, u32) {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::System::SystemInformation::GetLocalTime;
+        let st = unsafe { GetLocalTime() };
+        let date = format!("{:04}-{:02}-{:02}", st.wYear, st.wMonth, st.wDay);
+        (date, st.wHour as u32, st.wDayOfWeek as u32)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        use chrono::{Datelike, Local, Timelike};
+        let now = Local::now();
+        (now.format("%Y-%m-%d").to_string(), now.hour(), now.weekday().num_days_from_sunday())
+    }
+}
+
 /// True if fewer than 30 days have elapsed since the first ever session.
 pub fn is_cold_start(first_session_ms: Option<i64>) -> bool {
     let Some(first_ms) = first_session_ms else { return true; };

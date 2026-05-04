@@ -1,7 +1,5 @@
 use crate::classifier::{WispState, baseline::DailyAverages};
 use crate::pipeline::aggregator::BehavioralSnapshot;
-use crate::storage::DbWritePool;
-use crate::storage::queries::upsert_daily_summary;
 use std::collections::HashMap;
 
 pub struct DailySummaryAccumulator {
@@ -79,6 +77,7 @@ impl DailySummaryAccumulator {
     }
 
     /// Returns (total, focus, calm, deep, spark, burn, fade, rest, longest_focus_block) in minutes.
+    /// Extracted synchronously so callers can release the mutex before awaiting the DB write.
     pub fn write_params(&self) -> (i64, i64, i64, i64, i64, i64, i64, i64, i64) {
         let total: u64 = self.state_ms.values().sum();
         (
@@ -94,12 +93,15 @@ impl DailySummaryAccumulator {
         )
     }
 
-    pub async fn write_to_db(&self, pool: &DbWritePool, date: &str) -> Result<(), sqlx::Error> {
-        let (total, focus, calm, deep, spark, burn, fade, rest, longest) = self.write_params();
-        upsert_daily_summary(
-            pool, date,
-            total, focus, calm, deep, spark, burn, fade, rest, longest, 1,
-        ).await
+    /// Resets the accumulator for the next session. Call after writing the current session to DB.
+    pub fn reset(&mut self, session_start_ms: u64) {
+        self.state_ms.clear();
+        self.last_state = WispState::Rest;
+        self.last_state_start_ms = session_start_ms;
+        self.longest_focus_block_ms = 0;
+        self.focus_block_start_ms = None;
+        self.session_start_ms = session_start_ms;
+        self.snapshots.clear();
     }
 
     /// Returns session-averaged signal values for use in baseline update.
@@ -158,6 +160,19 @@ mod tests {
         acc.flush(5 * 60_000);
         let focus_ms = acc.state_ms.get(&WispState::Focus).unwrap_or(&0);
         assert_eq!(*focus_ms, 5 * 60_000);
+    }
+
+    #[test]
+    fn reset_clears_all_state() {
+        let mut acc = DailySummaryAccumulator::new(0);
+        acc.on_state_change(WispState::Focus, 0);
+        acc.flush(10 * 60_000);
+        acc.reset(10 * 60_000);
+        assert!(acc.state_ms.is_empty());
+        assert_eq!(acc.session_start_ms, 10 * 60_000);
+        assert_eq!(acc.longest_focus_block_ms, 0);
+        assert_eq!(acc.snapshots.len(), 0);
+        assert!(matches!(acc.last_state, WispState::Rest));
     }
 
     #[test]

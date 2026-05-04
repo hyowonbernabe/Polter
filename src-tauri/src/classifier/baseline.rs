@@ -68,16 +68,23 @@ pub async fn update_baseline(
     Ok(())
 }
 
-/// Returns true if the baseline for this bucket was already updated
-/// within the last 20 hours — prevents double-updates within the same day.
+/// Returns true if ANY baseline signal for this bucket was updated within the last 20 hours.
+/// Checking all signals avoids a false negative when a particular signal was never written
+/// (e.g. typing_speed on a mouse-only day) but other signals were.
 pub async fn already_updated_today(
     pool: &DbReadPool,
     tod_bucket: i32,
     dow: i32,
 ) -> Result<bool, sqlx::Error> {
     let cutoff_ms = now_ms() - 20 * 60 * 60 * 1000;
-    let row = get_baseline(pool, SIGNAL_NAMES[0], tod_bucket, dow).await?;
-    Ok(row.map(|r| r.last_updated_ms > cutoff_ms).unwrap_or(false))
+    for &sig in SIGNAL_NAMES {
+        if let Some(row) = get_baseline(pool, sig, tod_bucket, dow).await? {
+            if row.last_updated_ms > cutoff_ms {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
 }
 
 #[cfg(test)]

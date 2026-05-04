@@ -64,14 +64,6 @@ impl StateMachine {
 
         let candidate = classify_state(z, spark_secs);
 
-        // Track spark start time for burn detection
-        if candidate == WispState::Spark && self.spark_started_ms.is_none() {
-            self.spark_started_ms = Some(now_ms);
-        }
-        if !matches!(candidate, WispState::Spark | WispState::Burn) {
-            self.spark_started_ms = None;
-        }
-
         // Debounce
         if candidate == self.candidate_state {
             self.candidate_count += 1;
@@ -83,6 +75,13 @@ impl StateMachine {
         if self.candidate_count >= DEBOUNCE_SNAPSHOTS && candidate != self.current_state {
             self.current_state = candidate;
             self.candidate_count = 0;
+            // Start spark timer only when Spark is committed, not on raw candidates.
+            // This prevents non-consecutive flicker windows from accumulating toward Burn.
+            if candidate == WispState::Spark && self.spark_started_ms.is_none() {
+                self.spark_started_ms = Some(now_ms);
+            } else if !matches!(candidate, WispState::Spark | WispState::Burn) {
+                self.spark_started_ms = None;
+            }
             return Some(candidate);
         }
         None
@@ -161,6 +160,29 @@ mod tests {
         sm.update(&spark, 4_000);
         sm.update(&spark, 5_000); // only 2 since reset
         assert_eq!(sm.current_state, WispState::Rest); // not committed
+    }
+
+    #[test]
+    fn spark_timer_starts_on_commit_not_candidate() {
+        let mut sm = StateMachine::new();
+        let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
+        sm.update(&spark, 1_000);
+        sm.update(&spark, 2_000);
+        assert!(sm.spark_started_ms.is_none(), "timer must not start before commit");
+        sm.update(&spark, 3_000); // third snapshot commits
+        assert!(sm.spark_started_ms.is_some(), "timer must start on commit");
+    }
+
+    #[test]
+    fn spark_timer_not_accumulated_by_flicker() {
+        let mut sm = StateMachine::new();
+        let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
+        let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
+        // Two spark candidates followed by drift — should not start timer
+        sm.update(&spark, 1_000);
+        sm.update(&spark, 2_000);
+        sm.update(&focus, 3_000);
+        assert!(sm.spark_started_ms.is_none(), "timer must not start after flicker");
     }
 
     #[test]
