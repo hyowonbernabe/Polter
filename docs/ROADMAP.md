@@ -103,29 +103,29 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 7 — Chat Bubbles
 *The app speaks.*
 
-- [ ] Bubble UI component renders — frosted glass panel with a directional tail pointing at the creature
-- [ ] Bubble positioning is intelligent — appears on whichever side has more screen space, never clips off screen
-- [ ] Creature glows and pulses before a bubble appears — a visible tell that it is about to speak
-- [ ] Bubble blooms in with animation
-- [ ] Bubble auto-dismisses after 45 seconds if not interacted with
-- [ ] "Tell me more" expands the bubble — extended text is pre-generated, not a second API call
-- [ ] "Ok" dismisses the bubble — creature gives a small nod
-- [ ] Bubble queue — only one bubble shows at a time, others wait
-- [ ] Stale insights discarded — bubbles generated during long AFK periods are dropped if no longer relevant on return
-- [ ] Flow detection insight type working
-- [ ] Fatigue signal insight type working
-- [ ] Pattern revelation insight type working
-- [ ] Avoidance detection insight type working
-- [ ] Peak performance insight type working
-- [ ] Stress tell insight type working
-- [ ] Anomaly insight type working
-- [ ] Break signal insight type working
-- [ ] Comparative insight type working
-- [ ] Returning user insight type working
-- [ ] First-ever insight has special treatment — longer pre-glow, deeper bloom, distinct energy
-- [ ] Insight deduplication — same topic not repeated within 48 hours
-- [ ] All generated insights stored in database
-- [ ] Pending insight dot indicator appears on tray icon when a bubble is waiting
+- [x] Bubble UI component renders — frosted glass panel with a directional tail pointing at the creature
+- [x] Bubble positioning is intelligent — appears on whichever side has more screen space, never clips off screen
+- [x] Creature glows and pulses before a bubble appears — a visible tell that it is about to speak
+- [x] Bubble blooms in with animation
+- [x] Bubble auto-dismisses after 45 seconds if not interacted with
+- [x] "Tell me more" expands the bubble — extended text is pre-generated, not a second API call
+- [x] "Ok" dismisses the bubble — creature gives a small nod
+- [x] Bubble queue — only one bubble shows at a time, others wait
+- [x] Stale insights discarded — bubbles generated during long AFK periods are dropped if no longer relevant on return
+- [x] Flow detection insight type working
+- [x] Fatigue signal insight type working
+- [x] Pattern revelation insight type working
+- [x] Avoidance detection insight type working
+- [x] Peak performance insight type working
+- [x] Stress tell insight type working
+- [x] Anomaly insight type working
+- [x] Break signal insight type working
+- [x] Comparative insight type working
+- [x] Returning user insight type working
+- [x] First-ever insight has special treatment — longer pre-glow, deeper bloom, distinct energy
+- [x] Insight deduplication — same topic not repeated within 48 hours
+- [x] All generated insights stored in database
+- [x] Pending insight dot indicator appears on tray icon when a bubble is waiting
 
 ---
 
@@ -213,7 +213,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 4 | Creature Comes Alive | Complete ✅ |
 | 5 | Core Controls | Complete ✅ |
 | 6 | AI Inference | OpenRouter complete — Ollama deferred; consent + no-AI indicator pending Groups 7/9 UI |
-| 7 | Chat Bubbles | Not started |
+| 7 | Chat Bubbles | Complete ✅ |
 | 8 | Dashboard | Not started |
 | 9 | Settings | Not started |
 | 10 | Onboarding | Not started |

@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import Creature from "./components/Creature";
+import InsightBubble from "./components/InsightBubble";
+import { getBubblePosition } from "./lib/bubblePosition";
+import { usePreInsightGlow } from "./hooks/usePreInsightGlow";
+import { useInsightQueue } from "./hooks/useInsightQueue";
 import { useCreaturePosition } from "./hooks/useCreaturePosition";
 import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
@@ -24,6 +28,8 @@ export interface InsightPayload {
   insight: string;
   extended: string;
   type: string;
+  is_first_ever: boolean;
+  receivedAt?: number;
 }
 
 export default function App() {
@@ -35,8 +41,9 @@ export default function App() {
   const [sleeping, setSleeping] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [showWake, setShowWake] = useState(false);
-  const [inferenceMode, setInferenceMode] = useState<"cloud" | "unavailable">("unavailable");
-  const [pendingInsight, setPendingInsight] = useState<InsightPayload | null>(null);
+  const [showNod, setShowNod] = useState(false);
+  const [bubbleExpanded, setBubbleExpanded] = useState(false);
+  const [glowTriggered, setGlowTriggered] = useState(false);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -49,6 +56,13 @@ export default function App() {
 
   const { pos, spriteSize, workArea, monitors, updatePosition } = useCreaturePosition(onBoundsChange);
   const idleOpacity = useIdleDetection();
+
+  const { current: activeInsight, isFirstEver, enqueue, dismiss } = useInsightQueue();
+
+  const { phase: preInsightPhase } = usePreInsightGlow(
+    glowTriggered,
+    isFirstEver,
+  );
 
   // Burn distress: arm a 90-min timer when entering burn, cancel on any other state
   useEffect(() => {
@@ -68,6 +82,17 @@ export default function App() {
       }
     };
   }, [wispState]);
+
+  // Trigger glow sequence when a new insight becomes active
+  useEffect(() => {
+    if (activeInsight) {
+      setBubbleExpanded(false);
+      setGlowTriggered(true);
+    } else {
+      setGlowTriggered(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeInsight?.insight]);
 
   useEffect(() => {
     const unlistenReady = listen<{ version: string }>("wisp_ready", (event) => {
@@ -90,12 +115,9 @@ export default function App() {
     const unlistenWake = listen("wake_animation", () => {
       setShowWake(true);
     });
-    const unlistenInferenceMode = listen<string>("inference_mode_changed", (event) => {
-      setInferenceMode(event.payload as "cloud" | "unavailable");
-    });
     const unlistenInsight = listen<InsightPayload>("insight_ready", (event) => {
       console.log("[wisp] insight received:", event.payload.type);
-      setPendingInsight(event.payload);
+      enqueue({ ...event.payload, receivedAt: Date.now() });
     });
     return () => {
       unlistenReady.then((f) => f());
@@ -104,10 +126,15 @@ export default function App() {
       unlistenBest.then((f) => f());
       unlistenSleep.then((f) => f());
       unlistenWake.then((f) => f());
-      unlistenInferenceMode.then((f) => f());
       unlistenInsight.then((f) => f());
     };
-  }, []);
+  }, [enqueue]);
+
+  const handleDismiss = useCallback(() => {
+    setShowNod(true);
+    invoke("dismiss_insight");
+    dismiss();
+  }, [dismiss]);
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "transparent" }}>
@@ -151,11 +178,35 @@ export default function App() {
         sleeping={sleeping}
         privacyMode={privacyMode}
         showWake={showWake}
+        preInsightPhase={preInsightPhase as 0 | 1 | 2 | 3}
+        isFirstEverInsight={isFirstEver}
+        showNod={showNod}
         onPositionChange={updatePosition}
         onReturningDone={() => setShowReturning(false)}
         onBestSessionDone={() => setShowBestSession(false)}
         onWakeDone={() => setShowWake(false)}
+        onNodDone={() => setShowNod(false)}
       />
+      {activeInsight && preInsightPhase === 3 && (() => {
+        const bp = getBubblePosition(
+          pos.x, pos.y, spriteSize, monitors,
+          300, bubbleExpanded ? 260 : 180,
+        );
+        return (
+          <InsightBubble
+            key={activeInsight.insight}
+            insight={activeInsight.insight}
+            extended={activeInsight.extended}
+            x={bp.x}
+            y={bp.y}
+            tailSide={bp.tailSide}
+            onDismiss={handleDismiss}
+            onExpand={() => setBubbleExpanded(true)}
+            isExpanded={bubbleExpanded}
+            isFirstEver={isFirstEver}
+          />
+        );
+      })()}
     </div>
   );
 }
