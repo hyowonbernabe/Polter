@@ -254,6 +254,8 @@ pub fn run() {
                 .checked(false).build(app)?;
             let privacy_check = CheckMenuItemBuilder::with_id("privacy_toggle", "Privacy Mode")
                 .checked(false).build(app)?;
+            let debug_check = CheckMenuItemBuilder::with_id("debug_toggle", "Debug Mode")
+                .checked(false).build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
 
             let menu = if cfg!(debug_assertions) {
@@ -266,9 +268,9 @@ pub fn run() {
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
                     .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_onboarding])
                     .build()?;
-                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &debug_check, &quit]).build()?
             } else {
-                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &debug_check, &quit]).build()?
             };
 
             // Clone items: one pair for the event handler, one pair for the schedule watcher.
@@ -276,6 +278,7 @@ pub fn run() {
             let privacy_ev = privacy_check.clone();
             let sleep_sch   = sleep_check.clone();
             let privacy_sch = privacy_check.clone();
+            let debug_ev   = debug_check.clone();
 
             let (tr, tg, tb) = crate::tray::state_to_tray_color("rest");
             let init_rgba = crate::tray::tray_icon_rgba(tr, tg, tb);
@@ -346,6 +349,11 @@ pub fn run() {
                                     privacy: new_privacy,
                                 });
                             });
+                        }
+
+                        "debug_toggle" => {
+                            let enabled = debug_ev.is_checked().unwrap_or(false);
+                            let _ = app.emit("debug_mode_changed", enabled);
                         }
 
                         id if cfg!(debug_assertions) && id.starts_with("dev_") => {

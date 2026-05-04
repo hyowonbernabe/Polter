@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { type WispState, SPRITE_CONFIG, STATE_GLOW, ALL_STATES } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
@@ -33,6 +34,7 @@ interface CreatureProps {
   onBestSessionDone?: () => void;
   onWakeDone?: () => void;
   onNodDone?: () => void;
+  debugMode?: boolean;
 }
 
 function ensureKeyframes() {
@@ -108,6 +110,7 @@ export default function Creature({
   isFirstEverInsight = false,
   showNod = false,
   bubbleVisible = false,
+  debugMode = false,
   elementRef,
   onPointerDown,
   onPointerMove,
@@ -208,9 +211,20 @@ export default function Creature({
     return () => clearTimeout(id);
   }, [showNod, onNodDone]);
 
+  const MENU_W = 164;
+  const MENU_H = 180;
+
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
+    const mx = Math.min(e.clientX, window.innerWidth  - MENU_W - 8);
+    const my = Math.min(e.clientY, window.innerHeight - MENU_H);
     setContextMenu({ x: e.clientX, y: e.clientY });
+    invoke('set_bubble_bounds', { x: mx, y: my, width: MENU_W, height: MENU_H }).catch(() => {});
+  }
+
+  function closeContextMenu() {
+    setContextMenu(null);
+    invoke('clear_bubble_bounds').catch(() => {});
   }
 
   function handleClick(e: React.MouseEvent) {
@@ -308,6 +322,14 @@ export default function Creature({
                 pointerEvents: 'none', borderRadius: 2,
               }} />
             )}
+            {debugMode && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(255, 30, 30, 0.25)',
+                outline: '1px solid rgba(255, 30, 30, 0.9)',
+                pointerEvents: 'none',
+              }} />
+            )}
           </div>
         </div>
       </div>
@@ -319,8 +341,8 @@ export default function Creature({
           wispState={state}
           sleeping={sleeping ?? false}
           bubbleVisible={bubbleVisible}
-          onClose={() => setContextMenu(null)}
-          onDismissBubble={() => { onBubbleClick?.(); setContextMenu(null); }}
+          onClose={closeContextMenu}
+          onDismissBubble={() => { onBubbleClick?.(); closeContextMenu(); }}
         />
       )}
     </>

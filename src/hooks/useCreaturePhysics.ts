@@ -94,6 +94,20 @@ export function useCreaturePhysics(): PhysicsOutput {
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
+  // True if the given side of `mb` has no adjacent monitor — i.e. it's a true outer edge
+  function isOuterEdge(mb: WorkArea, side: 'left' | 'right' | 'top' | 'bottom'): boolean {
+    const TOL = 8;
+    return !monitorsRef.current.some(m => {
+      if (m.x === mb.x && m.y === mb.y && m.width === mb.width && m.height === mb.height) return false;
+      switch (side) {
+        case 'left':   return Math.abs((m.x + m.width) - mb.x) <= TOL && m.y < mb.y + mb.height && m.y + m.height > mb.y;
+        case 'right':  return Math.abs(m.x - (mb.x + mb.width)) <= TOL && m.y < mb.y + mb.height && m.y + m.height > mb.y;
+        case 'top':    return Math.abs((m.y + m.height) - mb.y) <= TOL && m.x < mb.x + mb.width && m.x + m.width > mb.x;
+        case 'bottom': return Math.abs(m.y - (mb.y + mb.height)) <= TOL && m.x < mb.x + mb.width && m.x + m.width > mb.x;
+      }
+    });
+  }
+
   function transitionTo(next: PhysicsState, lockMs = 0) {
     stateRef.current = next;
     if (lockMs > 0) lockedUntilRef.current = performance.now() + lockMs;
@@ -176,6 +190,22 @@ export function useCreaturePhysics(): PhysicsOutput {
 
     const p = pos.current;
     const v = vel.current;
+
+    // Resolve the monitor the creature is currently on — all collision uses this, not the combined wa
+    const pcx = p.x + sz / 2;
+    const pcy = p.y + sz / 2;
+    const mb: WorkArea = monitorsRef.current.find(
+      m => pcx >= m.x && pcx <= m.x + m.width && pcy >= m.y && pcy <= m.y + m.height
+    ) ?? (() => {
+      let best = monitorsRef.current[0];
+      if (!best) return wa;
+      let bestDist = Infinity;
+      for (const m of monitorsRef.current) {
+        const d = Math.abs(pcx - (m.x + m.width / 2)) + Math.abs(pcy - (m.y + m.height / 2));
+        if (d < bestDist) { bestDist = d; best = m; }
+      }
+      return best;
+    })();
     const maxSpeed = PHYSICS.MAX_SPEED * mood.speedMult;
     const noiseFreq = PHYSICS.NOISE_FREQ * mood.freqMult;
 
@@ -199,9 +229,9 @@ export function useCreaturePhysics(): PhysicsOutput {
       burstActiveRef.current -= dt * 1000;
       const effectiveMax = burstActiveRef.current > 0 ? maxSpeed * PHYSICS.BURST_SPEED_MULT : maxSpeed;
 
-      // Screen-center gravity
-      const cx = wa.x + wa.width / 2;
-      const cy = wa.y + wa.height / 2;
+      // Screen-center gravity (toward current monitor center)
+      const cx = mb.x + mb.width / 2;
+      const cy = mb.y + mb.height / 2;
       const toCenterN = normalize({ x: cx - (p.x + sz / 2), y: cy - (p.y + sz / 2) });
       const centerF = { x: toCenterN.x * PHYSICS.CENTER_PULL, y: toCenterN.y * PHYSICS.CENTER_PULL };
 
@@ -218,16 +248,44 @@ export function useCreaturePhysics(): PhysicsOutput {
         transitionTo('evade');
       }
 
-      // Soft edge avoidance
+      // Soft edge avoidance — only at outer edges (no adjacent monitor on that side)
       const margin = PHYSICS.EDGE_AVOID_MARGIN;
-      const edgeF = { x: 0, y: 0 };
-      if (p.x - wa.x < margin) edgeF.x += PHYSICS.EDGE_REPULSE * (1 - (p.x - wa.x) / margin);
-      if ((wa.x + wa.width) - (p.x + sz) < margin) edgeF.x -= PHYSICS.EDGE_REPULSE * (1 - ((wa.x + wa.width) - (p.x + sz)) / margin);
-      if (p.y - wa.y < margin) edgeF.y += PHYSICS.EDGE_REPULSE * (1 - (p.y - wa.y) / margin);
-      if ((wa.y + wa.height) - (p.y + sz) < margin) edgeF.y -= PHYSICS.EDGE_REPULSE * (1 - ((wa.y + wa.height) - (p.y + sz)) / margin);
+      let edgeFx = 0, edgeFy = 0;
+      const repLeft   = isOuterEdge(mb, 'left')   && p.x - mb.x < margin            ? PHYSICS.EDGE_REPULSE * (1 - (p.x - mb.x) / margin) : 0;
+      const repRight  = isOuterEdge(mb, 'right')  && (mb.x + mb.width) - (p.x + sz) < margin ? -PHYSICS.EDGE_REPULSE * (1 - ((mb.x + mb.width) - (p.x + sz)) / margin) : 0;
+      const repTop    = isOuterEdge(mb, 'top')    && p.y - mb.y < margin             ? PHYSICS.EDGE_REPULSE * (1 - (p.y - mb.y) / margin) : 0;
+      const repBottom = isOuterEdge(mb, 'bottom') && (mb.y + mb.height) - (p.y + sz) < margin ? -PHYSICS.EDGE_REPULSE * (1 - ((mb.y + mb.height) - (p.y + sz)) / margin) : 0;
 
-      v.x += (steer.x + centerF.x + cursorF.x + edgeF.x) * dt;
-      v.y += (steer.y + centerF.y + cursorF.y + edgeF.y) * dt;
+      // Cursor edge following: detect edges relative to the monitor the cursor is on
+      const em = PHYSICS.CURSOR_EDGE_MARGIN;
+      const cpx = cursorPosRef.current.x;
+      const cpy = cursorPosRef.current.y;
+      const cursorMon = monitorsRef.current.find(
+        m => cpx >= m.x && cpx <= m.x + m.width && cpy >= m.y && cpy <= m.y + m.height
+      ) ?? monitorsRef.current[0] ?? wa;
+      const cursorNearLeft   = cpx - cursorMon.x < em;
+      const cursorNearRight  = (cursorMon.x + cursorMon.width)  - cpx < em;
+      const cursorNearTop    = cpy - cursorMon.y < em;
+      const cursorNearBottom = (cursorMon.y + cursorMon.height) - cpy < em;
+      const cursorOnEdge = cursorNearLeft || cursorNearRight || cursorNearTop || cursorNearBottom;
+
+      edgeFx += cursorNearLeft  ? 0 : repLeft;
+      edgeFx += cursorNearRight ? 0 : repRight;
+      edgeFy += cursorNearTop   ? 0 : repTop;
+      edgeFy += cursorNearBottom ? 0 : repBottom;
+
+      let edgeFollowFx = 0, edgeFollowFy = 0;
+      if (cursorOnEdge) {
+        const toCursor = normalize({
+          x: cursorPosRef.current.x - (p.x + sz / 2),
+          y: cursorPosRef.current.y - (p.y + sz / 2),
+        });
+        edgeFollowFx = toCursor.x * PHYSICS.CURSOR_EDGE_ATTRACT;
+        edgeFollowFy = toCursor.y * PHYSICS.CURSOR_EDGE_ATTRACT;
+      }
+
+      v.x += (steer.x + centerF.x + cursorF.x + edgeFx + edgeFollowFx) * dt;
+      v.y += (steer.y + centerF.y + cursorF.y + edgeFy + edgeFollowFy) * dt;
       const clamped = clampVec2(v, effectiveMax);
       v.x = clamped.x; v.y = clamped.y;
 
@@ -294,13 +352,13 @@ export function useCreaturePhysics(): PhysicsOutput {
       v.x *= Math.pow(0.85, dt);
       const surface = perchSurfaceRef.current;
       const nearSurface =
-        surface === 'bottom' ? (wa.y + wa.height) - (p.y + sz) < PHYSICS.LAND_DISTANCE :
-        surface === 'top'    ? p.y - wa.y < PHYSICS.LAND_DISTANCE :
-        surface === 'left'   ? p.x - wa.x < PHYSICS.LAND_DISTANCE :
-        (wa.x + wa.width) - (p.x + sz) < PHYSICS.LAND_DISTANCE;
+        surface === 'bottom' ? (mb.y + mb.height) - (p.y + sz) < PHYSICS.LAND_DISTANCE :
+        surface === 'top'    ? p.y - mb.y < PHYSICS.LAND_DISTANCE :
+        surface === 'left'   ? p.x - mb.x < PHYSICS.LAND_DISTANCE :
+        (mb.x + mb.width) - (p.x + sz) < PHYSICS.LAND_DISTANCE;
       if (nearSurface) {
         v.x = 0; v.y = 0;
-        snapToSurface(surface, sz, wa);
+        snapToSurface(surface, sz, mb);
         transitionTo('land_impact', PHYSICS.LAND_IMPACT_DURATION);
       }
     }
@@ -314,7 +372,7 @@ export function useCreaturePhysics(): PhysicsOutput {
 
     else if (state === 'perching') {
       v.x = 0; v.y = 0;
-      snapToSurface(perchSurfaceRef.current, sz, wa);
+      snapToSurface(perchSurfaceRef.current, sz, mb);
       if (!dialogueActiveRef.current && facingRef.current === 'forward') {
         facingRef.current = 'left';
       }
@@ -340,25 +398,25 @@ export function useCreaturePhysics(): PhysicsOutput {
       p.x += v.x * dt;
       p.y += v.y * dt;
 
-      // Wall bounce
+      // Wall bounce — only at outer edges (no adjacent monitor on that side)
       const BOUNCE = 0.55;
-      if (p.x < wa.x) {
-        p.x = wa.x;
+      if (p.x < mb.x && isOuterEdge(mb, 'left')) {
+        p.x = mb.x;
         v.x = Math.abs(v.x) * BOUNCE;
         if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
-      if (p.x + sz > wa.x + wa.width) {
-        p.x = wa.x + wa.width - sz;
+      if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
+        p.x = mb.x + mb.width - sz;
         v.x = -Math.abs(v.x) * BOUNCE;
         if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
-      if (p.y < wa.y) {
-        p.y = wa.y;
+      if (p.y < mb.y && isOuterEdge(mb, 'top')) {
+        p.y = mb.y;
         v.y = Math.abs(v.y) * BOUNCE;
         if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
-      if (p.y + sz > wa.y + wa.height) {
-        p.y = wa.y + wa.height - sz;
+      if (p.y + sz > mb.y + mb.height && isOuterEdge(mb, 'bottom')) {
+        p.y = mb.y + mb.height - sz;
         v.y = -Math.abs(v.y) * BOUNCE;
         if (Math.abs(v.y) < 60) v.y = 0;
         if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
@@ -404,35 +462,48 @@ export function useCreaturePhysics(): PhysicsOutput {
       p.y += v.y * dt;
     }
 
-    // ── Hard wall collision (custom flight states only) ────────────────────────
+    // ── Hard wall collision — only at outer edges (flight states only) ───────────
 
     if (state !== 'perching' && state !== 'approach' &&
         state !== 'thrown' && state !== 'stunned' && state !== 'recovering') {
       const speed = magnitude(v);
-      if (p.x + sz > wa.x + wa.width) {
-        p.x = wa.x + wa.width - sz;
+      if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
+        p.x = mb.x + mb.width - sz;
         v.x *= -PHYSICS.RESTITUTION;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
-      if (p.x < wa.x) {
-        p.x = wa.x;
+      if (p.x < mb.x && isOuterEdge(mb, 'left')) {
+        p.x = mb.x;
         v.x *= -PHYSICS.RESTITUTION;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
-      if (p.y + sz > wa.y + wa.height) {
-        p.y = wa.y + wa.height - sz;
+      if (p.y + sz > mb.y + mb.height && isOuterEdge(mb, 'bottom')) {
+        p.y = mb.y + mb.height - sz;
         v.y *= -PHYSICS.RESTITUTION;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
-      if (p.y < wa.y) {
-        p.y = wa.y;
+      if (p.y < mb.y && isOuterEdge(mb, 'top')) {
+        p.y = mb.y;
         v.y *= -PHYSICS.RESTITUTION;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
+    }
+
+    // Safety clamp: creature can never escape the combined area of all monitors
+    if (monitorsRef.current.length > 0) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const m of monitorsRef.current) {
+        if (m.x < minX) minX = m.x;
+        if (m.y < minY) minY = m.y;
+        if (m.x + m.width  > maxX) maxX = m.x + m.width;
+        if (m.y + m.height > maxY) maxY = m.y + m.height;
+      }
+      p.x = clamp(p.x, minX, maxX - sz);
+      p.y = clamp(p.y, minY, maxY - sz);
     }
 
     updateTransform();
@@ -612,8 +683,8 @@ export function useCreaturePhysics(): PhysicsOutput {
       const first  = hist.find(p => p.t >= cutoff) ?? hist[0];
       const dtS    = (last.t - first.t) / 1000;
       if (dtS > 0.005) {
-        throwVx = clamp((last.x - first.x) / dtS, -1400, 1400);
-        throwVy = clamp((last.y - first.y) / dtS, -1400, 1400);
+        throwVx = clamp((last.x - first.x) / dtS, -900, 900);
+        throwVy = clamp((last.y - first.y) / dtS, -900, 900);
       }
     }
     vel.current = { x: throwVx, y: throwVy };

@@ -10,6 +10,7 @@ import { useCreaturePhysics } from "./hooks/useCreaturePhysics";
 import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
 import { loadPreferences, type CreatureSize, SIZE_MULTIPLIERS } from "./lib/preferences";
+import { PHYSICS } from "./lib/physics";
 
 const BURN_DISTRESS_MS = 90 * 60 * 1_000;
 
@@ -46,6 +47,7 @@ export default function App() {
   const [glowTriggered, setGlowTriggered] = useState(false);
   const [creatureSize, setCreatureSize] = useState<CreatureSize>("medium");
   const [idleFloor, setIdleFloor] = useState(0.35);
+  const [debugMode, setDebugMode] = useState(false);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,6 +63,7 @@ export default function App() {
   useEffect(() => {
     physics.setWispState(wispState);
   }, [wispState, physics.setWispState]);
+
 
   // Forward-facing dialogue mode when bubble is showing
   useEffect(() => {
@@ -109,9 +112,13 @@ export default function App() {
     const unlistenOpacity = listen<number>("idle_opacity_changed", (e) => {
       setIdleFloor(e.payload);
     });
+    const unlistenDebug = listen<boolean>("debug_mode_changed", (e) => {
+      setDebugMode(e.payload);
+    });
     return () => {
       unlistenSize.then((f) => f());
       unlistenOpacity.then((f) => f());
+      unlistenDebug.then((f) => f());
     };
   }, []);
 
@@ -163,6 +170,36 @@ export default function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "transparent" }}>
+      {debugMode && physics.monitors.map((m, i) => (
+        <div key={i} style={{
+          position: 'fixed',
+          left: m.x,
+          top: m.y,
+          width: m.width,
+          height: m.height,
+          border: '1px solid rgba(255, 40, 40, 0.85)',
+          pointerEvents: 'none',
+          boxSizing: 'border-box',
+          zIndex: 9998,
+        }}>
+          <div style={{
+            position: 'absolute',
+            inset: PHYSICS.CURSOR_EDGE_MARGIN,
+            border: '1px dashed rgba(255, 160, 0, 0.45)',
+            boxSizing: 'border-box',
+          }} />
+          <span style={{
+            position: 'absolute',
+            top: 4,
+            left: 6,
+            color: 'rgba(255, 60, 60, 0.85)',
+            fontSize: 10,
+            fontFamily: 'monospace',
+          }}>
+            {m.width}×{m.height}
+          </span>
+        </div>
+      ))}
       <Creature
         displaySize={displaySize}
         state={wispState}
@@ -182,6 +219,7 @@ export default function App() {
         isFirstEverInsight={isFirstEver}
         showNod={showNod}
         bubbleVisible={bubbleVisible}
+        debugMode={debugMode}
         elementRef={physics.elementRef}
         onPointerDown={(e) => { if (e.button === 0) physics.notifyDragStart(e.clientX, e.clientY); }}
         onPointerMove={(e) => { if (e.buttons === 1) physics.notifyDragMove(e.clientX, e.clientY); }}
