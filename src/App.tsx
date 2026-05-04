@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import Creature from "./components/Creature";
 import { useCreaturePosition } from "./hooks/useCreaturePosition";
+import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
 
 interface StateChangedPayload {
@@ -23,6 +24,7 @@ export default function App() {
   );
 
   const { pos, updatePosition } = useCreaturePosition(onBoundsChange);
+  const idleOpacity = useIdleDetection();
 
   useEffect(() => {
     const unlistenReady = listen<{ version: string }>("wisp_ready", (event) => {
@@ -48,6 +50,7 @@ export default function App() {
           y={pos.y}
           state={wispState}
           coldStart={coldStart}
+          opacity={idleOpacity}
           onPositionChange={updatePosition}
         />
       )}

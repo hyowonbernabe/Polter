@@ -153,6 +153,11 @@ struct StateChangedPayload {
     cold_start: bool,
 }
 
+#[derive(serde::Serialize, Clone)]
+struct ActivityPulsePayload {
+    has_activity: bool,
+}
+
 pub fn start<R: tauri::Runtime>(
     ring: Arc<Mutex<RingBuffer>>,
     system: Arc<RwLock<SystemSnapshot>>,
@@ -195,6 +200,9 @@ pub fn start<R: tauri::Runtime>(
                 "[aggregator] firing — session={} events={} cpu={:.1} ram={:.1}",
                 sid, events.len(), sys.cpu_percent, sys.ram_percent
             );
+
+            let has_activity = !events.is_empty();
+            let _ = app_handle.emit("activity_pulse", ActivityPulsePayload { has_activity });
 
             let snap = compute_snapshot(&events, &sys, sid, window_end_ms, AGGREGATION_SECS as f64);
 
