@@ -212,7 +212,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 3 | Baseline and State Machine | Complete ✅ |
 | 4 | Creature Comes Alive | Complete ✅ |
 | 5 | Core Controls | Complete ✅ |
-| 6 | AI Inference | In Progress (6/10 complete — Ollama + consent UI + no-AI indicator deferred) |
+| 6 | AI Inference | OpenRouter complete — Ollama deferred; consent + no-AI indicator pending Groups 7/9 UI |
 | 7 | Chat Bubbles | Not started |
 | 8 | Dashboard | Not started |
 | 9 | Settings | Not started |
