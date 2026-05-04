@@ -849,7 +849,7 @@ export default function Onboarding() {
                     borderRadius: 5,
                     padding: "2px 8px",
                   }}>
-                    {apiKeySaved ? "Cloud" : inferenceChoice === "skip" || inferenceChoice === null ? "Off" : "Off"}
+                    {apiKeySaved ? "Cloud" : "Off"}
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 10, fontSize: 10, color: "rgba(255,255,255,0.18)", fontStyle: "italic" }}>
