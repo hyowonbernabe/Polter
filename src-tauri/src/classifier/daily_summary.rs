@@ -3,13 +3,14 @@ use crate::pipeline::aggregator::BehavioralSnapshot;
 use std::collections::HashMap;
 
 pub struct DailySummaryAccumulator {
-    state_ms:                HashMap<WispState, u64>,
-    last_state:              WispState,
-    last_state_start_ms:     u64,
-    longest_focus_block_ms:  u64,
-    focus_block_start_ms:    Option<u64>,
-    pub session_start_ms:    u64,
-    pub snapshots:           Vec<BehavioralSnapshot>,
+    state_ms:                        HashMap<WispState, u64>,
+    last_state:                      WispState,
+    last_state_start_ms:             u64,
+    longest_focus_block_ms:          u64,
+    focus_block_start_ms:            Option<u64>,
+    last_completed_focus_block_ms:   Option<u64>,
+    pub session_start_ms:            u64,
+    pub snapshots:                   Vec<BehavioralSnapshot>,
 }
 
 impl DailySummaryAccumulator {
@@ -20,6 +21,7 @@ impl DailySummaryAccumulator {
             last_state_start_ms: session_start_ms,
             longest_focus_block_ms: 0,
             focus_block_start_ms: None,
+            last_completed_focus_block_ms: None,
             session_start_ms,
             snapshots: Vec::new(),
         }
@@ -35,8 +37,8 @@ impl DailySummaryAccumulator {
         let duration = now_ms.saturating_sub(self.last_state_start_ms);
         *self.state_ms.entry(self.last_state).or_insert(0) += duration;
 
-        // Update longest focus-like block
-        let was_focus = matches!(self.last_state, WispState::Focus | WispState::Deep);
+        // Update longest focus-like block (Focus, Calm, and Deep are all focus-like)
+        let was_focus = matches!(self.last_state, WispState::Focus | WispState::Calm | WispState::Deep);
         if was_focus {
             let start = self.focus_block_start_ms.get_or_insert(self.last_state_start_ms);
             let block = now_ms.saturating_sub(*start);
@@ -45,7 +47,15 @@ impl DailySummaryAccumulator {
             }
         }
 
-        let is_focus = matches!(new_state, WispState::Focus | WispState::Deep);
+        let is_focus = matches!(new_state, WispState::Focus | WispState::Calm | WispState::Deep);
+
+        // Record completed focus block when transitioning OUT of focus-like states
+        if was_focus && !is_focus {
+            let start = self.focus_block_start_ms.unwrap_or(self.last_state_start_ms);
+            let block = now_ms.saturating_sub(start);
+            self.last_completed_focus_block_ms = Some(block);
+        }
+
         if is_focus && !was_focus {
             self.focus_block_start_ms = Some(now_ms);
         } else if !is_focus {
@@ -61,7 +71,7 @@ impl DailySummaryAccumulator {
         let duration = now_ms.saturating_sub(self.last_state_start_ms);
         *self.state_ms.entry(self.last_state).or_insert(0) += duration;
 
-        if matches!(self.last_state, WispState::Focus | WispState::Deep) {
+        if matches!(self.last_state, WispState::Focus | WispState::Calm | WispState::Deep) {
             let start = self.focus_block_start_ms.unwrap_or(self.last_state_start_ms);
             let block = now_ms.saturating_sub(start);
             if block > self.longest_focus_block_ms {
@@ -93,6 +103,12 @@ impl DailySummaryAccumulator {
         )
     }
 
+    /// Returns the duration of the last completed focus block, consuming it.
+    /// Returns None if no block has completed since the last call.
+    pub fn take_completed_focus_block_ms(&mut self) -> Option<u64> {
+        self.last_completed_focus_block_ms.take()
+    }
+
     /// Resets the accumulator for the next session. Call after writing the current session to DB.
     pub fn reset(&mut self, session_start_ms: u64) {
         self.state_ms.clear();
@@ -100,6 +116,7 @@ impl DailySummaryAccumulator {
         self.last_state_start_ms = session_start_ms;
         self.longest_focus_block_ms = 0;
         self.focus_block_start_ms = None;
+        self.last_completed_focus_block_ms = None;
         self.session_start_ms = session_start_ms;
         self.snapshots.clear();
     }
@@ -173,6 +190,42 @@ mod tests {
         assert_eq!(acc.longest_focus_block_ms, 0);
         assert_eq!(acc.snapshots.len(), 0);
         assert!(matches!(acc.last_state, WispState::Rest));
+    }
+
+    #[test]
+    fn take_completed_focus_block_ms_returns_block_on_focus_exit() {
+        let mut acc = DailySummaryAccumulator::new(0);
+        acc.on_state_change(WispState::Focus, 0);
+        acc.on_state_change(WispState::Burn, 10 * 60_000);
+        let block = acc.take_completed_focus_block_ms();
+        assert_eq!(block, Some(10 * 60_000));
+        // Consuming it a second time returns None
+        assert_eq!(acc.take_completed_focus_block_ms(), None);
+    }
+
+    #[test]
+    fn calm_counts_as_focus_like_state() {
+        let mut acc = DailySummaryAccumulator::new(0);
+        acc.on_state_change(WispState::Calm, 0);
+        // Focus→Calm is still focus-like, should not record a completed block
+        acc.on_state_change(WispState::Focus, 5 * 60_000);
+        assert_eq!(acc.take_completed_focus_block_ms(), None);
+        // Focus→Spark exits focus-like, should record the full block (0 to 15min)
+        acc.on_state_change(WispState::Spark, 15 * 60_000);
+        let block = acc.take_completed_focus_block_ms();
+        assert_eq!(block, Some(15 * 60_000));
+    }
+
+    #[test]
+    fn reset_clears_completed_focus_block() {
+        let mut acc = DailySummaryAccumulator::new(0);
+        acc.on_state_change(WispState::Focus, 0);
+        acc.on_state_change(WispState::Burn, 10 * 60_000);
+        assert!(acc.take_completed_focus_block_ms().is_some());
+        acc.on_state_change(WispState::Focus, 11 * 60_000);
+        acc.on_state_change(WispState::Burn, 20 * 60_000);
+        acc.reset(20 * 60_000);
+        assert_eq!(acc.take_completed_focus_block_ms(), None);
     }
 
     #[test]
