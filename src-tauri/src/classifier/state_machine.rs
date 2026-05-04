@@ -44,6 +44,8 @@ pub struct StateMachine {
     candidate_count: u32,
     /// Timestamp (ms) when spark was first entered — used for burn timer.
     pub spark_started_ms: Option<u64>,
+    /// Timestamp (ms) when current_state last committed — used by dashboard duration display.
+    pub state_entered_ms: Option<u64>,
 }
 
 impl StateMachine {
@@ -53,6 +55,7 @@ impl StateMachine {
             candidate_state: WispState::Rest,
             candidate_count: 0,
             spark_started_ms: None,
+            state_entered_ms: None,
         }
     }
 
@@ -74,6 +77,7 @@ impl StateMachine {
 
         if self.candidate_count >= DEBOUNCE_SNAPSHOTS && candidate != self.current_state {
             self.current_state = candidate;
+            self.state_entered_ms = Some(now_ms);
             self.candidate_count = 0;
             // Start spark timer only when Spark is committed, not on raw candidates.
             // This prevents non-consecutive flicker windows from accumulating toward Burn.
@@ -196,5 +200,27 @@ mod tests {
         // Leave spark
         for i in 3..6 { sm.update(&focus, i * 1_000); }
         assert!(sm.spark_started_ms.is_none());
+    }
+
+    #[test]
+    fn state_entered_ms_set_on_commit() {
+        let mut sm = StateMachine::new();
+        let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
+        sm.update(&spark, 1_000);
+        sm.update(&spark, 2_000);
+        assert!(sm.state_entered_ms.is_none(), "should not be set before commit");
+        sm.update(&spark, 3_000);
+        assert_eq!(sm.state_entered_ms, Some(3_000), "should record commit time");
+    }
+
+    #[test]
+    fn state_entered_ms_updates_on_new_state() {
+        let mut sm = StateMachine::new();
+        let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
+        let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
+        for i in 0..3u64 { sm.update(&spark, i * 1_000); }
+        assert_eq!(sm.state_entered_ms, Some(2_000));
+        for i in 3..6u64 { sm.update(&focus, i * 1_000); }
+        assert_eq!(sm.state_entered_ms, Some(5_000));
     }
 }
