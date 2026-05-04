@@ -24,29 +24,26 @@ function TailShape({ side }: { side: TailSide }) {
     width: 0,
     height: 0,
     pointerEvents: 'none',
+    left: '50%',
+    transform: 'translateX(-50%)',
   };
 
-  const downTail: React.CSSProperties = {
-    borderLeft: '10px solid transparent',
-    borderRight: '10px solid transparent',
-    borderTop: `10px solid ${BG}`,
-  };
-  const upTail: React.CSSProperties = {
+  if (side === 'bottom') {
+    return <div style={{
+      ...base,
+      bottom: -10,
+      borderLeft: '10px solid transparent',
+      borderRight: '10px solid transparent',
+      borderTop: `10px solid ${BG}`,
+    }} />;
+  }
+  return <div style={{
+    ...base,
+    top: -10,
     borderLeft: '10px solid transparent',
     borderRight: '10px solid transparent',
     borderBottom: `10px solid ${BG}`,
-  };
-
-  switch (side) {
-    case 'bottom-right':
-      return <div style={{ ...base, bottom: -10, right: 16, ...downTail }} />;
-    case 'bottom-left':
-      return <div style={{ ...base, bottom: -10, left: 16, ...downTail }} />;
-    case 'top-right':
-      return <div style={{ ...base, top: -10, right: 16, ...upTail }} />;
-    case 'top-left':
-      return <div style={{ ...base, top: -10, left: 16, ...upTail }} />;
-  }
+  }} />;
 }
 
 export default function InsightBubble({
@@ -97,7 +94,7 @@ export default function InsightBubble({
         transform: visible ? 'scale(1)' : 'scale(0.82)',
         opacity: visible ? 1 : 0,
         transition: 'transform 280ms cubic-bezier(0.34,1.56,0.64,1), opacity 220ms ease',
-        transformOrigin: tailSide.includes('bottom') ? 'bottom center' : 'top center',
+        transformOrigin: tailSide === 'bottom' ? 'bottom center' : 'top center',
       }}
     >
       <TailShape side={tailSide} />

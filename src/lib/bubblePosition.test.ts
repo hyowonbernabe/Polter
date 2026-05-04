@@ -6,38 +6,27 @@ const SPRITE = 64;
 const BUBBLE = { w: 300, h: 180 };
 
 describe('getBubblePosition', () => {
-  it('creature bottom-right → bubble above-left, tail bottom-right', () => {
-    // Creature at (1600, 800) — right and below center (960, 540)
+  it('creature in lower half → bubble above, tail bottom', () => {
     const r = getBubblePosition(1600, 800, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
-    expect(r.tailSide).toBe('bottom-right');
-    // Bubble x should be left of creature center
-    expect(r.x).toBeLessThan(1600 + SPRITE / 2);
-    // Bubble y should be above creature
+    expect(r.tailSide).toBe('bottom');
     expect(r.y).toBeLessThan(800);
   });
 
-  it('creature bottom-left → bubble above-right, tail bottom-left', () => {
-    const r = getBubblePosition(100, 800, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
-    expect(r.tailSide).toBe('bottom-left');
-    expect(r.x).toBeGreaterThan(100);
-    expect(r.y).toBeLessThan(800);
-  });
-
-  it('creature top-right → bubble below-left, tail top-right', () => {
-    const r = getBubblePosition(1600, 50, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
-    expect(r.tailSide).toBe('top-right');
-    expect(r.y).toBeGreaterThan(50 + SPRITE);
-  });
-
-  it('creature top-left → bubble below-right, tail top-left', () => {
+  it('creature in upper half → bubble below, tail top', () => {
     const r = getBubblePosition(100, 50, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
-    expect(r.tailSide).toBe('top-left');
-    expect(r.x).toBeGreaterThan(100);
+    expect(r.tailSide).toBe('top');
     expect(r.y).toBeGreaterThan(50 + SPRITE);
+  });
+
+  it('bubble is centered horizontally over the creature', () => {
+    const r = getBubblePosition(1600, 800, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
+    const creatureCx = 1600 + SPRITE / 2;
+    const bubbleCx = r.x + BUBBLE.w / 2;
+    // bubble center aligns with creature center (may be clamped)
+    expect(Math.abs(bubbleCx - creatureCx)).toBeLessThanOrEqual(BUBBLE.w / 2);
   });
 
   it('clamps bubble so it never leaves monitor bounds', () => {
-    // Creature at extreme top-right corner
     const r = getBubblePosition(1890, 10, SPRITE, [MON], BUBBLE.w, BUBBLE.h);
     expect(r.x).toBeGreaterThanOrEqual(0);
     expect(r.y).toBeGreaterThanOrEqual(0);

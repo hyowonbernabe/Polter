@@ -5,7 +5,7 @@ export interface MonitorInfo {
   height: number;
 }
 
-export type TailSide = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type TailSide = 'top' | 'bottom';
 
 export interface BubblePosition {
   x: number;
@@ -43,32 +43,20 @@ export function getBubblePosition(
   const cx = creatureX + spriteSize / 2;
   const cy = creatureY + spriteSize / 2;
   const mon = nearestMonitor(cx, cy, monitors);
-  const monCx = mon.x + mon.width / 2;
   const monCy = mon.y + mon.height / 2;
 
-  const rightHalf = cx >= monCx;
-  const bottomHalf = cy >= monCy;
+  const aboveCreature = cy >= monCy;
 
-  let x: number;
+  let x = cx - bubbleW / 2;
   let y: number;
   let tailSide: TailSide;
 
-  if (rightHalf && bottomHalf) {
-    x = cx - bubbleW;
+  if (aboveCreature) {
     y = creatureY - bubbleH - GAP;
-    tailSide = 'bottom-right';
-  } else if (!rightHalf && bottomHalf) {
-    x = cx;
-    y = creatureY - bubbleH - GAP;
-    tailSide = 'bottom-left';
-  } else if (rightHalf && !bottomHalf) {
-    x = cx - bubbleW;
-    y = creatureY + spriteSize + GAP;
-    tailSide = 'top-right';
+    tailSide = 'bottom';
   } else {
-    x = cx;
     y = creatureY + spriteSize + GAP;
-    tailSide = 'top-left';
+    tailSide = 'top';
   }
 
   x = Math.max(mon.x, Math.min(x, mon.x + mon.width - bubbleW));
