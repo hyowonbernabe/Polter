@@ -15,14 +15,20 @@ pub fn point_in_rect(px: f64, py: f64, r: &Rect) -> bool {
 }
 
 /// Polls cursor position at ~60fps and toggles click-through on the main window.
-/// When the cursor is inside the creature bounds, mouse events are captured.
-/// When outside, clicks pass through to whatever is below the overlay.
-pub fn start<R: Runtime>(app: AppHandle<R>, bounds: Arc<Mutex<Rect>>) {
+/// Captures events when the cursor is inside the creature bounds OR inside the
+/// bubble bounds (when a bubble is showing). Passes through otherwise.
+pub fn start<R: Runtime>(
+    app: AppHandle<R>,
+    creature_bounds: Arc<Mutex<Rect>>,
+    bubble_bounds: Arc<Mutex<Option<Rect>>>,
+) {
     std::thread::spawn(move || loop {
         let (cx, cy) = cursor_pos_screen();
         let inside = {
-            let b = bounds.lock().unwrap();
-            point_in_rect(cx, cy, &*b)
+            let cb = creature_bounds.lock().unwrap();
+            let bb = bubble_bounds.lock().unwrap();
+            point_in_rect(cx, cy, &*cb)
+                || bb.as_ref().map_or(false, |r| point_in_rect(cx, cy, r))
         };
         if let Some(window) = app.get_webview_window("main") {
             let _ = window.set_ignore_cursor_events(!inside);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type { TailSide } from '../lib/bubblePosition';
 
 export interface InsightBubbleProps {
@@ -61,6 +62,14 @@ export default function InsightBubble({
     const id = setTimeout(onDismiss, 45_000);
     return () => clearTimeout(id);
   }, [onDismiss]);
+
+  // Register bubble bounds so the click-through loop captures pointer events over the bubble.
+  // Re-registers when position or expanded state changes; clears on unmount.
+  useEffect(() => {
+    const h = isExpanded ? 260 : 180;
+    invoke('set_bubble_bounds', { x, y, width: BUBBLE_W, height: h });
+    return () => { invoke('clear_bubble_bounds'); };
+  }, [x, y, isExpanded]);
 
   return (
     <div

@@ -46,6 +46,7 @@ pub fn run() {
     tracing_subscriber::fmt::init();
 
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
+    let bubble_bounds: commands::BubbleBoundsState = Arc::new(Mutex::new(None));
     let sleep_state: sleep::SleepState = Arc::new(Mutex::new(sleep::SleepStateInner::default()));
     let tray_dot: commands::TrayDotState = Arc::new(Mutex::new(false));
 
@@ -63,6 +64,7 @@ pub fn run() {
             None,
         ))
         .manage(bounds.clone())
+        .manage(bubble_bounds.clone())
         .manage(sleep_state.clone())
         .manage(tray_dot.clone())
         .invoke_handler(tauri::generate_handler![
@@ -79,6 +81,8 @@ pub fn run() {
             commands::toggle_privacy,
             commands::set_sleep_schedule,
             commands::dismiss_insight,
+            commands::set_bubble_bounds,
+            commands::clear_bubble_bounds,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -383,7 +387,7 @@ pub fn run() {
             }
 
             // Start the ~60fps click-through polling loop.
-            click_through::start(app.handle().clone(), bounds.clone());
+            click_through::start(app.handle().clone(), bounds.clone(), bubble_bounds.clone());
 
             Ok(())
         })

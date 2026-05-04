@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 pub type TrayDotState = Arc<Mutex<bool>>;
+pub type BubbleBoundsState = Arc<Mutex<Option<crate::click_through::Rect>>>;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use crate::classifier::{daily_summary::DailySummaryAccumulator, state_machine::StateMachine};
@@ -155,6 +156,36 @@ pub fn set_creature_bounds(
     b.y = win_y + y * scale;
     b.width = width * scale;
     b.height = height * scale;
+}
+
+#[tauri::command]
+pub fn set_bubble_bounds(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    bounds: tauri::State<'_, BubbleBoundsState>,
+    app_handle: tauri::AppHandle,
+) {
+    let (scale, win_x, win_y) = app_handle
+        .get_webview_window("main")
+        .map(|w| {
+            let scale = w.scale_factor().unwrap_or(1.0);
+            let pos = w.outer_position().unwrap_or(tauri::PhysicalPosition::new(0, 0));
+            (scale, pos.x as f64, pos.y as f64)
+        })
+        .unwrap_or((1.0, 0.0, 0.0));
+    *bounds.lock().unwrap() = Some(crate::click_through::Rect {
+        x: win_x + x * scale,
+        y: win_y + y * scale,
+        width: width * scale,
+        height: height * scale,
+    });
+}
+
+#[tauri::command]
+pub fn clear_bubble_bounds(bounds: tauri::State<'_, BubbleBoundsState>) {
+    *bounds.lock().unwrap() = None;
 }
 
 #[tauri::command]
