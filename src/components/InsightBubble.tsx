@@ -8,6 +8,7 @@ export interface InsightBubbleProps {
   x: number;
   y: number;
   tailSide: TailSide;
+  tailOffset: number;
   onDismiss: () => void;
   onExpand: () => void;
   isExpanded: boolean;
@@ -18,13 +19,13 @@ const BG = 'rgba(12, 12, 20, 0.78)';
 const BORDER = '1px solid rgba(255,255,255,0.10)';
 const BUBBLE_W = 300;
 
-function TailShape({ side }: { side: TailSide }) {
+function TailShape({ side, offset }: { side: TailSide; offset: number }) {
   const base: React.CSSProperties = {
     position: 'absolute',
     width: 0,
     height: 0,
     pointerEvents: 'none',
-    left: '50%',
+    left: offset,
     transform: 'translateX(-50%)',
   };
 
@@ -47,24 +48,20 @@ function TailShape({ side }: { side: TailSide }) {
 }
 
 export default function InsightBubble({
-  insight, extended, x, y, tailSide, onDismiss, onExpand, isExpanded, isFirstEver,
+  insight, extended, x, y, tailSide, tailOffset, onDismiss, onExpand, isExpanded, isFirstEver,
 }: InsightBubbleProps) {
   const [visible, setVisible] = useState(false);
 
-  // Bloom in after mount
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // Auto-dismiss after 45 seconds
   useEffect(() => {
     const id = setTimeout(onDismiss, 45_000);
     return () => clearTimeout(id);
   }, [onDismiss]);
 
-  // Register bubble bounds so the click-through loop captures pointer events over the bubble.
-  // Re-registers when position or expanded state changes; clears on unmount.
   useEffect(() => {
     const h = isExpanded ? 260 : 180;
     invoke('set_bubble_bounds', { x, y, width: BUBBLE_W, height: h });
@@ -101,7 +98,7 @@ export default function InsightBubble({
         transformOrigin: tailSide === 'bottom' ? 'bottom center' : 'top center',
       }}
     >
-      <TailShape side={tailSide} />
+      <TailShape side={tailSide} offset={tailOffset} />
 
       <p style={{ margin: '0 0 10px', fontSize: 13 }}>{insight}</p>
 

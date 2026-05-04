@@ -7,7 +7,21 @@ export interface MonitorInfo {
 
 export type TailSide = 'top' | 'bottom';
 
-const GAP = 12;
+export interface BubblePosition {
+  x: number;
+  /** For tailSide 'bottom': CSS `bottom` value (distance from viewport bottom to bubble bottom edge).
+   *  For tailSide 'top':    CSS `top` value (distance from viewport top to bubble top edge). */
+  y: number;
+  tailSide: TailSide;
+  /** Horizontal offset of the tail arrow from the bubble's left edge, in px.
+   *  Always points at the sprite center even when the bubble is clamped to a screen edge. */
+  tailOffset: number;
+}
+
+// Negative = bubble overlaps the sprite slightly so the tail looks attached.
+const GAP = -4;
+// Minimum px from bubble edge to keep the tail arrow visually inside the bubble.
+const TAIL_MIN = 16;
 
 function nearestMonitor(cx: number, cy: number, monitors: MonitorInfo[]): MonitorInfo {
   if (monitors.length === 0) {
@@ -26,14 +40,6 @@ function nearestMonitor(cx: number, cy: number, monitors: MonitorInfo[]): Monito
   return best;
 }
 
-export interface BubblePosition {
-  x: number;
-  /** For tailSide 'bottom': CSS `bottom` offset (anchors bubble bottom edge near wisp).
-   *  For tailSide 'top':    CSS `top` offset (anchors bubble top edge near wisp). */
-  y: number;
-  tailSide: TailSide;
-}
-
 export function getBubblePosition(
   creatureX: number,
   creatureY: number,
@@ -50,21 +56,23 @@ export function getBubblePosition(
 
   const aboveCreature = cy >= monCy;
 
+  // Center bubble over sprite, then clamp to monitor bounds.
   let x = cx - bubbleW / 2;
+  x = Math.max(mon.x, Math.min(x, mon.x + mon.width - bubbleW));
+
   let y: number;
   let tailSide: TailSide;
 
   if (aboveCreature) {
-    // y = CSS `bottom` value: anchors bubble's bottom edge near the creature top.
     y = viewportH - creatureY + GAP;
     tailSide = 'bottom';
   } else {
-    // y = CSS `top` value: anchors bubble's top edge near the creature bottom.
     y = creatureY + spriteH + GAP;
     tailSide = 'top';
   }
 
-  x = Math.max(mon.x, Math.min(x, mon.x + mon.width - bubbleW));
+  // Tail offset: where the sprite center falls relative to the (possibly clamped) bubble left edge.
+  const tailOffset = Math.max(TAIL_MIN, Math.min(cx - x, bubbleW - TAIL_MIN));
 
-  return { x, y, tailSide };
+  return { x, y, tailSide, tailOffset };
 }

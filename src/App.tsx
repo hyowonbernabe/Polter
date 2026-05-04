@@ -200,6 +200,7 @@ export default function App() {
             x={bp.x}
             y={bp.y}
             tailSide={bp.tailSide}
+            tailOffset={bp.tailOffset}
             onDismiss={handleDismiss}
             onExpand={() => setBubbleExpanded(true)}
             isExpanded={bubbleExpanded}
