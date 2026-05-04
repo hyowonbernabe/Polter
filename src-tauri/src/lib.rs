@@ -3,6 +3,7 @@ mod click_through;
 mod commands;
 pub mod inference;
 pub mod pipeline;
+mod preferences;
 pub mod sensors;
 pub mod session;
 pub mod settings;
@@ -87,6 +88,15 @@ pub fn run() {
             commands::get_current_state_info,
             commands::open_dashboard,
             commands::close_dashboard,
+            commands::open_settings,
+            commands::close_settings,
+            commands::clear_snapshots,
+            commands::export_insights,
+            commands::is_onboarding_complete,
+            commands::complete_onboarding,
+            commands::open_onboarding,
+            commands::dismiss_onboarding,
+            commands::reset_onboarding,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -130,6 +140,17 @@ pub fn run() {
             app.manage(anomaly_detector.clone());
             app.manage(summary_acc.clone());
             app.manage(inference_engine.clone());
+
+            // Load persisted sleep schedule before the schedule watcher starts.
+            {
+                let schedule = preferences::load_sleep_schedule(app.handle());
+                let mut s = sleep_state.lock().unwrap();
+                s.schedule_enabled      = schedule.enabled;
+                s.schedule_start_hour   = schedule.start_hour;
+                s.schedule_start_minute = schedule.start_minute;
+                s.schedule_end_hour     = schedule.end_hour;
+                s.schedule_end_minute   = schedule.end_minute;
+            }
 
             // Start the first session.
             {
@@ -196,13 +217,23 @@ pub fn run() {
                 });
             }
 
-            // Size the window to the full virtual screen (spans all monitors), then show it.
-            // Creature positioning is clamped to per-monitor work areas separately.
+            // Size the main window to the full virtual screen (spans all monitors).
+            // Only show it if onboarding is already complete.
             let window = app.get_webview_window("main").expect("main window missing");
             let (vx, vy, vw, vh) = virtual_screen_rect();
             window.set_position(tauri::PhysicalPosition::new(vx, vy))?;
             window.set_size(tauri::PhysicalSize::new(vw, vh))?;
-            window.show()?;
+
+            let onboarding_done = commands::is_onboarding_complete(app.handle().clone());
+            if onboarding_done {
+                window.show()?;
+            } else {
+                if let Some(ob) = app.get_webview_window("onboarding") {
+                    ob.center()?;
+                    ob.show()?;
+                    ob.set_focus()?;
+                }
+            }
 
             // Signal to the React frontend that the backend is ready.
             app.emit("wisp_ready", commands::WispReadyPayload {
@@ -216,6 +247,7 @@ pub fn run() {
             // System tray: Sleep · Privacy Mode · [Developer] · Quit.
             // CheckMenuItems show a checkmark when active.
             let dashboard_item = MenuItemBuilder::with_id("open_dashboard", "Open Dashboard").build(app)?;
+            let settings_item  = MenuItemBuilder::with_id("open_settings",  "Settings").build(app)?;
             let sleep_check   = CheckMenuItemBuilder::with_id("sleep_toggle",   "Sleep")
                 .checked(false).build(app)?;
             let privacy_check = CheckMenuItemBuilder::with_id("privacy_toggle", "Privacy Mode")
@@ -223,17 +255,18 @@ pub fn run() {
             let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
 
             let menu = if cfg!(debug_assertions) {
-                let dev_flow    = MenuItemBuilder::with_id("dev_flow",      "Flow Detection").build(app)?;
-                let dev_fatigue = MenuItemBuilder::with_id("dev_fatigue",   "Fatigue Signal").build(app)?;
-                let dev_break   = MenuItemBuilder::with_id("dev_break",     "Break Signal").build(app)?;
-                let dev_anomaly = MenuItemBuilder::with_id("dev_anomaly",   "Anomaly").build(app)?;
-                let dev_first   = MenuItemBuilder::with_id("dev_first_ever","First-Ever Insight").build(app)?;
+                let dev_flow      = MenuItemBuilder::with_id("dev_flow",         "Flow Detection").build(app)?;
+                let dev_fatigue   = MenuItemBuilder::with_id("dev_fatigue",      "Fatigue Signal").build(app)?;
+                let dev_break     = MenuItemBuilder::with_id("dev_break",        "Break Signal").build(app)?;
+                let dev_anomaly   = MenuItemBuilder::with_id("dev_anomaly",      "Anomaly").build(app)?;
+                let dev_first     = MenuItemBuilder::with_id("dev_first_ever",   "First-Ever Insight").build(app)?;
+                let dev_onboarding = MenuItemBuilder::with_id("dev_onboarding",  "Reset Onboarding").build(app)?;
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
-                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first])
+                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_onboarding])
                     .build()?;
-                MenuBuilder::new(app).items(&[&dashboard_item, &sleep_check, &privacy_check, &dev_sub, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &quit]).build()?
             } else {
-                MenuBuilder::new(app).items(&[&dashboard_item, &sleep_check, &privacy_check, &quit]).build()?
+                MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &quit]).build()?
             };
 
             // Clone items: one pair for the event handler, one pair for the schedule watcher.
@@ -254,6 +287,10 @@ pub fn run() {
 
                         "open_dashboard" => {
                             let _ = commands::do_open_dashboard(app);
+                        }
+
+                        "open_settings" => {
+                            let _ = commands::do_open_settings(app);
                         }
 
                         // Sleep and Privacy are mutually exclusive.
@@ -310,6 +347,10 @@ pub fn run() {
                         }
 
                         id if cfg!(debug_assertions) && id.starts_with("dev_") => {
+                            if id == "dev_onboarding" {
+                                let _ = commands::reset_onboarding(app.clone());
+                                return;
+                            }
                             let insight_type = match id {
                                 "dev_flow"       => "flow_detection",
                                 "dev_fatigue"    => "fatigue_signal",

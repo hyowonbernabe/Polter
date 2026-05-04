@@ -40,6 +40,34 @@
         "resizable": false,
         "visible": false,
         "focus": false
+      },
+      {
+        "label": "settings",
+        "title": "Wisp Settings",
+        "width": 420,
+        "height": 680,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "focus": false
+      },
+      {
+        "label": "onboarding",
+        "title": "Welcome to Wisp",
+        "width": 580,
+        "height": 900,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": false,
+        "resizable": false,
+        "visible": false,
+        "focus": false
       }
     ],
     "security": {

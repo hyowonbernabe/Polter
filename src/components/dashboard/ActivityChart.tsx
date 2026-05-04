@@ -66,7 +66,9 @@ export default function ActivityChart({ days }: { days: DashboardDaySummary[] })
           No data yet — check back after a few sessions.
         </p>
       ) : (
-        <ResponsiveContainer width="100%" height={100}>
+        // overflow:hidden + width:"99%" prevents ResponsiveContainer's infinite-grow feedback loop
+        <div style={{ width: "100%", overflow: "hidden" }}>
+        <ResponsiveContainer width="99%" height={100}>
           <BarChart data={rows} barSize={22} barGap={2}>
             <XAxis
               dataKey="day"
@@ -81,6 +83,7 @@ export default function ActivityChart({ days }: { days: DashboardDaySummary[] })
             <Bar dataKey="burn"  name="burn"  stackId="a" fill="#cc4400" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   );

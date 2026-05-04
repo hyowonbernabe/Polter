@@ -464,6 +464,123 @@ pub async fn get_best_day_this_week_minutes(pool: &DbReadPool) -> Result<i64, sq
     Ok(row.0.unwrap_or(0))
 }
 
+#[derive(Debug, Clone)]
+pub struct TodayMetricsRow {
+    pub avg_typing_speed: f64,
+    pub avg_error_rate: f64,
+    pub total_pauses: i64,
+    pub avg_mouse_speed: f64,
+    pub avg_mouse_jitter: f64,
+    pub total_clicks: i64,
+    pub total_scrolls: i64,
+    pub avg_cpu: f64,
+    pub avg_ram: f64,
+    pub total_app_switches: i64,
+    pub top_app: Option<String>,
+    pub snapshot_count: i64,
+}
+
+pub async fn get_today_metrics(
+    pool: &DbReadPool,
+    day_start_ms: i64,
+) -> Result<TodayMetricsRow, sqlx::Error> {
+    // Only include active windows (at least one input event).
+    let row = sqlx::query(
+        r#"SELECT
+               AVG(typing_speed),
+               AVG(error_rate),
+               SUM(pause_count),
+               AVG(mouse_speed),
+               AVG(mouse_jitter),
+               SUM(click_count),
+               SUM(scroll_count),
+               AVG(cpu_percent),
+               AVG(ram_percent),
+               SUM(app_switch_count),
+               COUNT(*)
+           FROM behavioral_snapshots
+           WHERE timestamp >= ?
+             AND (typing_speed > 0 OR click_count > 0 OR scroll_count > 0)"#,
+    )
+    .bind(day_start_ms)
+    .fetch_one(pool)
+    .await?;
+
+    use sqlx::Row;
+    let snapshot_count: i64 = row.get::<Option<i64>, _>(10).unwrap_or(0);
+
+    let top_app: Option<String> = if snapshot_count > 0 {
+        let app_row = sqlx::query(
+            r#"SELECT foreground_app
+               FROM behavioral_snapshots
+               WHERE timestamp >= ? AND foreground_app != ''
+               GROUP BY foreground_app
+               ORDER BY COUNT(*) DESC
+               LIMIT 1"#,
+        )
+        .bind(day_start_ms)
+        .fetch_optional(pool)
+        .await?;
+        app_row.map(|r| r.get::<String, _>(0))
+    } else {
+        None
+    };
+
+    Ok(TodayMetricsRow {
+        avg_typing_speed:  row.get::<Option<f64>, _>(0).unwrap_or(0.0),
+        avg_error_rate:    row.get::<Option<f64>, _>(1).unwrap_or(0.0),
+        total_pauses:      row.get::<Option<i64>, _>(2).unwrap_or(0),
+        avg_mouse_speed:   row.get::<Option<f64>, _>(3).unwrap_or(0.0),
+        avg_mouse_jitter:  row.get::<Option<f64>, _>(4).unwrap_or(0.0),
+        total_clicks:      row.get::<Option<i64>, _>(5).unwrap_or(0),
+        total_scrolls:     row.get::<Option<i64>, _>(6).unwrap_or(0),
+        avg_cpu:           row.get::<Option<f64>, _>(7).unwrap_or(0.0),
+        avg_ram:           row.get::<Option<f64>, _>(8).unwrap_or(0.0),
+        total_app_switches: row.get::<Option<i64>, _>(9).unwrap_or(0),
+        top_app,
+        snapshot_count,
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct HourlyPoint {
+    pub hour: i32,
+    pub avg_typing_speed: f64,
+    pub avg_cpu: f64,
+    pub snapshot_count: i64,
+}
+
+pub async fn get_today_hourly(
+    pool: &DbReadPool,
+    day_start_ms: i64,
+) -> Result<Vec<HourlyPoint>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT
+               CAST((timestamp - ?) / 3600000 AS INTEGER) as hour,
+               AVG(typing_speed),
+               AVG(cpu_percent),
+               COUNT(*)
+           FROM behavioral_snapshots
+           WHERE timestamp >= ? AND timestamp < ? + 86400000
+           GROUP BY CAST((timestamp - ?) / 3600000 AS INTEGER)
+           ORDER BY hour"#,
+    )
+    .bind(day_start_ms)
+    .bind(day_start_ms)
+    .bind(day_start_ms)
+    .bind(day_start_ms)
+    .fetch_all(pool)
+    .await?;
+
+    use sqlx::Row;
+    Ok(rows.into_iter().map(|r| HourlyPoint {
+        hour:             r.get::<i64, _>(0) as i32,
+        avg_typing_speed: r.get::<Option<f64>, _>(1).unwrap_or(0.0),
+        avg_cpu:          r.get::<Option<f64>, _>(2).unwrap_or(0.0),
+        snapshot_count:   r.get::<i64, _>(3),
+    }).collect())
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
