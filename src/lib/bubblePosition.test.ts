@@ -3,7 +3,7 @@ import { getBubblePosition, type MonitorInfo } from './bubblePosition';
 
 const MON: MonitorInfo = { x: 0, y: 0, width: 1920, height: 1080 };
 const SPRITE_W = 64;
-const SPRITE_H = 128; // 2x aspect ratio like the actual 16×32 sprites
+const SPRITE_H = 64; // actual sprite is 64×64
 const BUBBLE_W = 300;
 const VIEWPORT_H = 1080;
 
@@ -17,11 +17,11 @@ describe('getBubblePosition', () => {
   });
 
   it('creature in upper half → tailSide top, y is CSS top offset', () => {
-    // cy = 50 + 64 = 114 < monCy 540 → below creature
+    // cy = 50 + 32 = 82 < monCy 540 → below creature
     const r = getBubblePosition(100, 50, SPRITE_W, SPRITE_H, [MON], BUBBLE_W, VIEWPORT_H);
     expect(r.tailSide).toBe('top');
-    // y = creatureY + spriteH + GAP = 50 + 128 + 12 = 190
-    expect(r.y).toBe(190);
+    // y = creatureY + spriteH + GAP = 50 + 64 + 12 = 126
+    expect(r.y).toBe(126);
   });
 
   it('bubble is centered horizontally over the creature', () => {

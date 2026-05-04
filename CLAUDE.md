@@ -35,6 +35,7 @@ When a decision in the code conflicts with a doc, the doc wins. If a doc is wron
 | Settings | Tauri store plugin |
 | API key storage | keyring crate (Windows Credential Manager) |
 | Sprite rendering | HTML canvas, `image-rendering: pixelated` |
+| Sprite assets | `design/v1/` — source sprites to use for the creature |
 | Audio | Web Audio API, bundled files |
 | Updater | Tauri updater plugin + GitHub Releases |
 

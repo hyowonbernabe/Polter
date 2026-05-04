@@ -189,7 +189,7 @@ export default function App() {
       />
       {activeInsight && preInsightPhase === 3 && (() => {
         const bp = getBubblePosition(
-          pos.x, pos.y, spriteSize, spriteSize * 2, monitors,
+          pos.x, pos.y, spriteSize, spriteSize, monitors,
           300, window.innerHeight,
         );
         return (

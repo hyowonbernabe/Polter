@@ -10,13 +10,13 @@ export interface SpriteConfig {
 }
 
 export const SPRITE_CONFIG: Record<WispState, SpriteConfig> = {
-  focus: { file: 'wisp-focus.png', frames: 1, width: 16, height: 32 },
-  calm:  { file: 'wisp-calm.png',  frames: 1, width: 16, height: 32 },
-  deep:  { file: 'wisp-deep.png',  frames: 1, width: 16, height: 32 },
-  spark: { file: 'wisp-spark.png', frames: 1, width: 16, height: 32 },
-  burn:  { file: 'wisp-burn.png',  frames: 1, width: 16, height: 32 },
-  fade:  { file: 'wisp-fade.png',  frames: 1, width: 16, height: 32 },
-  rest:  { file: 'wisp-rest.png',  frames: 1, width: 16, height: 32 },
+  focus: { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  calm:  { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  deep:  { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  spark: { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  burn:  { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  fade:  { file: 'wisp.png', frames: 1, width: 64, height: 64 },
+  rest:  { file: 'wisp.png', frames: 1, width: 64, height: 64 },
 };
 
 export const STATE_GLOW: Record<WispState | 'cold_start', string> = {
