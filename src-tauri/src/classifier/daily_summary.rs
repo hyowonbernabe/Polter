@@ -78,10 +78,10 @@ impl DailySummaryAccumulator {
         Self::ms_to_min(*self.state_ms.get(&s).unwrap_or(&0))
     }
 
-    pub async fn write_to_db(&self, pool: &DbWritePool, date: &str) -> Result<(), sqlx::Error> {
+    /// Returns (total, focus, calm, deep, spark, burn, fade, rest, longest_focus_block) in minutes.
+    pub fn write_params(&self) -> (i64, i64, i64, i64, i64, i64, i64, i64, i64) {
         let total: u64 = self.state_ms.values().sum();
-        upsert_daily_summary(
-            pool, date,
+        (
             Self::ms_to_min(total),
             self.get(WispState::Focus),
             self.get(WispState::Calm),
@@ -91,7 +91,14 @@ impl DailySummaryAccumulator {
             self.get(WispState::Fade),
             self.get(WispState::Rest),
             Self::ms_to_min(self.longest_focus_block_ms),
-            1,
+        )
+    }
+
+    pub async fn write_to_db(&self, pool: &DbWritePool, date: &str) -> Result<(), sqlx::Error> {
+        let (total, focus, calm, deep, spark, burn, fade, rest, longest) = self.write_params();
+        upsert_daily_summary(
+            pool, date,
+            total, focus, calm, deep, spark, burn, fade, rest, longest, 1,
         ).await
     }
 
