@@ -525,6 +525,25 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
       p.x = clamp(p.x, minX, maxX - sz);
       p.y = clamp(p.y, minY, maxY - sz);
+
+      // Escape recovery: if creature ended up in a gap between monitors, teleport to nearest monitor center
+      const cx = p.x + sz / 2;
+      const cy = p.y + sz / 2;
+      const inAnyMonitor = monitorsRef.current.some(
+        m => cx >= m.x && cx <= m.x + m.width && cy >= m.y && cy <= m.y + m.height
+      );
+      if (!inAnyMonitor) {
+        let nearest = monitorsRef.current[0];
+        let bestDist = Infinity;
+        for (const m of monitorsRef.current) {
+          const d = Math.abs(cx - (m.x + m.width / 2)) + Math.abs(cy - (m.y + m.height / 2));
+          if (d < bestDist) { bestDist = d; nearest = m; }
+        }
+        p.x = nearest.x + nearest.width / 2 - sz / 2;
+        p.y = nearest.y + nearest.height / 2 - sz / 2;
+        v.x = 0; v.y = 0;
+        if (stateRef.current !== 'tether_grab') transitionTo('wander');
+      }
     }
 
     updateTransform();
@@ -601,8 +620,8 @@ export function useCreaturePhysics(): PhysicsOutput {
       pointerHistoryRef.current = [];
       invoke('set_drag_active', { active: false }).catch(() => {});
       vel.current = {
-        x: clamp(vel.current.x, -900, 900),
-        y: clamp(vel.current.y, -900, 900),
+        x: clamp(vel.current.x, -PHYSICS.THROW_MAX_SPEED, PHYSICS.THROW_MAX_SPEED),
+        y: clamp(vel.current.y, -PHYSICS.THROW_MAX_SPEED, PHYSICS.THROW_MAX_SPEED),
       };
       transitionTo('thrown', 500);
     }
@@ -719,8 +738,8 @@ export function useCreaturePhysics(): PhysicsOutput {
 
     // Spring velocity at release IS the throw velocity — already reflects the flick momentum.
     vel.current = {
-      x: clamp(vel.current.x, -900, 900),
-      y: clamp(vel.current.y, -900, 900),
+      x: clamp(vel.current.x, -PHYSICS.THROW_MAX_SPEED, PHYSICS.THROW_MAX_SPEED),
+      y: clamp(vel.current.y, -PHYSICS.THROW_MAX_SPEED, PHYSICS.THROW_MAX_SPEED),
     };
     transitionTo('thrown', 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps

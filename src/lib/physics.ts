@@ -102,7 +102,8 @@ export const PHYSICS = {
   // Tether spring
   TETHER_STIFFNESS: 300,
   TETHER_DAMPING: 28,
-  TETHER_MAX_SPEED: 1500,
+  TETHER_MAX_SPEED: 3000,
+  THROW_MAX_SPEED: 3000,
 } as const;
 
 // ── Mood modifiers ────────────────────────────────────────────────────────────
