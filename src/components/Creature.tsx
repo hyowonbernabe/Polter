@@ -16,9 +16,13 @@ interface CreatureProps {
   sleeping?: boolean;
   privacyMode?: boolean;
   showWake?: boolean;
+  preInsightPhase?: 0 | 1 | 2 | 3;
+  isFirstEverInsight?: boolean;
+  showNod?: boolean;
   onReturningDone?: () => void;
   onBestSessionDone?: () => void;
   onWakeDone?: () => void;
+  onNodDone?: () => void;
 }
 
 function ensureKeyframes() {
@@ -53,6 +57,15 @@ function ensureKeyframes() {
       60%  { transform: scale(1.12); opacity: 1.0; }
       100% { transform: scale(1.0);  opacity: 1.0; }
     }
+    @keyframes pre-glow-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.7; }
+    }
+    @keyframes nod {
+      0%   { transform: translateY(0); }
+      35%  { transform: translateY(5px); }
+      100% { transform: translateY(0); }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -71,9 +84,13 @@ export default function Creature({
   sleeping = false,
   privacyMode = false,
   showWake = false,
+  preInsightPhase = 0,
+  isFirstEverInsight = false,
+  showNod = false,
   onReturningDone,
   onBestSessionDone,
   onWakeDone,
+  onNodDone,
 }: CreatureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spritesRef = useRef<Map<WispState, HTMLImageElement>>(new Map());
@@ -161,6 +178,13 @@ export default function Creature({
     return () => clearTimeout(id);
   }, [showWake, onWakeDone]);
 
+  // Auto-clear nod after 420ms
+  useEffect(() => {
+    if (!showNod) return;
+    const id = setTimeout(() => onNodDone?.(), 420);
+    return () => clearTimeout(id);
+  }, [showNod, onNodDone]);
+
   // Drag logic
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -188,12 +212,18 @@ export default function Creature({
   }, [onPositionChange]);
 
   // Glow / desaturation filter — priority order:
-  // privacy > sleeping > returning > burn-distress > cold-start > normal
+  // privacy > sleeping > pre-insight > returning > burn-distress > cold-start > normal
   let glowFilter: string;
   if (privacyMode) {
     glowFilter = 'grayscale(1) brightness(0.45)';
   } else if (sleeping) {
     glowFilter = 'saturate(0.12) brightness(0.38)';
+  } else if (preInsightPhase === 2) {
+    const intensity = isFirstEverInsight ? '28px' : '20px';
+    glowFilter = `drop-shadow(0 0 ${intensity} #c8b0ff) brightness(1.25)`;
+  } else if (preInsightPhase === 1) {
+    const intensity = isFirstEverInsight ? '18px' : '12px';
+    glowFilter = `drop-shadow(0 0 ${intensity} #b090ff) brightness(1.15)`;
   } else if (showReturning) {
     glowFilter = 'drop-shadow(0 0 20px #ffffff)';
   } else if (burnDistress) {
@@ -204,11 +234,15 @@ export default function Creature({
     glowFilter = STATE_GLOW[state];
   }
 
-  // Outer animation priority: wake-unfurl > returning-bounce > sleeping breathe > normal breathe
-  const outerAnimation = showWake
+  // Outer animation priority: nod > wake-unfurl > returning-bounce > pre-glow-pulse > sleeping breathe > normal breathe
+  const outerAnimation = showNod
+    ? 'nod 0.42s ease-in-out'
+    : showWake
     ? 'wake-unfurl 0.8s ease-out'
     : showReturning
     ? 'returning-bounce 0.6s ease-in-out'
+    : preInsightPhase === 2
+    ? 'pre-glow-pulse 0.8s ease-in-out'
     : sleeping
     ? 'breathe-sleep 8s ease-in-out infinite'
     : 'breathe 3s ease-in-out infinite';
