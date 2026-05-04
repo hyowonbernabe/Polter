@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 const IDLE_THRESHOLD = 5;
 const MAX_IDLE_COUNT = 10;
 
-export function useIdleDetection(): number {
+export function useIdleDetection(idleFloor = 0.35): number {
   const [idleCount, setIdleCount] = useState(0);
 
   useEffect(() => {
@@ -18,5 +18,5 @@ export function useIdleDetection(): number {
     return () => { unlisten.then((f) => f()); };
   }, []);
 
-  return idleCount >= IDLE_THRESHOLD ? 0.35 : 1.0;
+  return idleCount >= IDLE_THRESHOLD ? idleFloor : 1.0;
 }

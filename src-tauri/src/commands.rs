@@ -189,8 +189,10 @@ pub fn clear_bubble_bounds(bounds: tauri::State<'_, BubbleBoundsState>) {
 }
 
 #[tauri::command]
-pub fn set_api_key(key: String) -> Result<(), String> {
-    settings::set_api_key(&key).map_err(|e| e.to_string())
+pub fn set_api_key(key: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    settings::set_api_key(&key).map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("inference_mode_changed", "cloud");
+    Ok(())
 }
 
 #[tauri::command]
@@ -199,8 +201,10 @@ pub fn get_api_key() -> Option<String> {
 }
 
 #[tauri::command]
-pub fn clear_api_key() -> Result<(), String> {
-    settings::clear_api_key().map_err(|e| e.to_string())
+pub fn clear_api_key(app_handle: tauri::AppHandle) -> Result<(), String> {
+    settings::clear_api_key().map_err(|e| e.to_string())?;
+    let _ = app_handle.emit("inference_mode_changed", "unavailable");
+    Ok(())
 }
 
 #[tauri::command]
@@ -295,13 +299,19 @@ pub struct SleepStatus {
     pub schedule_end_minute: u8,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SleepScheduleInput {
     pub enabled: bool,
     pub start_hour: u8,
     pub start_minute: u8,
     pub end_hour: u8,
     pub end_minute: u8,
+}
+
+impl Default for SleepScheduleInput {
+    fn default() -> Self {
+        Self { enabled: false, start_hour: 22, start_minute: 0, end_hour: 7, end_minute: 0 }
+    }
 }
 
 #[tauri::command]
@@ -371,13 +381,17 @@ pub async fn toggle_privacy(
 pub fn set_sleep_schedule(
     schedule: SleepScheduleInput,
     sleep_state: tauri::State<'_, SleepState>,
+    app_handle: tauri::AppHandle,
 ) {
-    let mut s = sleep_state.lock().unwrap();
-    s.schedule_enabled     = schedule.enabled;
-    s.schedule_start_hour  = schedule.start_hour;
-    s.schedule_start_minute = schedule.start_minute;
-    s.schedule_end_hour    = schedule.end_hour;
-    s.schedule_end_minute  = schedule.end_minute;
+    {
+        let mut s = sleep_state.lock().unwrap();
+        s.schedule_enabled      = schedule.enabled;
+        s.schedule_start_hour   = schedule.start_hour;
+        s.schedule_start_minute = schedule.start_minute;
+        s.schedule_end_hour     = schedule.end_hour;
+        s.schedule_end_minute   = schedule.end_minute;
+    }
+    crate::preferences::save_sleep_schedule(&app_handle, &schedule);
 }
 
 /// Shared logic called by both the command and the tray menu event handler.
@@ -412,6 +426,440 @@ pub fn dismiss_insight(
 ) {
     *tray_dot.lock().unwrap() = false;
     crate::tray::update_tray(false, None, &app_handle);
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardDaySummary {
+    pub date: String,
+    pub focus_minutes: i64,
+    pub deep_minutes: i64,
+    pub spark_minutes: i64,
+    pub burn_minutes: i64,
+    pub calm_minutes: i64,
+    pub fade_minutes: i64,
+    pub total_active_minutes: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardInsight {
+    pub id: i64,
+    pub timestamp: i64,
+    pub state: String,
+    pub insight_text: String,
+    pub extended_text: String,
+    pub insight_type: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TodayMetrics {
+    pub avg_typing_speed: f64,
+    pub avg_error_rate: f64,
+    pub total_pauses: i64,
+    pub avg_mouse_speed: f64,
+    pub avg_mouse_jitter: f64,
+    pub total_clicks: i64,
+    pub total_scrolls: i64,
+    pub avg_cpu: f64,
+    pub avg_ram: f64,
+    pub total_app_switches: i64,
+    pub top_app: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardData {
+    pub today_active_minutes: i64,
+    pub today_longest_focus_minutes: i64,
+    pub today_insight_count: i64,
+    pub today_session_count: i64,
+    pub days: Vec<DashboardDaySummary>,
+    pub recent_insights: Vec<DashboardInsight>,
+    pub longest_focus_ever_minutes: i64,
+    pub best_day_this_week_minutes: i64,
+    pub today_metrics: TodayMetrics,
+    pub today_hourly: Vec<HourlyPoint>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HourlyPoint {
+    pub hour: i32,
+    pub avg_typing_speed: f64,
+    pub avg_cpu: f64,
+    pub snapshot_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CurrentStateInfo {
+    pub state: String,
+    pub state_entered_ms: Option<u64>,
+}
+
+fn today_start_ms() -> i64 {
+    use chrono::{Datelike, Local, TimeZone};
+    let now = Local::now();
+    Local
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+        .single()
+        .map(|dt| dt.timestamp_millis())
+        .unwrap_or_else(|| now.timestamp_millis())
+}
+
+fn today_date_str() -> String {
+    chrono::Local::now().format("%Y-%m-%d").to_string()
+}
+
+#[tauri::command]
+pub async fn get_dashboard_data(
+    pools: tauri::State<'_, DbPools>,
+) -> Result<DashboardData, String> {
+    use crate::storage::queries::{
+        get_best_day_this_week_minutes, get_daily_insight_count, get_daily_summary,
+        get_last_7_daily_summaries, get_longest_focus_block_ms, get_recent_insights,
+        get_today_hourly, get_today_metrics,
+    };
+    let today_str = today_date_str();
+    let today_ms = today_start_ms();
+
+    let today = get_daily_summary(pools.read.as_ref(), &today_str)
+        .await
+        .map_err(|e| e.to_string())?;
+    let today_active_minutes    = today.as_ref().map(|r| r.total_active_minutes).unwrap_or(0);
+    let today_longest_focus_minutes = today.as_ref().map(|r| r.longest_focus_block_minutes).unwrap_or(0);
+    let today_session_count     = today.as_ref().map(|r| r.session_count).unwrap_or(0);
+    let today_insight_count = get_daily_insight_count(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let days = get_last_7_daily_summaries(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|r| DashboardDaySummary {
+            date: r.date,
+            focus_minutes: r.focus_minutes,
+            deep_minutes: r.deep_minutes,
+            spark_minutes: r.spark_minutes,
+            burn_minutes: r.burn_minutes,
+            calm_minutes: r.calm_minutes,
+            fade_minutes: r.fade_minutes,
+            total_active_minutes: r.total_active_minutes,
+        })
+        .collect();
+
+    let recent_insights = get_recent_insights(pools.read.as_ref(), 20)
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|r| DashboardInsight {
+            id: r.id,
+            timestamp: r.timestamp,
+            state: r.state,
+            insight_text: r.insight_text,
+            extended_text: r.extended_text,
+            insight_type: r.insight_type,
+        })
+        .collect();
+
+    let longest_focus_ever_minutes = get_longest_focus_block_ms(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?
+        / 60_000;
+
+    let best_day_this_week_minutes = get_best_day_this_week_minutes(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let m = get_today_metrics(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+    let today_metrics = TodayMetrics {
+        avg_typing_speed:   m.avg_typing_speed,
+        avg_error_rate:     m.avg_error_rate,
+        total_pauses:       m.total_pauses,
+        avg_mouse_speed:    m.avg_mouse_speed,
+        avg_mouse_jitter:   m.avg_mouse_jitter,
+        total_clicks:       m.total_clicks,
+        total_scrolls:      m.total_scrolls,
+        avg_cpu:            m.avg_cpu,
+        avg_ram:            m.avg_ram,
+        total_app_switches: m.total_app_switches,
+        top_app:            m.top_app,
+    };
+
+    let hourly_raw = get_today_hourly(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+    let today_hourly = hourly_raw.into_iter().map(|h| HourlyPoint {
+        hour:             h.hour,
+        avg_typing_speed: h.avg_typing_speed,
+        avg_cpu:          h.avg_cpu,
+        snapshot_count:   h.snapshot_count,
+    }).collect();
+
+    Ok(DashboardData {
+        today_active_minutes,
+        today_longest_focus_minutes,
+        today_insight_count,
+        today_session_count,
+        days,
+        recent_insights,
+        longest_focus_ever_minutes,
+        best_day_this_week_minutes,
+        today_metrics,
+        today_hourly,
+    })
+}
+
+#[tauri::command]
+pub fn get_current_state_info(
+    state_machine: tauri::State<'_, Arc<Mutex<StateMachine>>>,
+) -> CurrentStateInfo {
+    let sm = state_machine.lock().unwrap();
+    CurrentStateInfo {
+        state: sm.current_state.as_str().to_string(),
+        state_entered_ms: sm.state_entered_ms,
+    }
+}
+
+pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY, MONITORINFO,
+        };
+        let scale = app
+            .get_webview_window("main")
+            .map(|w| w.scale_factor().unwrap_or(1.0))
+            .unwrap_or(1.0);
+        let hmon = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        let _ = GetMonitorInfoW(hmon, &mut info);
+        let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
+        let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        if let Some(dash) = app.get_webview_window("dashboard") {
+            dash.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
+                .map_err(|e| e.to_string())?;
+            dash.show().map_err(|e| e.to_string())?;
+            dash.set_focus().map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    if let Some(dash) = app.get_webview_window("dashboard") {
+        dash.show().map_err(|e| e.to_string())?;
+        dash.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_dashboard(app_handle: tauri::AppHandle) -> Result<(), String> {
+    do_open_dashboard(&app_handle)
+}
+
+#[tauri::command]
+pub fn close_dashboard(app_handle: tauri::AppHandle) {
+    if let Some(dash) = app_handle.get_webview_window("dashboard") {
+        let _ = dash.hide();
+    }
+}
+
+// ── Settings window ───────────────────────────────────────────────────────────
+
+pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY, MONITORINFO,
+        };
+        let scale = app
+            .get_webview_window("main")
+            .map(|w| w.scale_factor().unwrap_or(1.0))
+            .unwrap_or(1.0);
+        let hmon = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        let _ = GetMonitorInfoW(hmon, &mut info);
+        let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
+        let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        if let Some(win) = app.get_webview_window("settings") {
+            win.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
+                .map_err(|e| e.to_string())?;
+            win.show().map_err(|e| e.to_string())?;
+            win.set_focus().map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    if let Some(win) = app.get_webview_window("settings") {
+        win.show().map_err(|e| e.to_string())?;
+        win.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_settings(app_handle: tauri::AppHandle) -> Result<(), String> {
+    do_open_settings(&app_handle)
+}
+
+#[tauri::command]
+pub fn close_settings(app_handle: tauri::AppHandle) {
+    if let Some(win) = app_handle.get_webview_window("settings") {
+        let _ = win.hide();
+    }
+}
+
+// ── Data operations ───────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn clear_snapshots(pools: tauri::State<'_, DbPools>) -> Result<u64, String> {
+    let result = sqlx::query("DELETE FROM behavioral_snapshots")
+        .execute(pools.write.as_ref())
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(result.rows_affected())
+}
+
+#[tauri::command]
+pub async fn export_insights(pools: tauri::State<'_, DbPools>) -> Result<String, String> {
+    use sqlx::Row;
+    let rows = sqlx::query(
+        "SELECT timestamp, state, insight_text, extended_text FROM insights ORDER BY timestamp ASC",
+    )
+    .fetch_all(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if rows.is_empty() {
+        return Ok(String::from("No insights recorded yet.\n"));
+    }
+
+    let mut out = String::new();
+    for row in rows {
+        let ts_ms: i64 = row.get(0);
+        let state: String = row.get(1);
+        let text: String = row.get(2);
+        let extended: String = row.get(3);
+        let ts = chrono::DateTime::from_timestamp_millis(ts_ms)
+            .map(|dt| {
+                dt.with_timezone(&chrono::Local)
+                    .format("%Y-%m-%d %H:%M")
+                    .to_string()
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+        out.push_str(&format!("[{ts}] {state}\n{text}\n\n{extended}\n\n---\n\n"));
+    }
+    Ok(out)
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tier2Choices {
+    pub screen: bool,
+    pub clipboard: bool,
+    pub calendar: bool,
+}
+
+#[tauri::command]
+pub fn is_onboarding_complete(app_handle: tauri::AppHandle) -> bool {
+    use tauri_plugin_store::StoreExt;
+    app_handle
+        .store("wisp-settings.json")
+        .ok()
+        .and_then(|s| s.get("onboarding_complete"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn complete_onboarding(
+    choices: Tier2Choices,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+    store.set("onboarding_complete", serde_json::Value::Bool(true));
+    store.set(
+        "tier2_choices",
+        serde_json::to_value(&choices).unwrap_or(serde_json::Value::Null),
+    );
+    let _ = store.save();
+
+    // Hide onboarding, show main window.
+    if let Some(ob) = app_handle.get_webview_window("onboarding") {
+        let _ = ob.hide();
+    }
+    if let Some(main) = app_handle.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+
+    // Emit wake animation, then after 3 s fire the first-ever insight bubble.
+    let _ = app_handle.emit("wake_animation", ());
+    let handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+        let _ = handle.emit(
+            "insight_ready",
+            crate::inference::trigger::InsightReadyPayload {
+                state: "rest".to_string(),
+                insight: "give me a few days. i'll tell you something when i know something.".to_string(),
+                extended: "Wisp is quietly learning your patterns. Check back soon.".to_string(),
+                insight_type: "flow_detection".to_string(),
+                is_first_ever: true,
+            },
+        );
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(ob) = app_handle.get_webview_window("onboarding") {
+        ob.center().map_err(|e| e.to_string())?;
+        ob.show().map_err(|e| e.to_string())?;
+        ob.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn dismiss_onboarding(app_handle: tauri::AppHandle) {
+    if let Some(ob) = app_handle.get_webview_window("onboarding") {
+        let _ = ob.hide();
+    }
+    if let Some(main) = app_handle.get_webview_window("main") {
+        let _ = main.show();
+    }
+    let _ = app_handle.emit("wake_animation", ());
+}
+
+#[tauri::command]
+pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+    store.set("onboarding_complete", serde_json::Value::Bool(false));
+    let _ = store.save();
+
+    // Hide main window, show onboarding centered.
+    if let Some(main) = app_handle.get_webview_window("main") {
+        let _ = main.hide();
+    }
+    if let Some(ob) = app_handle.get_webview_window("onboarding") {
+        ob.center().map_err(|e| e.to_string())?;
+        ob.show().map_err(|e| e.to_string())?;
+        ob.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -474,5 +922,56 @@ mod tests {
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"days_since_first_session\":null"));
         assert!(json.contains("\"session_id\":null"));
+    }
+
+    #[test]
+    fn dashboard_day_summary_serializes() {
+        let d = DashboardDaySummary {
+            date: "2026-05-04".into(),
+            focus_minutes: 45,
+            deep_minutes: 30,
+            spark_minutes: 10,
+            burn_minutes: 5,
+            calm_minutes: 15,
+            fade_minutes: 5,
+            total_active_minutes: 110,
+        };
+        let json = serde_json::to_string(&d).unwrap();
+        assert!(json.contains("\"date\":\"2026-05-04\""));
+        assert!(json.contains("\"focus_minutes\":45"));
+        assert!(json.contains("\"total_active_minutes\":110"));
+    }
+
+    #[test]
+    fn current_state_info_serializes_with_entered_ms() {
+        let s = CurrentStateInfo {
+            state: "spark".into(),
+            state_entered_ms: Some(1_714_800_000_000),
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("\"state\":\"spark\""));
+        assert!(json.contains("\"state_entered_ms\":1714800000000"));
+    }
+
+    #[test]
+    fn current_state_info_serializes_none_entered_ms() {
+        let s = CurrentStateInfo {
+            state: "rest".into(),
+            state_entered_ms: None,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        assert!(json.contains("\"state_entered_ms\":null"));
+    }
+
+    #[test]
+    fn today_start_ms_is_before_now() {
+        let start = today_start_ms();
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        assert!(start <= now_ms);
+        // midnight of today is at most 24 hours before now
+        assert!(now_ms - start < 86_400_000);
     }
 }

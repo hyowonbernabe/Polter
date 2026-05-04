@@ -9,6 +9,7 @@ import { useInsightQueue } from "./hooks/useInsightQueue";
 import { useCreaturePosition } from "./hooks/useCreaturePosition";
 import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
+import { loadPreferences, type CreatureSize, SIZE_MULTIPLIERS } from "./lib/preferences";
 
 const BURN_DISTRESS_MS = 90 * 60 * 1_000;
 const DEBUG_MONITORS = false;
@@ -44,6 +45,8 @@ export default function App() {
   const [showNod, setShowNod] = useState(false);
   const [bubbleExpanded, setBubbleExpanded] = useState(false);
   const [glowTriggered, setGlowTriggered] = useState(false);
+  const [creatureSize, setCreatureSize] = useState<CreatureSize>("medium");
+  const [idleFloor, setIdleFloor] = useState(0.35);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -55,7 +58,7 @@ export default function App() {
   );
 
   const { pos, spriteSize, workArea, monitors, updatePosition } = useCreaturePosition(onBoundsChange);
-  const idleOpacity = useIdleDetection();
+  const idleOpacity = useIdleDetection(idleFloor);
 
   const { current: activeInsight, isFirstEver, enqueue, dismiss } = useInsightQueue();
 
@@ -93,6 +96,39 @@ export default function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeInsight?.insight]);
+
+  // Load preferences on mount; re-apply when settings window changes them.
+  useEffect(() => {
+    loadPreferences().then((p) => {
+      setCreatureSize(p.creature_size);
+      setIdleFloor(p.idle_opacity);
+    });
+    const unlistenSize = listen<CreatureSize>("creature_size_changed", (e) => {
+      setCreatureSize(e.payload);
+    });
+    const unlistenOpacity = listen<number>("idle_opacity_changed", (e) => {
+      setIdleFloor(e.payload);
+    });
+    const unlistenSnap = listen<{ corner: string }>("creature_snap_to_corner", (e) => {
+      if (monitors.length === 0) return;
+      const primary = monitors[0];
+      const size = spriteSize * SIZE_MULTIPLIERS[creatureSize];
+      const margin = 16;
+      let x = primary.x + margin;
+      let y = primary.y + margin;
+      if (e.payload.corner === "tr" || e.payload.corner === "br")
+        x = primary.x + primary.width - size - margin;
+      if (e.payload.corner === "bl" || e.payload.corner === "br")
+        y = primary.y + primary.height - size - margin;
+      updatePosition(x, y);
+    });
+    return () => {
+      unlistenSize.then((f) => f());
+      unlistenOpacity.then((f) => f());
+      unlistenSnap.then((f) => f());
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monitors, spriteSize, creatureSize]);
 
   useEffect(() => {
     const unlistenReady = listen<{ version: string }>("wisp_ready", (event) => {
@@ -168,7 +204,7 @@ export default function App() {
       <Creature
         x={pos.x}
         y={pos.y}
-        displaySize={spriteSize}
+        displaySize={Math.round(spriteSize * SIZE_MULTIPLIERS[creatureSize])}
         state={wispState}
         coldStart={coldStart}
         opacity={idleOpacity}

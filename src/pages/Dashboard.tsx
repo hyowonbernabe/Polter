@@ -1,0 +1,283 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import StateHeader from "../components/dashboard/StateHeader";
+import TodayGlance from "../components/dashboard/TodayGlance";
+import ActivityChart from "../components/dashboard/ActivityChart";
+import StateDistribution from "../components/dashboard/StateDistribution";
+import PersonalBests from "../components/dashboard/PersonalBests";
+import InsightHistory from "../components/dashboard/InsightHistory";
+import WhatWispKnows from "../components/dashboard/WhatWispKnows";
+import DashboardDivider from "../components/dashboard/DashboardDivider";
+import LiveMetrics from "../components/dashboard/LiveMetrics";
+import ActivityTimeline from "../components/dashboard/ActivityTimeline";
+
+export interface DashboardDaySummary {
+  date: string;
+  focus_minutes: number;
+  deep_minutes: number;
+  spark_minutes: number;
+  burn_minutes: number;
+  calm_minutes: number;
+  fade_minutes: number;
+  total_active_minutes: number;
+}
+
+export interface DashboardInsight {
+  id: number;
+  timestamp: number;
+  state: string;
+  insight_text: string;
+  extended_text: string;
+  insight_type: string;
+}
+
+export interface TodayMetrics {
+  avg_typing_speed: number;
+  avg_error_rate: number;
+  total_pauses: number;
+  avg_mouse_speed: number;
+  avg_mouse_jitter: number;
+  total_clicks: number;
+  total_scrolls: number;
+  avg_cpu: number;
+  avg_ram: number;
+  total_app_switches: number;
+  top_app: string | null;
+}
+
+export interface HourlyPoint {
+  hour: number;
+  avg_typing_speed: number;
+  avg_cpu: number;
+  snapshot_count: number;
+}
+
+export interface DashboardData {
+  today_active_minutes: number;
+  today_longest_focus_minutes: number;
+  today_insight_count: number;
+  today_session_count: number;
+  days: DashboardDaySummary[];
+  recent_insights: DashboardInsight[];
+  longest_focus_ever_minutes: number;
+  best_day_this_week_minutes: number;
+  today_metrics: TodayMetrics;
+  today_hourly: HourlyPoint[];
+}
+
+export interface CurrentStateInfo {
+  state: string;
+  state_entered_ms: number | null;
+}
+
+export default function Dashboard() {
+  const [visible, setVisible] = useState(false);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClose = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    cancelClose();
+    setVisible(false);
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
+      invoke("close_dashboard").catch(console.error);
+    }, 240);
+  }, [cancelClose]);
+
+  // Reload data and re-animate every time the window gains focus (i.e. is reopened)
+  useEffect(() => {
+    const win = getCurrentWebviewWindow();
+    let unlisten: (() => void) | undefined;
+    win.onFocusChanged(({ payload: focused }) => {
+      if (focused) {
+        cancelClose();
+        invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+        invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+        requestAnimationFrame(() => setVisible(true));
+      } else {
+        handleClose();
+      }
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [handleClose, cancelClose]);
+
+  // Initial open — data fetch + animate in
+  useEffect(() => {
+    invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+    invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "flex-end",
+        pointerEvents: "none",
+      }}
+    >
+      <style>{`
+        .wisp-scroll::-webkit-scrollbar { width: 4px; }
+        .wisp-scroll::-webkit-scrollbar-track { background: transparent; }
+        .wisp-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.12);
+          border-radius: 99px;
+        }
+        .wisp-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.22);
+        }
+        .wisp-close:hover { background: rgba(255,255,255,0.12) !important; }
+      `}</style>
+
+      {/* Outer panel — clipping container so scrollbar respects border-radius */}
+      <div
+        style={{
+          width: 420,
+          maxHeight: 660,
+          background: "rgba(12, 12, 20, 0.88)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 16,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+          color: "rgba(255,255,255,0.90)",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+          fontSize: 13,
+          pointerEvents: "auto",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          transform: visible ? "scale(1)" : "scale(0.94)",
+          opacity: visible ? 1 : 0,
+          transition: "transform 240ms cubic-bezier(0.16,1,0.3,1), opacity 220ms ease",
+          transformOrigin: "bottom right",
+        }}
+      >
+        {/* Header row — state + settings + close button */}
+        <div style={{ display: "flex", alignItems: "center", padding: "18px 16px 16px 20px", flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <StateHeader stateInfo={stateInfo} />
+          </div>
+          <button
+            className="wisp-close"
+            onClick={() => invoke("open_settings").catch(console.error)}
+            title="Settings"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 8,
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 13,
+              lineHeight: 1,
+              flexShrink: 0,
+              marginRight: 6,
+              transition: "background 150ms ease",
+              fontFamily: "inherit",
+            }}
+          >
+            ⚙
+          </button>
+          <button
+            className="wisp-close"
+            onClick={handleClose}
+            title="Close"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 8,
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 14,
+              lineHeight: 1,
+              flexShrink: 0,
+              transition: "background 150ms ease",
+              fontFamily: "inherit",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable body — minHeight:0 lets the flex child honour the parent maxHeight */}
+        <div
+          className="wisp-scroll"
+          style={{ overflowY: "auto", overflowX: "hidden", flex: 1, minHeight: 0 }}
+        >
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <TodayGlance data={data} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <LiveMetrics metrics={data?.today_metrics ?? null} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <ActivityTimeline hourly={data?.today_hourly ?? []} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <ActivityChart days={data?.days ?? []} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <StateDistribution days={data?.days ?? []} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <PersonalBests data={data} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <InsightHistory insights={data?.recent_insights ?? []} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px 18px" }}>
+            <WhatWispKnows data={data} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

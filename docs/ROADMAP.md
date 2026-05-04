@@ -132,16 +132,16 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 8 — Dashboard
 *The app remembers.*
 
-- [ ] Dashboard panel opens from system tray — frosted glass, pinned to corner
-- [ ] Open and close animate smoothly
-- [ ] State header shows current state label and how long the creature has been in it
-- [ ] Today at a glance — total active time, longest focus block today, insights surfaced today
-- [ ] 7-day activity chart — stacked bars showing focus, deep, and burn minutes per day
-- [ ] State distribution this week — breakdown of time spent in each state
-- [ ] Insight history log — all past bubbles in reverse chronological order, full text readable
-- [ ] Personal bests — longest focus session ever recorded, best day this week
-- [ ] "What Wisp knows" panel — plain language summary of what has been collected and inferred this session
-- [ ] Day-one empty state — chart and history sections show a calm, informative message when no data exists yet
+- [x] Dashboard panel opens from system tray — frosted glass, pinned to corner
+- [x] Open and close animate smoothly
+- [x] State header shows current state label and how long the creature has been in it
+- [x] Today at a glance — total active time, longest focus block today, insights surfaced today
+- [x] 7-day activity chart — stacked bars showing focus, deep, and burn minutes per day
+- [x] State distribution this week — breakdown of time spent in each state
+- [x] Insight history log — all past bubbles in reverse chronological order, full text readable
+- [x] Personal bests — longest focus session ever recorded, best day this week
+- [x] "What Wisp knows" panel — plain language summary of what has been collected and inferred this session
+- [x] Day-one empty state — chart and history sections show a calm, informative message when no data exists yet
 
 ---
 
@@ -214,7 +214,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 5 | Core Controls | Complete ✅ |
 | 6 | AI Inference | OpenRouter complete — Ollama deferred; consent + no-AI indicator pending Groups 7/9 UI |
 | 7 | Chat Bubbles | Complete ✅ |
-| 8 | Dashboard | Not started |
+| 8 | Dashboard | Complete ✅ |
 | 9 | Settings | Not started |
 | 10 | Onboarding | Not started |
 | 11 | Polish: Creature Interactions | Not started |
