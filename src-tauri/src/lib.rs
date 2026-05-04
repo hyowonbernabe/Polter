@@ -18,7 +18,7 @@ use classifier::{
 };
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
-    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
+    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
@@ -205,14 +205,27 @@ pub fn run() {
             let initial_mode = if settings::has_api_key() { "cloud" } else { "unavailable" };
             app.emit("inference_mode_changed", initial_mode)?;
 
-            // System tray: Sleep · Privacy Mode · Quit.
+            // System tray: Sleep · Privacy Mode · [Developer] · Quit.
             // CheckMenuItems show a checkmark when active.
             let sleep_check   = CheckMenuItemBuilder::with_id("sleep_toggle",   "Sleep")
                 .checked(false).build(app)?;
             let privacy_check = CheckMenuItemBuilder::with_id("privacy_toggle", "Privacy Mode")
                 .checked(false).build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &quit]).build()?;
+
+            let menu = if cfg!(debug_assertions) {
+                let dev_flow    = MenuItemBuilder::with_id("dev_flow",      "Flow Detection").build(app)?;
+                let dev_fatigue = MenuItemBuilder::with_id("dev_fatigue",   "Fatigue Signal").build(app)?;
+                let dev_break   = MenuItemBuilder::with_id("dev_break",     "Break Signal").build(app)?;
+                let dev_anomaly = MenuItemBuilder::with_id("dev_anomaly",   "Anomaly").build(app)?;
+                let dev_first   = MenuItemBuilder::with_id("dev_first_ever","First-Ever Insight").build(app)?;
+                let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
+                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first])
+                    .build()?;
+                MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &dev_sub, &quit]).build()?
+            } else {
+                MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &quit]).build()?
+            };
 
             // Clone items: one pair for the event handler, one pair for the schedule watcher.
             let sleep_ev   = sleep_check.clone();
@@ -281,6 +294,35 @@ pub fn run() {
                                     privacy: new_privacy,
                                 });
                             });
+                        }
+
+                        id if cfg!(debug_assertions) && id.starts_with("dev_") => {
+                            let insight_type = match id {
+                                "dev_flow"       => "flow_detection",
+                                "dev_fatigue"    => "fatigue_signal",
+                                "dev_break"      => "break_signal",
+                                "dev_anomaly"    => "anomaly",
+                                "dev_first_ever" => "flow_detection",
+                                _                => return,
+                            };
+                            let is_first_ever = id == "dev_first_ever";
+                            let _ = app.emit(
+                                "insight_ready",
+                                crate::inference::trigger::InsightReadyPayload {
+                                    state: "focus".to_string(),
+                                    insight: format!("Dev test: {} insight.", insight_type.replace('_', " ")),
+                                    extended: "This is a developer-triggered test insight. It bypasses all inference guards and fires immediately.".to_string(),
+                                    insight_type: insight_type.to_string(),
+                                    is_first_ever,
+                                },
+                            );
+                            // Show tray dot
+                            if let Some(tray) = app.tray_by_id("main") {
+                                let (r, g, b) = crate::tray::state_to_tray_color("focus");
+                                let rgba = crate::tray::tray_icon_rgba_with_dot(r, g, b, true);
+                                let icon = tauri::image::Image::new_owned(rgba, 32, 32);
+                                let _ = tray.set_icon(Some(icon));
+                            }
                         }
 
                         _ => {}
