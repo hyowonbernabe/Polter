@@ -175,15 +175,11 @@ export default function Creature({
     glowFilter = STATE_GLOW[state];
   }
 
-  // Animation: returning takes priority, then burn distress, then normal breathe
-  let animation: string;
-  if (showReturning) {
-    animation = 'returning-bounce 0.6s ease-in-out';
-  } else if (burnDistress) {
-    animation = 'tremble 0.15s ease-in-out infinite, breathe 3s ease-in-out infinite';
-  } else {
-    animation = 'breathe 3s ease-in-out infinite';
-  }
+  // Outer animation: breathe or returning-bounce. Tremble lives on the inner div
+  // so it doesn't conflict with breathe (both would animate `transform` on one element).
+  const outerAnimation = showReturning
+    ? 'returning-bounce 0.6s ease-in-out'
+    : 'breathe 3s ease-in-out infinite';
 
   const cfg = SPRITE_CONFIG[state];
 
@@ -197,36 +193,46 @@ export default function Creature({
         height: cfg.height * SCALE,
         filter: glowFilter,
         transition: 'filter 500ms ease, opacity 2s ease',
-        animation,
+        animation: outerAnimation,
         opacity,
       }}
     >
-      <canvas
-        ref={canvasRef}
-        width={cfg.width}
-        height={cfg.height}
-        onMouseDown={onMouseDown}
+      {/* Inner div: tremble animation when burn distress is active */}
+      <div
         style={{
-          imageRendering: 'pixelated',
-          transform: `scale(${SCALE})`,
-          transformOrigin: 'top left',
-          cursor: 'grab',
-          display: 'block',
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          animation: burnDistress ? 'tremble 0.15s ease-in-out infinite' : undefined,
         }}
-      />
-      {/* White flash overlay for best-session recognition */}
-      {showBestSession && (
-        <div
+      >
+        <canvas
+          ref={canvasRef}
+          width={cfg.width}
+          height={cfg.height}
+          onMouseDown={onMouseDown}
           style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'white',
-            animation: 'best-session-flash 1.5s ease-in-out',
-            pointerEvents: 'none',
-            borderRadius: 2,
+            imageRendering: 'pixelated',
+            transform: `scale(${SCALE})`,
+            transformOrigin: 'top left',
+            cursor: 'grab',
+            display: 'block',
           }}
         />
-      )}
+        {/* White flash overlay for best-session recognition */}
+        {showBestSession && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'white',
+              animation: 'best-session-flash 1.5s ease-in-out',
+              pointerEvents: 'none',
+              borderRadius: 2,
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
