@@ -76,11 +76,11 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 5 — Core Controls
 *The app can be paused. Always.*
 
-- [ ] Sleep mode — toggling sleep pauses all data collection and changes creature visual
-- [ ] Wake animation — creature unfurls and resumes when woken from sleep
-- [ ] Privacy mode — instant full pause distinct from sleep, creature shows a dedicated paused visual
-- [ ] Sleep and privacy mode accessible from system tray menu
-- [ ] Auto-sleep schedule — user can set quiet hours during which Wisp sleeps automatically
+- [x] Sleep mode — toggling sleep pauses all data collection and changes creature visual
+- [x] Wake animation — creature unfurls and resumes when woken from sleep
+- [x] Privacy mode — instant full pause distinct from sleep, creature shows a dedicated paused visual
+- [x] Sleep and privacy mode accessible from system tray menu
+- [x] Auto-sleep schedule — user can set quiet hours during which Wisp sleeps automatically
 
 ---
 
@@ -211,7 +211,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 2 | Data Pipeline | In Progress (12/13 complete — display brightness + audio device state deferred) |
 | 3 | Baseline and State Machine | Complete ✅ |
 | 4 | Creature Comes Alive | Complete ✅ |
-| 5 | Core Controls | Not started |
+| 5 | Core Controls | Complete ✅ |
 | 6 | AI Inference | Not started |
 | 7 | Chat Bubbles | Not started |
 | 8 | Dashboard | Not started |
