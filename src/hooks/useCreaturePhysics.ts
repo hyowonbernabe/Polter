@@ -44,6 +44,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   const [dragSquish, setDragSquishR] = useState<Vec2>({ x: 1, y: 1 });
   const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [spriteSize, setSpriteSizeR] = useState<number>(() => spriteDisplaySize());
 
   // ── Physics refs — mutated in rAF, never trigger renders ─────────────────────
   const pos = useRef<Vec2>({ x: 200, y: 200 });
@@ -53,7 +54,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   const workAreaRef = useRef<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const monitorsRef = useRef<MonitorInfo[]>([]);
   const wispStateRef = useRef<WispState>('calm');
-  const spriteSizeRef = useRef<number>(64);
+  const spriteSizeRef = useRef<number>(spriteDisplaySize());
 
   const noiseT = useRef<number>(0);
   const noise2D = useRef(createNoise2D());
@@ -82,7 +83,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   // Persistence
   const storeRef = useRef<Store | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBoundsUpdateRef = useRef<number>(0);
 
   // rAF
   const rafRef = useRef<number>(0);
@@ -128,10 +129,10 @@ export function useCreaturePhysics(): PhysicsOutput {
   }
 
   function scheduleBoundsUpdate(x: number, y: number, w: number, h: number) {
-    if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
-    boundsDebounceRef.current = setTimeout(() => {
-      invoke('set_creature_bounds', { x, y, width: w, height: h }).catch(() => {});
-    }, 100);
+    const now = performance.now();
+    if (now - lastBoundsUpdateRef.current < 60) return;
+    lastBoundsUpdateRef.current = now;
+    invoke('set_creature_bounds', { x, y, width: w, height: h }).catch(() => {});
   }
 
   function getMoodMod() {
@@ -325,26 +326,50 @@ export function useCreaturePhysics(): PhysicsOutput {
       if (!locked) transitionTo('burst');
     }
 
-    else if (state === 'thrown') {
-      v.y -= 30 * dt;
-      v.x *= Math.pow(0.97, dt);
-      v.y *= Math.pow(0.97, dt);
-      if (!locked && magnitude(v) < PHYSICS.FLIGHT_RESUME) transitionTo('wander');
-      if (Math.abs(v.x) > 5) {
-        facingRef.current = dialogueActiveRef.current ? 'forward' : (v.x > 0 ? 'right' : 'left');
+    else if (state === 'thrown' || state === 'stunned' || state === 'recovering') {
+      // ── Ballistic physics: gravity arc + air drag + wall bounce ──────────────
+      const GRAVITY  = 1400;               // px/s² downward
+      const AIR_DRAG = Math.pow(0.42, dt); // 42 % velocity remaining after 1 s
+
+      if (state !== 'recovering') {
+        v.y += GRAVITY * dt;
       }
-    }
+      v.x *= AIR_DRAG;
+      v.y *= AIR_DRAG;
 
-    else if (state === 'stunned') {
-      v.y += 400 * dt;
-      v.x *= Math.pow(0.95, dt);
-      if (!locked) transitionTo('recovering', PHYSICS.RECOVER_DURATION_MS);
-    }
+      p.x += v.x * dt;
+      p.y += v.y * dt;
 
-    else if (state === 'recovering') {
-      v.y -= 200 * dt;
-      v.x *= Math.pow(0.9, dt);
-      if (!locked) transitionTo('wander');
+      // Wall bounce
+      const BOUNCE = 0.55;
+      if (p.x < wa.x) {
+        p.x = wa.x;
+        v.x = Math.abs(v.x) * BOUNCE;
+        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+      if (p.x + sz > wa.x + wa.width) {
+        p.x = wa.x + wa.width - sz;
+        v.x = -Math.abs(v.x) * BOUNCE;
+        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+      if (p.y < wa.y) {
+        p.y = wa.y;
+        v.y = Math.abs(v.y) * BOUNCE;
+        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+      if (p.y + sz > wa.y + wa.height) {
+        p.y = wa.y + wa.height - sz;
+        v.y = -Math.abs(v.y) * BOUNCE;
+        if (Math.abs(v.y) < 60) v.y = 0;
+        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+
+      if (state === 'stunned'    && !locked) transitionTo('recovering', PHYSICS.RECOVER_DURATION_MS);
+      if (state === 'recovering' && !locked) transitionTo('wander');
+      if (state === 'thrown'     && !locked && magnitude(v) < PHYSICS.FLIGHT_RESUME) transitionTo('wander');
+
+      if (Math.abs(v.x) > 5)
+        facingRef.current = dialogueActiveRef.current ? 'forward' : (v.x > 0 ? 'right' : 'left');
     }
 
     else if (state === 'click_react') {
@@ -373,14 +398,16 @@ export function useCreaturePhysics(): PhysicsOutput {
 
     // ── Integrate position ────────────────────────────────────────────────────
 
-    if (state !== 'perching') {
+    // Ballistic states handle their own position + wall bounce above
+    if (state !== 'perching' && state !== 'thrown' && state !== 'stunned' && state !== 'recovering') {
       p.x += v.x * dt;
       p.y += v.y * dt;
     }
 
-    // ── Hard wall collision ───────────────────────────────────────────────────
+    // ── Hard wall collision (custom flight states only) ────────────────────────
 
-    if (state !== 'perching' && state !== 'approach') {
+    if (state !== 'perching' && state !== 'approach' &&
+        state !== 'thrown' && state !== 'stunned' && state !== 'recovering') {
       const speed = magnitude(v);
       if (p.x + sz > wa.x + wa.width) {
         p.x = wa.x + wa.width - sz;
@@ -432,6 +459,7 @@ export function useCreaturePhysics(): PhysicsOutput {
 
       const sz = spriteDisplaySize();
       spriteSizeRef.current = sz;
+      setSpriteSizeR(sz);
 
       const store = await Store.load(STORE_FILE);
       storeRef.current = store;
@@ -477,7 +505,6 @@ export function useCreaturePhysics(): PhysicsOutput {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('pointermove', onPointerMove);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -513,7 +540,10 @@ export function useCreaturePhysics(): PhysicsOutput {
   }, []);
 
   const notifySingleClick = useCallback((cx: number, cy: number) => {
-    if (stateRef.current === 'perching') { triggerRelaunch(); return; }
+    const cur = stateRef.current;
+    // Browser fires click after every pointerup — don't interrupt ballistic flight
+    if (cur === 'thrown' || cur === 'stunned' || cur === 'recovering') return;
+    if (cur === 'perching') { triggerRelaunch(); return; }
     const p = pos.current;
     const sz = spriteSizeRef.current;
     const dir = normalize({ x: (p.x + sz / 2) - cx, y: (p.y + sz / 2) - cy });
@@ -540,6 +570,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     const now = performance.now();
     pos.current = { x: clientX - dragOffsetRef.current.x, y: clientY - dragOffsetRef.current.y };
     updateTransform();
+    scheduleBoundsUpdate(pos.current.x, pos.current.y, spriteSizeRef.current, spriteSizeRef.current);
 
     pointerHistoryRef.current.push({ x: clientX, y: clientY, t: now });
     while (
@@ -573,19 +604,22 @@ export function useCreaturePhysics(): PhysicsOutput {
     setDragSquishR({ x: 1, y: 1 });
 
     const hist = pointerHistoryRef.current;
+    let throwVx = 0, throwVy = 0;
     if (hist.length >= 2) {
-      const last = hist[hist.length - 1];
-      const first = hist[0];
-      const dtS = (last.t - first.t) / 1000;
-      if (dtS > 0) {
-        vel.current.x = clamp((last.x - first.x) / dtS, -800, 800);
-        vel.current.y = clamp((last.y - first.y) / dtS, -800, 800);
+      const last  = hist[hist.length - 1];
+      // Use last 40ms so a fast flick reads correctly instead of being averaged down
+      const cutoff = last.t - 40;
+      const first  = hist.find(p => p.t >= cutoff) ?? hist[0];
+      const dtS    = (last.t - first.t) / 1000;
+      if (dtS > 0.005) {
+        throwVx = clamp((last.x - first.x) / dtS, -1400, 1400);
+        throwVy = clamp((last.y - first.y) / dtS, -1400, 1400);
       }
-    } else {
-      vel.current = { x: 0, y: 0 };
     }
+    vel.current = { x: throwVx, y: throwVy };
     pointerHistoryRef.current = [];
-    transitionTo('thrown');
+
+    transitionTo('thrown', 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -597,7 +631,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     dragSquish,
     workArea,
     monitors,
-    spriteSize: spriteDisplaySize(),
+    spriteSize,
     setWispState,
     setDialogue,
     notifyBubbleClick,
