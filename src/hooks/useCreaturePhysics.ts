@@ -526,11 +526,14 @@ export function useCreaturePhysics(): PhysicsOutput {
       p.x = clamp(p.x, minX, maxX - sz);
       p.y = clamp(p.y, minY, maxY - sz);
 
-      // Escape recovery: if creature ended up in a gap between monitors, teleport to nearest monitor center
+      // Escape recovery: teleport only when creature is well outside all monitor bounds.
+      // The margin is large so normal edge collisions never trigger this.
+      const ESCAPE_MARGIN = 400;
       const cx = p.x + sz / 2;
       const cy = p.y + sz / 2;
       const inAnyMonitor = monitorsRef.current.some(
-        m => cx >= m.x && cx <= m.x + m.width && cy >= m.y && cy <= m.y + m.height
+        m => cx >= m.x - ESCAPE_MARGIN && cx <= m.x + m.width + ESCAPE_MARGIN &&
+             cy >= m.y - ESCAPE_MARGIN && cy <= m.y + m.height + ESCAPE_MARGIN
       );
       if (!inAnyMonitor) {
         let nearest = monitorsRef.current[0];
