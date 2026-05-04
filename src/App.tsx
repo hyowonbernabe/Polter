@@ -3,8 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import Creature from "./components/Creature";
 import { useCreaturePosition } from "./hooks/useCreaturePosition";
-
-type WispState = "focus" | "calm" | "deep" | "spark" | "burn" | "fade" | "rest";
+import { type WispState } from "./lib/spriteConfig";
 
 interface StateChangedPayload {
   state: WispState;
