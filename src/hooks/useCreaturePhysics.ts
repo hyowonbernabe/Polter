@@ -17,7 +17,7 @@ const STORE_FILE = 'wisp-settings.json';
 const POS_KEY = 'creature_position';
 
 export interface PhysicsOutput {
-  elementRef: React.RefObject<HTMLDivElement | null>;
+  elementRef: React.RefObject<HTMLDivElement>;
   physicsState: PhysicsState;
   facing: FacingDirection;
   velocity: Vec2;
@@ -35,7 +35,7 @@ export interface PhysicsOutput {
 }
 
 export function useCreaturePhysics(): PhysicsOutput {
-  const elementRef = useRef<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   // ── React state — only for things the render tree actually reads ─────────────
   const [physicsState, setPhysicsStateR] = useState<PhysicsState>('wander');
