@@ -311,7 +311,7 @@ export default function Creature({
                 imageRendering: 'pixelated',
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
-                cursor: physicsState === 'grabbed' ? 'grabbing' : 'grab',
+                cursor: (physicsState === 'grabbed' || physicsState === 'tether_grab') ? 'grabbing' : 'grab',
                 display: 'block',
               }}
             />

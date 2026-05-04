@@ -13,7 +13,8 @@ export type PhysicsState =
   | 'land_impact'  // Contact frame — plays squash, transitions to perching
   | 'perching'     // On a surface
   | 'relaunch'     // Explosive departure from perch
-  | 'grabbed'      // User holding — physics loop paused
+  | 'grabbed'      // (unused) legacy — replaced by tether_grab
+  | 'tether_grab'  // User holding — spring tether pulls creature toward cursor
   | 'thrown'       // Released with velocity — carries momentum
   | 'stunned'      // Hit wall hard — tumbles/falls
   | 'recovering'   // Regaining flight after stun
@@ -97,6 +98,11 @@ export const PHYSICS = {
   SQUISH_ON_GRAB_Y: 1.2,
   STRETCH_MAX: 1.35,
   STRETCH_COMPRESS_MIN: 0.75,
+
+  // Tether spring
+  TETHER_STIFFNESS: 300,
+  TETHER_DAMPING: 28,
+  TETHER_MAX_SPEED: 1500,
 } as const;
 
 // ── Mood modifiers ────────────────────────────────────────────────────────────

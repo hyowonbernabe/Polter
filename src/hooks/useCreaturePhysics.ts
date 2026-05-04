@@ -144,7 +144,8 @@ export function useCreaturePhysics(): PhysicsOutput {
 
   function scheduleBoundsUpdate(x: number, y: number, w: number, h: number) {
     const now = performance.now();
-    if (now - lastBoundsUpdateRef.current < 60) return;
+    const throttle = stateRef.current === 'tether_grab' ? 16 : 60;
+    if (now - lastBoundsUpdateRef.current < throttle) return;
     lastBoundsUpdateRef.current = now;
     invoke('set_creature_bounds', { x, y, width: w, height: h }).catch(() => {});
   }
@@ -186,7 +187,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     const locked = now < lockedUntilRef.current;
     const mood = getMoodMod();
 
-    if (state === 'grabbed') return;
+    if (state === 'grabbed') return; // legacy no-op
 
     const p = pos.current;
     const v = vel.current;
@@ -454,10 +455,30 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
     }
 
+    else if (state === 'tether_grab') {
+      const target = {
+        x: cursorPosRef.current.x - dragOffsetRef.current.x,
+        y: cursorPosRef.current.y - dragOffsetRef.current.y,
+      };
+      const dx = target.x - p.x;
+      const dy = target.y - p.y;
+      const fx = PHYSICS.TETHER_STIFFNESS * dx - PHYSICS.TETHER_DAMPING * v.x;
+      const fy = PHYSICS.TETHER_STIFFNESS * dy - PHYSICS.TETHER_DAMPING * v.y;
+      v.x += fx * dt;
+      v.y += fy * dt;
+      const clampedV = clampVec2(v, PHYSICS.TETHER_MAX_SPEED);
+      v.x = clampedV.x; v.y = clampedV.y;
+      p.x += v.x * dt;
+      p.y += v.y * dt;
+      if (!dialogueActiveRef.current && Math.abs(v.x) > 5) {
+        facingRef.current = v.x > 0 ? 'right' : 'left';
+      }
+    }
+
     // ── Integrate position ────────────────────────────────────────────────────
 
-    // Ballistic states handle their own position + wall bounce above
-    if (state !== 'perching' && state !== 'thrown' && state !== 'stunned' && state !== 'recovering') {
+    // Ballistic and tether states handle their own position integration above
+    if (state !== 'perching' && state !== 'thrown' && state !== 'stunned' && state !== 'recovering' && state !== 'tether_grab') {
       p.x += v.x * dt;
       p.y += v.y * dt;
     }
@@ -465,7 +486,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     // ── Hard wall collision — only at outer edges (flight states only) ───────────
 
     if (state !== 'perching' && state !== 'approach' &&
-        state !== 'thrown' && state !== 'stunned' && state !== 'recovering') {
+        state !== 'thrown' && state !== 'stunned' && state !== 'recovering' && state !== 'tether_grab') {
       const speed = magnitude(v);
       if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
         p.x = mb.x + mb.width - sz;
@@ -592,7 +613,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     if (visible) {
       facingRef.current = 'forward';
       const cur = stateRef.current;
-      if (cur !== 'grabbed' && cur !== 'perching' && cur !== 'land_impact') {
+      if (cur !== 'grabbed' && cur !== 'tether_grab' && cur !== 'perching' && cur !== 'land_impact') {
         transitionTo('dialogue');
         vel.current.x *= 0.2;
         vel.current.y *= 0.2;
@@ -630,7 +651,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     isDraggingRef.current = true;
     dragOffsetRef.current = { x: clientX - pos.current.x, y: clientY - pos.current.y };
     pointerHistoryRef.current = [];
-    transitionTo('grabbed');
+    transitionTo('tether_grab');
     setDragSquishR({ x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y });
     setTimeout(() => setDragSquishR({ x: 1, y: 1 }), 150);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -639,10 +660,8 @@ export function useCreaturePhysics(): PhysicsOutput {
   const notifyDragMove = useCallback((clientX: number, clientY: number) => {
     if (!isDraggingRef.current) return;
     const now = performance.now();
-    pos.current = { x: clientX - dragOffsetRef.current.x, y: clientY - dragOffsetRef.current.y };
-    updateTransform();
-    scheduleBoundsUpdate(pos.current.x, pos.current.y, spriteSizeRef.current, spriteSizeRef.current);
-
+    // Spring tether: don't teleport pos — physics tick drives the creature toward cursor target.
+    // Only track pointer history for the facing direction and stretch visual.
     pointerHistoryRef.current.push({ x: clientX, y: clientY, t: now });
     while (
       pointerHistoryRef.current.length > 0 &&
@@ -673,23 +692,13 @@ export function useCreaturePhysics(): PhysicsOutput {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     setDragSquishR({ x: 1, y: 1 });
-
-    const hist = pointerHistoryRef.current;
-    let throwVx = 0, throwVy = 0;
-    if (hist.length >= 2) {
-      const last  = hist[hist.length - 1];
-      // Use last 40ms so a fast flick reads correctly instead of being averaged down
-      const cutoff = last.t - 40;
-      const first  = hist.find(p => p.t >= cutoff) ?? hist[0];
-      const dtS    = (last.t - first.t) / 1000;
-      if (dtS > 0.005) {
-        throwVx = clamp((last.x - first.x) / dtS, -900, 900);
-        throwVy = clamp((last.y - first.y) / dtS, -900, 900);
-      }
-    }
-    vel.current = { x: throwVx, y: throwVy };
     pointerHistoryRef.current = [];
 
+    // Spring velocity at release IS the throw velocity — already reflects the flick momentum.
+    vel.current = {
+      x: clamp(vel.current.x, -900, 900),
+      y: clamp(vel.current.y, -900, 900),
+    };
     transitionTo('thrown', 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

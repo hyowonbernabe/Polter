@@ -15,7 +15,7 @@ const BASE_FRAME_MS = 83; // 12fps baseline
 const CROSSFADE_DURATION_MS = 300;
 
 function getPlaybackRate(physicsState: PhysicsState, speed: number): number {
-  if (physicsState === 'grabbed' || physicsState === 'stunned') return 0.3;
+  if (physicsState === 'grabbed' || physicsState === 'tether_grab' || physicsState === 'stunned') return 0.3;
   if (physicsState === 'perching' || physicsState === 'land_impact') return 0.5;
   if (physicsState === 'fly_idle' || physicsState === 'hover' || physicsState === 'dialogue') return 0.8;
   return 1.0 + Math.max(0, (speed - 80) / 200);
