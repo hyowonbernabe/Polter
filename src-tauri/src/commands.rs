@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
-use crate::classifier::state_machine::StateMachine;
+use tauri::{Emitter, Manager};
+use crate::classifier::{daily_summary::DailySummaryAccumulator, state_machine::StateMachine};
 use crate::click_through::Rect;
 use crate::session::SessionId;
 use crate::settings;
+use crate::sleep::SleepState;
 use crate::storage::DbPools;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -24,29 +26,21 @@ pub type BoundsState = Arc<Mutex<Rect>>;
 #[tauri::command]
 pub fn get_work_area() -> WorkArea {
     #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::Foundation::RECT;
+    unsafe {
         use windows::Win32::UI::WindowsAndMessaging::{
-            SystemParametersInfoW, SPI_GETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
+            GetSystemMetrics,
+            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+            SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
         };
-        let mut rect = RECT::default();
-        unsafe {
-            let _ = SystemParametersInfoW(
-                SPI_GETWORKAREA,
-                0,
-                Some(&mut rect as *mut RECT as *mut _),
-                SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
-            );
-        }
         WorkArea {
-            x: rect.left,
-            y: rect.top,
-            width: (rect.right - rect.left) as u32,
-            height: (rect.bottom - rect.top) as u32,
+            x: GetSystemMetrics(SM_XVIRTUALSCREEN),
+            y: GetSystemMetrics(SM_YVIRTUALSCREEN),
+            width: GetSystemMetrics(SM_CXVIRTUALSCREEN) as u32,
+            height: GetSystemMetrics(SM_CYVIRTUALSCREEN) as u32,
         }
     }
     #[cfg(not(target_os = "windows"))]
-    WorkArea { x: 0, y: 0, width: 1920, height: 1040 }
+    WorkArea { x: 0, y: 0, width: 1920, height: 1080 }
 }
 
 #[derive(Debug, Serialize)]
@@ -142,12 +136,24 @@ pub fn set_creature_bounds(
     width: f64,
     height: f64,
     bounds: tauri::State<'_, BoundsState>,
+    app_handle: tauri::AppHandle,
 ) {
+    // CSS coordinates are logical pixels relative to the window's client origin.
+    // GetCursorPos returns physical screen coordinates. Convert here so the
+    // click-through loop can compare apples to apples.
+    let (scale, win_x, win_y) = app_handle
+        .get_webview_window("main")
+        .map(|w| {
+            let scale = w.scale_factor().unwrap_or(1.0);
+            let pos = w.outer_position().unwrap_or(tauri::PhysicalPosition::new(0, 0));
+            (scale, pos.x as f64, pos.y as f64)
+        })
+        .unwrap_or((1.0, 0.0, 0.0));
     let mut b = bounds.lock().unwrap();
-    b.x = x;
-    b.y = y;
-    b.width = width;
-    b.height = height;
+    b.x = win_x + x * scale;
+    b.y = win_y + y * scale;
+    b.width = width * scale;
+    b.height = height * scale;
 }
 
 #[tauri::command]
@@ -168,6 +174,191 @@ pub fn clear_api_key() -> Result<(), String> {
 #[tauri::command]
 pub fn has_api_key() -> bool {
     settings::has_api_key()
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MonitorInfo {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[tauri::command]
+pub fn get_monitors(app_handle: tauri::AppHandle) -> Vec<MonitorInfo> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
+        use windows::Win32::Graphics::Gdi::{
+            EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO,
+        };
+
+        let (scale, win_x, win_y) = app_handle
+            .get_webview_window("main")
+            .map(|w| {
+                let scale = w.scale_factor().unwrap_or(1.0);
+                let pos = w.outer_position().unwrap_or(tauri::PhysicalPosition::new(0, 0));
+                (scale, pos.x as f64, pos.y as f64)
+            })
+            .unwrap_or((1.0, 0.0, 0.0));
+
+        let mut rects: Vec<RECT> = Vec::new();
+
+        unsafe extern "system" fn monitor_cb(
+            hmon: HMONITOR,
+            _hdc: HDC,
+            _rect: *mut RECT,
+            data: LPARAM,
+        ) -> BOOL {
+            let list = &mut *(data.0 as *mut Vec<RECT>);
+            let mut info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if GetMonitorInfoW(hmon, &mut info).as_bool() {
+                list.push(info.rcWork);
+            }
+            BOOL(1)
+        }
+
+        unsafe {
+            let _ = EnumDisplayMonitors(
+                HDC(std::ptr::null_mut()),
+                None,
+                Some(monitor_cb),
+                LPARAM(&mut rects as *mut _ as isize),
+            );
+        }
+
+        rects
+            .iter()
+            .map(|r| MonitorInfo {
+                x: ((r.left as f64 - win_x) / scale) as i32,
+                y: ((r.top as f64 - win_y) / scale) as i32,
+                width: ((r.right - r.left) as f64 / scale) as u32,
+                height: ((r.bottom - r.top) as f64 / scale) as u32,
+            })
+            .collect()
+    }
+    #[cfg(not(target_os = "windows"))]
+    vec![MonitorInfo { x: 0, y: 0, width: 1920, height: 1080 }]
+}
+
+// ── Sleep / Privacy ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SleepChangedPayload {
+    pub sleeping: bool,
+    pub privacy: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SleepStatus {
+    pub sleeping: bool,
+    pub privacy: bool,
+    pub schedule_enabled: bool,
+    pub schedule_start_hour: u8,
+    pub schedule_start_minute: u8,
+    pub schedule_end_hour: u8,
+    pub schedule_end_minute: u8,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SleepScheduleInput {
+    pub enabled: bool,
+    pub start_hour: u8,
+    pub start_minute: u8,
+    pub end_hour: u8,
+    pub end_minute: u8,
+}
+
+#[tauri::command]
+pub fn get_sleep_status(sleep_state: tauri::State<'_, SleepState>) -> SleepStatus {
+    let s = sleep_state.lock().unwrap();
+    SleepStatus {
+        sleeping: s.sleeping,
+        privacy: s.privacy,
+        schedule_enabled: s.schedule_enabled,
+        schedule_start_hour: s.schedule_start_hour,
+        schedule_start_minute: s.schedule_start_minute,
+        schedule_end_hour: s.schedule_end_hour,
+        schedule_end_minute: s.schedule_end_minute,
+    }
+}
+
+#[tauri::command]
+pub async fn toggle_sleep(
+    sleep_state: tauri::State<'_, SleepState>,
+    pools: tauri::State<'_, DbPools>,
+    session_id: tauri::State<'_, SessionId>,
+    summary_acc: tauri::State<'_, Arc<Mutex<DailySummaryAccumulator>>>,
+    app_handle: tauri::AppHandle,
+) -> Result<bool, String> {
+    let new_sleeping = {
+        let mut s = sleep_state.lock().unwrap();
+        s.sleeping = !s.sleeping;
+        s.schedule_triggered = false;
+        s.sleeping
+    };
+    apply_sleep_change(
+        new_sleeping,
+        pools.inner().clone(),
+        session_id.inner().clone(),
+        summary_acc.inner().clone(),
+        app_handle,
+    ).await
+}
+
+#[tauri::command]
+pub async fn toggle_privacy(
+    sleep_state: tauri::State<'_, SleepState>,
+    app_handle: tauri::AppHandle,
+) -> Result<bool, String> {
+    let new_privacy = {
+        let mut s = sleep_state.lock().unwrap();
+        s.privacy = !s.privacy;
+        s.privacy
+    };
+    app_handle
+        .emit("sleep_changed", SleepChangedPayload { sleeping: false, privacy: new_privacy })
+        .map_err(|e| e.to_string())?;
+    Ok(new_privacy)
+}
+
+#[tauri::command]
+pub fn set_sleep_schedule(
+    schedule: SleepScheduleInput,
+    sleep_state: tauri::State<'_, SleepState>,
+) {
+    let mut s = sleep_state.lock().unwrap();
+    s.schedule_enabled     = schedule.enabled;
+    s.schedule_start_hour  = schedule.start_hour;
+    s.schedule_start_minute = schedule.start_minute;
+    s.schedule_end_hour    = schedule.end_hour;
+    s.schedule_end_minute  = schedule.end_minute;
+}
+
+/// Shared logic called by both the command and the tray menu event handler.
+pub async fn apply_sleep_change(
+    new_sleeping: bool,
+    pools: DbPools,
+    session_id: SessionId,
+    summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
+    app_handle: tauri::AppHandle,
+) -> Result<bool, String> {
+    if new_sleeping {
+        crate::session::end_current_session(&pools, &session_id, "sleep")
+            .await.map_err(|e| e.to_string())?;
+        crate::session::finalize_session(&pools, &summary_acc).await;
+    } else {
+        crate::session::start_new_session(&pools, &session_id)
+            .await.map_err(|e| e.to_string())?;
+        app_handle.emit("wake_animation", ()).map_err(|e| e.to_string())?;
+    }
+    app_handle
+        .emit("sleep_changed", SleepChangedPayload { sleeping: new_sleeping, privacy: false })
+        .map_err(|e| e.to_string())?;
+    Ok(new_sleeping)
 }
 
 #[cfg(test)]

@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { type WispState, SPRITE_CONFIG, STATE_GLOW, ALL_STATES } from '../lib/spriteConfig';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
 
-const SCALE = 4;
-
 interface CreatureProps {
   x: number;
   y: number;
+  displaySize: number;
   onPositionChange: (x: number, y: number) => void;
   state: WispState;
   coldStart: boolean;
@@ -14,8 +13,12 @@ interface CreatureProps {
   showReturning?: boolean;
   showBestSession?: boolean;
   burnDistress?: boolean;
+  sleeping?: boolean;
+  privacyMode?: boolean;
+  showWake?: boolean;
   onReturningDone?: () => void;
   onBestSessionDone?: () => void;
+  onWakeDone?: () => void;
 }
 
 function ensureKeyframes() {
@@ -24,6 +27,10 @@ function ensureKeyframes() {
   style.id = 'wisp-keyframes';
   style.textContent = `
     @keyframes breathe {
+      0%, 100% { transform: scale(1.0); }
+      50%       { transform: scale(1.06); }
+    }
+    @keyframes breathe-sleep {
       0%, 100% { transform: scale(1.0); }
       50%       { transform: scale(1.015); }
     }
@@ -41,6 +48,11 @@ function ensureKeyframes() {
       0%, 100% { opacity: 0; }
       50%      { opacity: 0.6; }
     }
+    @keyframes wake-unfurl {
+      0%   { transform: scale(0.7);  opacity: 0.3; }
+      60%  { transform: scale(1.12); opacity: 1.0; }
+      100% { transform: scale(1.0);  opacity: 1.0; }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -48,6 +60,7 @@ function ensureKeyframes() {
 export default function Creature({
   x,
   y,
+  displaySize,
   onPositionChange,
   state,
   coldStart,
@@ -55,8 +68,12 @@ export default function Creature({
   showReturning = false,
   showBestSession = false,
   burnDistress = false,
+  sleeping = false,
+  privacyMode = false,
+  showWake = false,
   onReturningDone,
   onBestSessionDone,
+  onWakeDone,
 }: CreatureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spritesRef = useRef<Map<WispState, HTMLImageElement>>(new Map());
@@ -137,7 +154,14 @@ export default function Creature({
     return () => clearTimeout(id);
   }, [showBestSession, onBestSessionDone]);
 
-  // Drag logic (preserved from original)
+  // Auto-clear wake animation after 800ms
+  useEffect(() => {
+    if (!showWake) return;
+    const id = setTimeout(() => onWakeDone?.(), 800);
+    return () => clearTimeout(id);
+  }, [showWake, onWakeDone]);
+
+  // Drag logic
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
@@ -163,9 +187,14 @@ export default function Creature({
     };
   }, [onPositionChange]);
 
-  // Glow filter: returning takes priority, then burn distress, then cold start, then normal
+  // Glow / desaturation filter — priority order:
+  // privacy > sleeping > returning > burn-distress > cold-start > normal
   let glowFilter: string;
-  if (showReturning) {
+  if (privacyMode) {
+    glowFilter = 'grayscale(1) brightness(0.45)';
+  } else if (sleeping) {
+    glowFilter = 'saturate(0.12) brightness(0.38)';
+  } else if (showReturning) {
     glowFilter = 'drop-shadow(0 0 20px #ffffff)';
   } else if (burnDistress) {
     glowFilter = 'drop-shadow(0 0 14px #ff2200)';
@@ -175,26 +204,34 @@ export default function Creature({
     glowFilter = STATE_GLOW[state];
   }
 
-  // Outer animation: breathe or returning-bounce. Tremble lives on the inner div
-  // so it doesn't conflict with breathe (both would animate `transform` on one element).
-  const outerAnimation = showReturning
+  // Outer animation priority: wake-unfurl > returning-bounce > sleeping breathe > normal breathe
+  const outerAnimation = showWake
+    ? 'wake-unfurl 0.8s ease-out'
+    : showReturning
     ? 'returning-bounce 0.6s ease-in-out'
+    : sleeping
+    ? 'breathe-sleep 8s ease-in-out infinite'
     : 'breathe 3s ease-in-out infinite';
 
+  // Sleep reduces opacity further on top of the existing idle opacity
+  const effectiveOpacity = sleeping ? Math.min(opacity, 0.45) : opacity;
+
   const cfg = SPRITE_CONFIG[state];
+  const scale = displaySize / cfg.width;
 
   return (
     <div
+      onContextMenu={(e) => e.preventDefault()}
       style={{
         position: 'fixed',
         left: x,
         top: y,
-        width: cfg.width * SCALE,
-        height: cfg.height * SCALE,
+        width: displaySize,
+        height: displaySize,
         filter: glowFilter,
         transition: 'filter 500ms ease, opacity 2s ease',
         animation: outerAnimation,
-        opacity,
+        opacity: effectiveOpacity,
       }}
     >
       {/* Inner div: tremble animation when burn distress is active */}
@@ -213,7 +250,7 @@ export default function Creature({
           onMouseDown={onMouseDown}
           style={{
             imageRendering: 'pixelated',
-            transform: `scale(${SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: 'top left',
             cursor: 'grab',
             display: 'block',

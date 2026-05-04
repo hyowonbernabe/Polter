@@ -5,9 +5,11 @@ pub mod pipeline;
 pub mod sensors;
 pub mod session;
 pub mod settings;
+pub mod sleep;
 pub mod storage;
 pub mod tray;
 
+use chrono::Timelike;
 use classifier::{
     anomaly::AnomalyDetector,
     daily_summary::DailySummaryAccumulator,
@@ -43,6 +45,7 @@ pub fn run() {
     tracing_subscriber::fmt::init();
 
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
+    let sleep_state: sleep::SleepState = Arc::new(Mutex::new(sleep::SleepStateInner::default()));
 
     tauri::Builder::default()
         // Single instance MUST be first per architecture rules.
@@ -58,14 +61,20 @@ pub fn run() {
             None,
         ))
         .manage(bounds.clone())
+        .manage(sleep_state.clone())
         .invoke_handler(tauri::generate_handler![
             commands::get_debug_info,
             commands::get_work_area,
+            commands::get_monitors,
             commands::set_creature_bounds,
             commands::set_api_key,
             commands::get_api_key,
             commands::clear_api_key,
             commands::has_api_key,
+            commands::get_sleep_status,
+            commands::toggle_sleep,
+            commands::toggle_privacy,
+            commands::set_sleep_schedule,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -133,6 +142,7 @@ pub fn run() {
                 state_machine.clone(),
                 anomaly_detector.clone(),
                 summary_acc.clone(),
+                sleep_state.clone(),
             );
 
             // Start inactivity watcher (ends session after 10 min idle).
@@ -181,18 +191,98 @@ pub fn run() {
                 version: app.package_info().version.to_string(),
             })?;
 
-            // System tray: icon + Quit.
-            let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&quit]).build()?;
+            // System tray: Sleep/Wake · Privacy Mode · Quit.
+            let sleep_item   = MenuItemBuilder::with_id("sleep_toggle",   "Sleep / Wake").build(app)?;
+            let privacy_item = MenuItemBuilder::with_id("privacy_toggle", "Privacy Mode").build(app)?;
+            let quit         = MenuItemBuilder::with_id("quit",           "Quit Wisp").build(app)?;
+            let menu = MenuBuilder::new(app).items(&[&sleep_item, &privacy_item, &quit]).build()?;
+            let (tr, tg, tb) = crate::tray::state_to_tray_color("rest");
+            let init_rgba = crate::tray::tray_icon_rgba(tr, tg, tb);
+            let init_icon = tauri::image::Image::new_owned(init_rgba, 32, 32);
             TrayIconBuilder::with_id("main")
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(init_icon)
                 .menu(&menu)
                 .on_menu_event(|app, event| {
-                    if event.id().as_ref() == "quit" {
-                        app.exit(0);
+                    match event.id().as_ref() {
+                        "quit" => app.exit(0),
+                        "sleep_toggle" => {
+                            let sleep_st  = app.state::<sleep::SleepState>().inner().clone();
+                            let pools     = app.state::<storage::DbPools>().inner().clone();
+                            let sid       = app.state::<session::SessionId>().inner().clone();
+                            let summary   = app.state::<Arc<Mutex<classifier::daily_summary::DailySummaryAccumulator>>>().inner().clone();
+                            let handle    = app.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let new_sleeping = {
+                                    let mut s = sleep_st.lock().unwrap();
+                                    s.sleeping = !s.sleeping;
+                                    s.schedule_triggered = false;
+                                    s.sleeping
+                                };
+                                let _ = commands::apply_sleep_change(new_sleeping, pools, sid, summary, handle).await;
+                            });
+                        }
+                        "privacy_toggle" => {
+                            let sleep_st = app.state::<sleep::SleepState>().inner().clone();
+                            let handle   = app.clone();
+                            tauri::async_runtime::spawn(async move {
+                                use tauri::Emitter;
+                                let new_privacy = {
+                                    let mut s = sleep_st.lock().unwrap();
+                                    s.privacy = !s.privacy;
+                                    s.privacy
+                                };
+                                let _ = handle.emit("sleep_changed", commands::SleepChangedPayload {
+                                    sleeping: false,
+                                    privacy: new_privacy,
+                                });
+                            });
+                        }
+                        _ => {}
                     }
                 })
                 .build(app)?;
+
+            // Auto-sleep schedule watcher — checks every 60 seconds.
+            {
+                let sleep_st  = sleep_state.clone();
+                let pools_sch = pools.clone();
+                let sid_sch   = session_id.clone();
+                let sum_sch   = summary_acc.clone();
+                let handle_sch = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(60));
+                    ticker.tick().await; // skip the immediate first tick
+                    loop {
+                        ticker.tick().await;
+                        let (enabled, start_h, start_m, end_h, end_m, currently_sleeping, schedule_triggered) = {
+                            let s = sleep_st.lock().unwrap();
+                            (s.schedule_enabled, s.schedule_start_hour, s.schedule_start_minute,
+                             s.schedule_end_hour, s.schedule_end_minute, s.sleeping, s.schedule_triggered)
+                        };
+                        if !enabled { continue; }
+
+                        let now = chrono::Local::now();
+                        let (hour, minute) = (now.hour() as u8, now.minute() as u8);
+                        let in_window = sleep::in_schedule(start_h, start_m, end_h, end_m, hour, minute);
+
+                        if in_window && !currently_sleeping {
+                            // Enter scheduled sleep.
+                            sleep_st.lock().unwrap().sleeping = true;
+                            sleep_st.lock().unwrap().schedule_triggered = true;
+                            let _ = commands::apply_sleep_change(
+                                true, pools_sch.clone(), sid_sch.clone(), sum_sch.clone(), handle_sch.clone(),
+                            ).await;
+                        } else if !in_window && currently_sleeping && schedule_triggered {
+                            // Exit scheduled sleep — only if we were the ones who triggered it.
+                            sleep_st.lock().unwrap().sleeping = false;
+                            sleep_st.lock().unwrap().schedule_triggered = false;
+                            let _ = commands::apply_sleep_change(
+                                false, pools_sch.clone(), sid_sch.clone(), sum_sch.clone(), handle_sch.clone(),
+                            ).await;
+                        }
+                    }
+                });
+            }
 
             // Start the ~60fps click-through polling loop.
             click_through::start(app.handle().clone(), bounds.clone());

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { pxToPct, pctToPx, clampToSafeZone } from "./useCreaturePosition";
+import { pxToPct, pctToPx, clampToMonitors } from "./useCreaturePosition";
 
-const WA = { x: 0, y: 0, width: 1920, height: 1040 };
+const MON = { x: 0, y: 0, width: 1920, height: 1040 };
 const SPRITE = { w: 64, h: 128 };
 
 describe("pxToPct", () => {
@@ -20,22 +20,28 @@ describe("pctToPx", () => {
   });
 });
 
-describe("clampToSafeZone", () => {
-  it("clamps negative position to work area origin", () => {
-    const c = clampToSafeZone(-10, -10, WA, SPRITE);
+describe("clampToMonitors", () => {
+  it("clamps negative position to monitor origin", () => {
+    const c = clampToMonitors(-10, -10, [MON], SPRITE);
     expect(c.x).toBe(0);
     expect(c.y).toBe(0);
   });
 
   it("clamps overflow to bottom-right boundary", () => {
-    const c = clampToSafeZone(9999, 9999, WA, SPRITE);
-    expect(c.x).toBe(WA.width - SPRITE.w);
-    expect(c.y).toBe(WA.height - SPRITE.h);
+    const c = clampToMonitors(9999, 9999, [MON], SPRITE);
+    expect(c.x).toBe(MON.width - SPRITE.w);
+    expect(c.y).toBe(MON.height - SPRITE.h);
   });
 
   it("leaves valid positions unchanged", () => {
-    const c = clampToSafeZone(800, 400, WA, SPRITE);
+    const c = clampToMonitors(800, 400, [MON], SPRITE);
     expect(c.x).toBe(800);
     expect(c.y).toBe(400);
+  });
+
+  it("returns unchanged position when no monitors provided", () => {
+    const c = clampToMonitors(100, 200, [], SPRITE);
+    expect(c.x).toBe(100);
+    expect(c.y).toBe(200);
   });
 });

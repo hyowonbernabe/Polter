@@ -167,6 +167,7 @@ pub fn start<R: tauri::Runtime>(
     state_machine: Arc<Mutex<StateMachine>>,
     anomaly_detector: Arc<Mutex<AnomalyDetector>>,
     summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
+    sleep_state: crate::sleep::SleepState,
 ) {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     tauri::async_runtime::spawn(async move {
@@ -174,6 +175,13 @@ pub fn start<R: tauri::Runtime>(
         interval.tick().await;
         loop {
             interval.tick().await;
+
+            // When sleeping or in privacy mode, discard events and skip the cycle.
+            if sleep_state.lock().unwrap().is_paused() {
+                ring.lock().unwrap().drain_all();
+                continue;
+            }
+
             let window_end_ms = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()

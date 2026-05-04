@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface WorkArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface MonitorInfo {
   x: number;
   y: number;
   width: number;
@@ -12,8 +19,14 @@ export interface WorkArea {
 const STORE_FILE = "wisp-settings.json";
 const POS_KEY = "creature_position";
 
-// Display size in CSS pixels: source 16×32 at scale ×4.
-export const SPRITE_DISPLAY = { w: 64, h: 128 };
+const REFERENCE_HEIGHT = 1080;
+const REFERENCE_SPRITE_PX = 64;
+
+// Sprite scales with the PRIMARY monitor height, not the virtual screen height.
+// window.screen.height gives the primary monitor's logical CSS height.
+export function spriteDisplaySize(): number {
+  return Math.round((window.screen.height / REFERENCE_HEIGHT) * REFERENCE_SPRITE_PX);
+}
 
 export function pxToPct(px: number, total: number): number {
   return px / total;
@@ -23,37 +36,73 @@ export function pctToPx(pct: number, total: number): number {
   return Math.round(pct * total);
 }
 
-export function clampToSafeZone(
+// Clamp (x, y) so the sprite stays within the nearest monitor's work area.
+// Picks the monitor whose work area contains the sprite center, or the closest one.
+export function clampToMonitors(
   x: number,
   y: number,
-  wa: WorkArea,
+  monitors: MonitorInfo[],
   sprite: { w: number; h: number }
 ): { x: number; y: number } {
-  return {
-    x: Math.max(wa.x, Math.min(x, wa.x + wa.width - sprite.w)),
-    y: Math.max(wa.y, Math.min(y, wa.y + wa.height - sprite.h)),
-  };
-}
+  if (monitors.length === 0) return { x, y };
 
-function defaultPosition(wa: WorkArea): { x: number; y: number } {
+  const cx = x + sprite.w / 2;
+  const cy = y + sprite.h / 2;
+
+  // Find which monitor the sprite center is in, or closest by distance.
+  let best = monitors[0];
+  let bestDist = Infinity;
+  for (const m of monitors) {
+    const inX = cx >= m.x && cx <= m.x + m.width;
+    const inY = cy >= m.y && cy <= m.y + m.height;
+    if (inX && inY) { best = m; break; }
+    // Manhattan distance to monitor center
+    const dist = Math.abs(cx - (m.x + m.width / 2)) + Math.abs(cy - (m.y + m.height / 2));
+    if (dist < bestDist) { bestDist = dist; best = m; }
+  }
+
   return {
-    x: Math.round(wa.x + wa.width * 0.92 - SPRITE_DISPLAY.w),
-    y: Math.round(wa.y + wa.height * 0.88 - SPRITE_DISPLAY.h),
+    x: Math.max(best.x, Math.min(x, best.x + best.width - sprite.w)),
+    y: Math.max(best.y, Math.min(y, best.y + best.height - sprite.h)),
   };
 }
 
 export function useCreaturePosition(
   onBoundsChange: (x: number, y: number, w: number, h: number) => void
 ) {
-  const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1920, height: 1040 });
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
   const storeRef = useRef<Store | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const monitorsRef = useRef<MonitorInfo[]>([]);
+
+  const spriteSize = spriteDisplaySize();
+  const sprite = { w: spriteSize, h: spriteSize };
 
   useEffect(() => {
     async function init() {
-      const wa: WorkArea = await invoke("get_work_area");
+      const wa: WorkArea = {
+        x: 0,
+        y: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
       setWorkArea(wa);
+
+      // Fetch per-monitor work areas from Rust
+      let mons: MonitorInfo[] = [];
+      try {
+        mons = await invoke<MonitorInfo[]>("get_monitors");
+      } catch {
+        // Fallback: treat the whole viewport as one monitor
+        mons = [{ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }];
+      }
+      setMonitors(mons);
+      monitorsRef.current = mons;
+
+      const size = spriteDisplaySize();
+      const sp = { w: size, h: size };
 
       const store = await Store.load(STORE_FILE);
       storeRef.current = store;
@@ -62,17 +111,22 @@ export function useCreaturePosition(
       if (saved) {
         const px = pctToPx(saved.xPct, wa.width) + wa.x;
         const py = pctToPx(saved.yPct, wa.height) + wa.y;
-        const clamped = clampToSafeZone(px, py, wa, SPRITE_DISPLAY);
+        const clamped = clampToMonitors(px, py, mons, sp);
         setPos(clamped);
-        onBoundsChange(clamped.x, clamped.y, SPRITE_DISPLAY.w, SPRITE_DISPLAY.h);
+        onBoundsChange(clamped.x, clamped.y, sp.w, sp.h);
       } else {
-        const def = defaultPosition(wa);
+        // Default to bottom-right of the primary monitor (first in list)
+        const primary = mons[0] ?? { x: 0, y: 0, width: wa.width, height: wa.height };
+        const margin = 16;
+        const def = {
+          x: Math.round(primary.x + primary.width  - size - margin),
+          y: Math.round(primary.y + primary.height - size - margin),
+        };
         setPos(def);
-        onBoundsChange(def.x, def.y, SPRITE_DISPLAY.w, SPRITE_DISPLAY.h);
+        onBoundsChange(def.x, def.y, sp.w, sp.h);
       }
     }
     init();
-    // onBoundsChange is stable (useCallback in App.tsx) — intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,13 +146,13 @@ export function useCreaturePosition(
 
   const updatePosition = useCallback(
     (x: number, y: number) => {
-      const clamped = clampToSafeZone(x, y, workArea, SPRITE_DISPLAY);
+      const clamped = clampToMonitors(x, y, monitorsRef.current, sprite);
       setPos(clamped);
       savePosition(clamped.x, clamped.y);
-      onBoundsChange(clamped.x, clamped.y, SPRITE_DISPLAY.w, SPRITE_DISPLAY.h);
+      onBoundsChange(clamped.x, clamped.y, sprite.w, sprite.h);
     },
-    [workArea, savePosition, onBoundsChange]
+    [sprite, savePosition, onBoundsChange]
   );
 
-  return { pos, workArea, updatePosition };
+  return { pos, workArea, monitors, spriteSize, updatePosition };
 }

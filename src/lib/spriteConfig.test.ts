@@ -12,8 +12,8 @@ describe('spriteConfig', () => {
       expect(config).toBeDefined();
       expect(config.file).toBeTruthy();
       expect(config.file.endsWith('.png')).toBe(true);
-      expect(config.width).toBe(16);
-      expect(config.height).toBe(32);
+      expect(config.width).toBe(64);
+      expect(config.height).toBe(64);
       expect(config.frames).toBeGreaterThanOrEqual(1);
     }
   });
