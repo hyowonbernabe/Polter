@@ -34,8 +34,6 @@ Persistence still works: the physics loop debounce-syncs position to the Tauri s
 | Package | Version | Use |
 |---|---|---|
 | `simplex-noise` | 4.0.3 | Organic flight path generation — `noise2D(time * FREQ, 0)` drives steering |
-| `motion` (formerly `framer-motion`) | current | Drag velocity capture on release only — `onDragEnd` gives `info.velocity` |
-
 Do not add matter-js, rapier, planck, cannon-es, or any full physics engine. The math for a single entity with four wall boundaries does not need a simulation library.
 
 ---
@@ -88,8 +86,8 @@ type PhysicsState =
 | `wander` | `cruise` | Soft target assigned (screen-center gravity, slow cursor attraction) |
 | `wander` | `evade` | Cursor velocity exceeds `FAST_CURSOR_THRESHOLD` |
 | `wander` | `approach` | Landing timer fires (random 45-120s of flight) |
-| `wander` / `glide` / `cruise` | `grabbed` | `onDragStart` fires |
-| `grabbed` | `thrown` | `onDragEnd` fires; velocity from `info.velocity` handed to physics loop |
+| `wander` / `glide` / `cruise` | `grabbed` | `onPointerDown` fires |
+| `grabbed` | `thrown` | `onPointerUp` fires; velocity derived from last 40ms of pointer history |
 | `thrown` | `stunned` | Collision at speed ≥ `STUN_VELOCITY_THRESHOLD` (250 px/s) |
 | `thrown` | `wander` | Speed decays below `FLIGHT_RESUME_THRESHOLD` (60 px/s) |
 | `stunned` | `recovering` | After stun animation completes (~0.8s) |
@@ -265,29 +263,30 @@ Triggered by perch timer or click. `ESCAPE_CLIMB` pattern: explosive upward impu
 
 ### Pickup
 
-On `onDragStart`:
+On `onPointerDown` (left button):
+- Set pointer capture on the element so `pointermove`/`pointerup` fire even when cursor leaves bounds
 - Set physics state to `grabbed`
-- Pause rAF position updates — `motion` library owns position during drag
-- Play squish: `scaleX: 0.8, scaleY: 1.2` snap (80ms ease-out), wings spread animation
+- rAF loop still runs but skips all physics while state is `grabbed` — position is set directly from pointer
+- Play squish: `scaleX: 0.8, scaleY: 1.2` snap (80ms ease-out)
 
 ### Carry
 
-While dragging (`whileDrag` / tracking pointer velocity):
-- Read drag velocity vector from motion's `useVelocity`
-- Apply directional stretch proportional to speed (capped at 1.4x):
+On `onPointerMove` (while dragging):
+- Position = `pointerPos - dragOffset` (offset fixed at grab point so creature doesn't snap to cursor)
+- Maintain a 100ms rolling pointer history (`pointerHistoryRef`) — each entry is `{ x, y, t }`
+- Compute speed from history. Apply directional stretch proportional to speed (capped at 1.4x):
   - Moving right fast: `scaleX: 1.35, scaleY: 0.75`
-  - Moving left fast: `scaleX: 1.35, scaleY: 0.75` (mirrored)
   - Moving down fast: `scaleX: 0.8, scaleY: 1.3`
 - The sprite flips direction based on horizontal drag velocity
 
 ### Release
 
-On `onDragEnd`:
-- Read `info.velocity` from motion (accurate pointer velocity at release)
-- Hand `{ vx: info.velocity.x, vy: info.velocity.y }` to physics loop as initial velocity
-- Set physics state to `thrown`
-- Physics loop takes over; motion library releases position ownership
+On `onPointerUp`:
+- Derive throw velocity from the last 40ms of pointer history (short window captures a fast flick accurately without averaging it down)
+- Velocity clamped to ±1400 px/s on each axis
+- Set physics state to `thrown` with 500ms lock (prevents immediate state exit)
 - Ease squish back to `1, 1` over 100ms
+- **Important:** browser fires a synthetic `click` event after every `pointerup` — `notifySingleClick` guards against this by returning early when state is `thrown/stunned/recovering`
 
 ### Velocity Thresholds
 
@@ -303,11 +302,12 @@ On `onDragEnd`:
 
 ### Single Click
 
-- If physics state is a flight state: `click_react`
+- If physics state is `thrown`, `stunned`, or `recovering`: **ignored** — the browser fires a synthetic `click` after every `pointerup`, so these states are guarded to prevent throw physics from being immediately cancelled
+- If physics state is `perching`: triggers `relaunch`
+- Otherwise (`wander`, `glide`, `hover`, etc.): `click_react`
   - Velocity impulse away from click origin: `normalize(pos - clickPos) * 180 px/s`
   - Wing flutter (rapid frame cycle for 300ms)
   - Slight rotation: `rotate: ±18deg` spring animation, back to 0
-- If physics state is `perching`: triggers `relaunch`
 - If `Focus` or `Deep` Wisp state: gentler reaction (`* 0.4` impulse multiplier) — creature barely notices
 
 ### Click During Bubble

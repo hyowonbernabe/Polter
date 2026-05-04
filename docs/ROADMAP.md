@@ -191,13 +191,13 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 - [ ] Double click — stronger surprise animation, wing flare
 - [ ] Click while a bubble is visible — bubble dismisses, creature acknowledges
 - [ ] Click during deep or flow state — gentler reaction so as not to disrupt
-- [ ] Drag pick-up — creature squishes on grab, wings spread as if caught
-- [ ] Slow drag — creature floats calmly, slight lag behind cursor
-- [ ] Fast drag — creature stretches in direction of movement
-- [ ] Release at low velocity — creature settles gently with a small landing bounce
-- [ ] Release at high velocity — creature carries momentum, decelerates, lands harder
-- [ ] Landing bounce scales with landing speed
-- [ ] Screen edge collision — creature bumps into edges and bounces back slightly
+- [x] Drag pick-up — creature squishes on grab, wings spread as if caught
+- [x] Slow drag — creature floats calmly, slight lag behind cursor
+- [x] Fast drag — creature stretches in direction of movement
+- [x] Release at low velocity — creature settles gently with a small landing bounce
+- [x] Release at high velocity — creature carries momentum, decelerates, lands harder (gravity arc + air drag)
+- [x] Landing bounce scales with landing speed
+- [x] Screen edge collision — creature bumps into edges and bounces back slightly
 - [ ] Post-landing shake-off animation
 - [ ] Right-click directly on creature opens a minimal context menu
 
@@ -217,4 +217,4 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 8 | Dashboard | Complete ✅ |
 | 9 | Settings | Complete ✅ (14/16 — hotkey + review permissions are placeholders) |
 | 10 | Onboarding | Complete ✅ |
-| 11 | Polish: Creature Interactions | Not started |
+| 11 | Polish: Creature Interactions | In Progress (7/15 complete — drag, throw, and collision done) |
