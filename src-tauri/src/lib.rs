@@ -7,6 +7,11 @@ pub mod session;
 pub mod settings;
 pub mod storage;
 
+use classifier::{
+    anomaly::AnomalyDetector,
+    daily_summary::DailySummaryAccumulator,
+    state_machine::StateMachine,
+};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
@@ -76,7 +81,6 @@ pub fn run() {
             }
             let db_path_str = db_path.to_string_lossy().to_string();
             let pools = tauri::async_runtime::block_on(storage::init(&db_path_str))?;
-            let write_pool = pools.write.clone();
             app.manage(pools.clone());
 
             // Shared pipeline state.
@@ -86,6 +90,21 @@ pub fn run() {
                 Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
             let session_id: session::SessionId = Arc::new(Mutex::new(None));
             app.manage(session_id.clone());
+
+            // Classifier state.
+            let now_setup_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let state_machine: Arc<Mutex<StateMachine>> =
+                Arc::new(Mutex::new(StateMachine::new()));
+            let anomaly_detector: Arc<Mutex<AnomalyDetector>> =
+                Arc::new(Mutex::new(AnomalyDetector::new()));
+            let summary_acc: Arc<Mutex<DailySummaryAccumulator>> =
+                Arc::new(Mutex::new(DailySummaryAccumulator::new(now_setup_ms)));
+            app.manage(state_machine.clone());
+            app.manage(anomaly_detector.clone());
+            app.manage(summary_acc.clone());
 
             // Start the first session.
             {
@@ -108,20 +127,28 @@ pub fn run() {
                 ring.clone(),
                 system_snap.clone(),
                 session_id.clone(),
-                write_pool,
+                pools.clone(),
+                app.handle().clone(),
+                state_machine.clone(),
+                anomaly_detector.clone(),
+                summary_acc.clone(),
             );
 
             // Start inactivity watcher (ends session after 10 min idle).
-            session::start_inactivity_watcher(ring.clone(), pools.clone(), session_id.clone());
+            session::start_inactivity_watcher(
+                ring.clone(), pools.clone(), session_id.clone(), summary_acc.clone(),
+            );
 
             // Handle sleep/wake: loop on the internal Notify rather than the event bus.
             {
                 let pools_wake = pools.clone();
                 let sid_wake = session_id.clone();
+                let summary_wake = summary_acc.clone();
                 tauri::async_runtime::spawn(async move {
                     loop {
                         wake_signal.notified().await;
                         let _ = session::handle_wake(&pools_wake, &sid_wake).await;
+                        session::finalize_session(&pools_wake, &summary_wake).await;
                     }
                 });
             }

@@ -1,6 +1,16 @@
+use crate::classifier::{
+    anomaly::AnomalyDetector,
+    baseline,
+    daily_summary::DailySummaryAccumulator,
+    signals::compute_z_scores,
+    state_machine::StateMachine,
+    is_cold_start, local_time_parts, time_of_day_bucket,
+};
 use crate::pipeline::ring_buffer::{RawInputEvent, RingBuffer};
 use crate::sensors::system::SystemSnapshot;
+use crate::storage::{DbPools, queries::get_first_session_ms};
 use std::sync::{Arc, Mutex, RwLock};
+use tauri::Emitter;
 
 // ── Output type ───────────────────────────────────────────────────────────────
 
@@ -135,18 +145,28 @@ pub fn compute_snapshot(
 
 // ── Aggregation task ──────────────────────────────────────────────────────────
 
-const AGGREGATION_SECS: u64 = 60;
+pub const AGGREGATION_SECS: u64 = 60;
 
-pub fn start(
+#[derive(serde::Serialize, Clone)]
+struct StateChangedPayload {
+    state: String,
+    cold_start: bool,
+}
+
+pub fn start<R: tauri::Runtime>(
     ring: Arc<Mutex<RingBuffer>>,
     system: Arc<RwLock<SystemSnapshot>>,
     session_id: Arc<Mutex<Option<i64>>>,
-    write_pool: Arc<crate::storage::DbWritePool>,
+    pools: DbPools,
+    app_handle: tauri::AppHandle<R>,
+    state_machine: Arc<Mutex<StateMachine>>,
+    anomaly_detector: Arc<Mutex<AnomalyDetector>>,
+    summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
 ) {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(AGGREGATION_SECS));
-        interval.tick().await; // skip immediate first tick
+        interval.tick().await;
         loop {
             interval.tick().await;
             let window_end_ms = SystemTime::now()
@@ -172,16 +192,44 @@ pub fn start(
             };
 
             tracing::info!(
-                "[aggregator] firing — session={} events={} cpu={:.1} ram={:.1} wins={}",
-                sid, events.len(), sys.cpu_percent, sys.ram_percent, sys.window_count
+                "[aggregator] firing — session={} events={} cpu={:.1} ram={:.1}",
+                sid, events.len(), sys.cpu_percent, sys.ram_percent
             );
 
             let snap = compute_snapshot(&events, &sys, sid, window_end_ms, AGGREGATION_SECS as f64);
 
-            match crate::storage::queries::insert_snapshot(write_pool.as_ref(), &snap).await {
-                Ok(_) => tracing::info!("[aggregator] snapshot written ok"),
-                Err(e) => tracing::error!("[aggregator] insert failed: {e}"),
+            match crate::storage::queries::insert_snapshot(pools.write.as_ref(), &snap).await {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("[aggregator] insert failed: {e}");
+                    continue;
+                }
             }
+
+            summary_acc.lock().unwrap().record_snapshot(snap.clone());
+
+            // ── Classify ──────────────────────────────────────────────────────
+            let first_ms = get_first_session_ms(pools.read.as_ref()).await.ok().flatten();
+            let cold_start = is_cold_start(first_ms);
+
+            let (hour, dow) = local_time_parts();
+            let tod_bucket = time_of_day_bucket(hour);
+            let baselines = baseline::load_baselines(
+                pools.read.as_ref(), tod_bucket, dow as i32,
+            ).await.unwrap_or_default();
+
+            let z = compute_z_scores(&snap, AGGREGATION_SECS as f64, &baselines);
+
+            if let Some(state) = state_machine.lock().unwrap().update(&z, window_end_ms) {
+                tracing::info!("[classifier] state committed: {:?}", state);
+                summary_acc.lock().unwrap().on_state_change(state, window_end_ms);
+                let _ = app_handle.emit("state_changed", StateChangedPayload {
+                    state: state.as_str().to_string(),
+                    cold_start,
+                });
+            }
+
+            anomaly_detector.lock().unwrap().check(&z, window_end_ms, cold_start);
         }
     });
 }
