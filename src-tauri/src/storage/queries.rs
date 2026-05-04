@@ -281,6 +281,24 @@ pub async fn get_first_session_ms(pool: &DbReadPool) -> Result<Option<i64>, sqlx
     Ok(row.get::<Option<i64>, _>(0))
 }
 
+pub async fn get_last_session_end_ms(pool: &DbReadPool) -> Result<Option<i64>, sqlx::Error> {
+    let row: Option<(Option<i64>,)> = sqlx::query_as(
+        "SELECT end_time FROM sessions WHERE end_time IS NOT NULL ORDER BY end_time DESC LIMIT 1"
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.and_then(|(ms,)| ms))
+}
+
+pub async fn get_longest_focus_block_ms(pool: &DbReadPool) -> Result<i64, sqlx::Error> {
+    let row: (Option<i64>,) = sqlx::query_as(
+        "SELECT MAX(longest_focus_block_minutes) FROM daily_summaries"
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0.unwrap_or(0) * 60_000)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,5 +484,56 @@ mod tests {
         start_session(pools.write.as_ref(), 9_000_000).await.unwrap();
         let first = get_first_session_ms(pools.read.as_ref()).await.unwrap();
         assert_eq!(first, Some(1_000_000));
+    }
+
+    #[tokio::test]
+    async fn get_last_session_end_ms_returns_none_on_empty() {
+        let (pools, _dir) = temp_db().await;
+        let result = get_last_session_end_ms(pools.read.as_ref()).await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn get_last_session_end_ms_returns_most_recent() {
+        let (pools, _dir) = temp_db().await;
+        let id1 = start_session(pools.write.as_ref(), 1_000_000).await.unwrap();
+        end_session(pools.write.as_ref(), id1, 2_000_000, "inactivity").await.unwrap();
+        let id2 = start_session(pools.write.as_ref(), 3_000_000).await.unwrap();
+        end_session(pools.write.as_ref(), id2, 5_000_000, "inactivity").await.unwrap();
+        let result = get_last_session_end_ms(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, Some(5_000_000));
+    }
+
+    #[tokio::test]
+    async fn get_last_session_end_ms_ignores_active_sessions() {
+        let (pools, _dir) = temp_db().await;
+        let id1 = start_session(pools.write.as_ref(), 1_000_000).await.unwrap();
+        end_session(pools.write.as_ref(), id1, 2_000_000, "inactivity").await.unwrap();
+        start_session(pools.write.as_ref(), 3_000_000).await.unwrap();
+        let result = get_last_session_end_ms(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, Some(2_000_000));
+    }
+
+    #[tokio::test]
+    async fn get_longest_focus_block_ms_returns_zero_on_empty() {
+        let (pools, _dir) = temp_db().await;
+        let result = get_longest_focus_block_ms(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, 0);
+    }
+
+    #[tokio::test]
+    async fn get_longest_focus_block_ms_returns_max_across_days() {
+        let (pools, _dir) = temp_db().await;
+        upsert_daily_summary(
+            pools.write.as_ref(), "2026-05-01",
+            60, 30, 10, 10, 5, 3, 1, 1, 20, 1,
+        ).await.unwrap();
+        upsert_daily_summary(
+            pools.write.as_ref(), "2026-05-02",
+            45, 25, 5, 8, 3, 2, 1, 1, 35, 1,
+        ).await.unwrap();
+        // MAX(20, 35) = 35 minutes = 35 * 60_000 = 2_100_000 ms
+        let result = get_longest_focus_block_ms(pools.read.as_ref()).await.unwrap();
+        assert_eq!(result, 2_100_000);
     }
 }
