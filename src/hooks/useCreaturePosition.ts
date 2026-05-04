@@ -22,10 +22,12 @@ const POS_KEY = "creature_position";
 const REFERENCE_HEIGHT = 1080;
 const REFERENCE_SPRITE_PX = 64;
 
-// Sprite scales with the PRIMARY monitor height, not the virtual screen height.
-// window.screen.height gives the primary monitor's logical CSS height.
+// Sprite scales with the PRIMARY monitor's physical pixel height.
+// Multiplying by devicePixelRatio converts CSS logical pixels → physical pixels,
+// so the sprite stays the same physical size regardless of DPI scaling level.
 export function spriteDisplaySize(): number {
-  return Math.round((window.screen.height / REFERENCE_HEIGHT) * REFERENCE_SPRITE_PX);
+  const physicalHeight = window.screen.height * window.devicePixelRatio;
+  return Math.round((physicalHeight / REFERENCE_HEIGHT) * REFERENCE_SPRITE_PX);
 }
 
 export function pxToPct(px: number, total: number): number {
