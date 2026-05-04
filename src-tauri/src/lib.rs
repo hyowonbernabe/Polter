@@ -17,7 +17,7 @@ use classifier::{
 };
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
+    menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
@@ -191,52 +191,84 @@ pub fn run() {
                 version: app.package_info().version.to_string(),
             })?;
 
-            // System tray: Sleep/Wake · Privacy Mode · Quit.
-            let sleep_item   = MenuItemBuilder::with_id("sleep_toggle",   "Sleep / Wake").build(app)?;
-            let privacy_item = MenuItemBuilder::with_id("privacy_toggle", "Privacy Mode").build(app)?;
-            let quit         = MenuItemBuilder::with_id("quit",           "Quit Wisp").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&sleep_item, &privacy_item, &quit]).build()?;
+            // System tray: Sleep · Privacy Mode · Quit.
+            // CheckMenuItems show a checkmark when active.
+            let sleep_check   = CheckMenuItemBuilder::with_id("sleep_toggle",   "Sleep")
+                .checked(false).build(app)?;
+            let privacy_check = CheckMenuItemBuilder::with_id("privacy_toggle", "Privacy Mode")
+                .checked(false).build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
+            let menu = MenuBuilder::new(app).items(&[&sleep_check, &privacy_check, &quit]).build()?;
+
+            // Clone items: one pair for the event handler, one pair for the schedule watcher.
+            let sleep_ev   = sleep_check.clone();
+            let privacy_ev = privacy_check.clone();
+            let sleep_sch   = sleep_check.clone();
+            let privacy_sch = privacy_check.clone();
+
             let (tr, tg, tb) = crate::tray::state_to_tray_color("rest");
             let init_rgba = crate::tray::tray_icon_rgba(tr, tg, tb);
             let init_icon = tauri::image::Image::new_owned(init_rgba, 32, 32);
             TrayIconBuilder::with_id("main")
                 .icon(init_icon)
                 .menu(&menu)
-                .on_menu_event(|app, event| {
+                .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
                         "quit" => app.exit(0),
+
+                        // Sleep and Privacy are mutually exclusive.
+                        // Enabling one always disables the other.
                         "sleep_toggle" => {
-                            let sleep_st  = app.state::<sleep::SleepState>().inner().clone();
-                            let pools     = app.state::<storage::DbPools>().inner().clone();
-                            let sid       = app.state::<session::SessionId>().inner().clone();
-                            let summary   = app.state::<Arc<Mutex<classifier::daily_summary::DailySummaryAccumulator>>>().inner().clone();
-                            let handle    = app.clone();
+                            let sleep_st = app.state::<sleep::SleepState>().inner().clone();
+                            let pools    = app.state::<storage::DbPools>().inner().clone();
+                            let sid      = app.state::<session::SessionId>().inner().clone();
+                            let summary  = app.state::<Arc<Mutex<classifier::daily_summary::DailySummaryAccumulator>>>().inner().clone();
+                            let handle   = app.clone();
+                            let sleep_item   = sleep_ev.clone();
+                            let privacy_item = privacy_ev.clone();
                             tauri::async_runtime::spawn(async move {
                                 let new_sleeping = {
                                     let mut s = sleep_st.lock().unwrap();
                                     s.sleeping = !s.sleeping;
                                     s.schedule_triggered = false;
+                                    s.privacy = false; // mutually exclusive
                                     s.sleeping
                                 };
+                                let _ = sleep_item.set_checked(new_sleeping);
+                                let _ = privacy_item.set_checked(false);
                                 let _ = commands::apply_sleep_change(new_sleeping, pools, sid, summary, handle).await;
                             });
                         }
+
                         "privacy_toggle" => {
                             let sleep_st = app.state::<sleep::SleepState>().inner().clone();
+                            let pools    = app.state::<storage::DbPools>().inner().clone();
+                            let sid      = app.state::<session::SessionId>().inner().clone();
                             let handle   = app.clone();
+                            let sleep_item   = sleep_ev.clone();
+                            let privacy_item = privacy_ev.clone();
                             tauri::async_runtime::spawn(async move {
-                                use tauri::Emitter;
-                                let new_privacy = {
+                                let (new_privacy, was_sleeping) = {
                                     let mut s = sleep_st.lock().unwrap();
+                                    let was = s.sleeping;
                                     s.privacy = !s.privacy;
-                                    s.privacy
+                                    s.sleeping = false; // mutually exclusive
+                                    s.schedule_triggered = false;
+                                    (s.privacy, was)
                                 };
+                                let _ = privacy_item.set_checked(new_privacy);
+                                let _ = sleep_item.set_checked(false);
+                                // If toggling privacy on while sleeping, start a fresh session.
+                                if was_sleeping && new_privacy {
+                                    let _ = session::start_new_session(&pools, &sid).await;
+                                }
                                 let _ = handle.emit("sleep_changed", commands::SleepChangedPayload {
                                     sleeping: false,
                                     privacy: new_privacy,
                                 });
                             });
                         }
+
                         _ => {}
                     }
                 })
@@ -244,17 +276,17 @@ pub fn run() {
 
             // Auto-sleep schedule watcher — checks every 60 seconds.
             {
-                let sleep_st  = sleep_state.clone();
-                let pools_sch = pools.clone();
-                let sid_sch   = session_id.clone();
-                let sum_sch   = summary_acc.clone();
+                let sleep_st   = sleep_state.clone();
+                let pools_sch  = pools.clone();
+                let sid_sch    = session_id.clone();
+                let sum_sch    = summary_acc.clone();
                 let handle_sch = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(60));
-                    ticker.tick().await; // skip the immediate first tick
+                    ticker.tick().await;
                     loop {
                         ticker.tick().await;
-                        let (enabled, start_h, start_m, end_h, end_m, currently_sleeping, schedule_triggered) = {
+                        let (enabled, start_h, start_m, end_h, end_m, currently_sleeping, triggered) = {
                             let s = sleep_st.lock().unwrap();
                             (s.schedule_enabled, s.schedule_start_hour, s.schedule_start_minute,
                              s.schedule_end_hour, s.schedule_end_minute, s.sleeping, s.schedule_triggered)
@@ -262,20 +294,30 @@ pub fn run() {
                         if !enabled { continue; }
 
                         let now = chrono::Local::now();
-                        let (hour, minute) = (now.hour() as u8, now.minute() as u8);
-                        let in_window = sleep::in_schedule(start_h, start_m, end_h, end_m, hour, minute);
+                        let in_window = sleep::in_schedule(
+                            start_h, start_m, end_h, end_m,
+                            now.hour() as u8, now.minute() as u8,
+                        );
 
                         if in_window && !currently_sleeping {
-                            // Enter scheduled sleep.
-                            sleep_st.lock().unwrap().sleeping = true;
-                            sleep_st.lock().unwrap().schedule_triggered = true;
+                            {
+                                let mut s = sleep_st.lock().unwrap();
+                                s.sleeping = true;
+                                s.privacy = false;
+                                s.schedule_triggered = true;
+                            }
+                            let _ = sleep_sch.set_checked(true);
+                            let _ = privacy_sch.set_checked(false);
                             let _ = commands::apply_sleep_change(
                                 true, pools_sch.clone(), sid_sch.clone(), sum_sch.clone(), handle_sch.clone(),
                             ).await;
-                        } else if !in_window && currently_sleeping && schedule_triggered {
-                            // Exit scheduled sleep — only if we were the ones who triggered it.
-                            sleep_st.lock().unwrap().sleeping = false;
-                            sleep_st.lock().unwrap().schedule_triggered = false;
+                        } else if !in_window && currently_sleeping && triggered {
+                            {
+                                let mut s = sleep_st.lock().unwrap();
+                                s.sleeping = false;
+                                s.schedule_triggered = false;
+                            }
+                            let _ = sleep_sch.set_checked(false);
                             let _ = commands::apply_sleep_change(
                                 false, pools_sch.clone(), sid_sch.clone(), sum_sch.clone(), handle_sch.clone(),
                             ).await;

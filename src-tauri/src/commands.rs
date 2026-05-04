@@ -298,6 +298,7 @@ pub async fn toggle_sleep(
         let mut s = sleep_state.lock().unwrap();
         s.sleeping = !s.sleeping;
         s.schedule_triggered = false;
+        s.privacy = false; // mutually exclusive with privacy
         s.sleeping
     };
     apply_sleep_change(
@@ -312,13 +313,22 @@ pub async fn toggle_sleep(
 #[tauri::command]
 pub async fn toggle_privacy(
     sleep_state: tauri::State<'_, SleepState>,
+    pools: tauri::State<'_, DbPools>,
+    session_id: tauri::State<'_, SessionId>,
     app_handle: tauri::AppHandle,
 ) -> Result<bool, String> {
-    let new_privacy = {
+    let (new_privacy, was_sleeping) = {
         let mut s = sleep_state.lock().unwrap();
+        let was = s.sleeping;
         s.privacy = !s.privacy;
-        s.privacy
+        s.sleeping = false; // mutually exclusive with sleep
+        s.schedule_triggered = false;
+        (s.privacy, was)
     };
+    // If switching from sleep to privacy, start a fresh session.
+    if was_sleeping && new_privacy {
+        let _ = crate::session::start_new_session(&pools, &session_id).await;
+    }
     app_handle
         .emit("sleep_changed", SleepChangedPayload { sleeping: false, privacy: new_privacy })
         .map_err(|e| e.to_string())?;
