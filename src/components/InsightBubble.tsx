@@ -26,23 +26,26 @@ function TailShape({ side }: { side: TailSide }) {
     pointerEvents: 'none',
   };
 
+  const downTail: React.CSSProperties = {
+    borderLeft: '10px solid transparent',
+    borderRight: '10px solid transparent',
+    borderTop: `10px solid ${BG}`,
+  };
+  const upTail: React.CSSProperties = {
+    borderLeft: '10px solid transparent',
+    borderRight: '10px solid transparent',
+    borderBottom: `10px solid ${BG}`,
+  };
+
   switch (side) {
     case 'bottom-right':
-      return <div style={{ ...base, bottom: -10, right: 20,
-        borderLeft: '12px solid transparent',
-        borderTop: `10px solid ${BG}` }} />;
+      return <div style={{ ...base, bottom: -10, right: 16, ...downTail }} />;
     case 'bottom-left':
-      return <div style={{ ...base, bottom: -10, left: 20,
-        borderRight: '12px solid transparent',
-        borderTop: `10px solid ${BG}` }} />;
+      return <div style={{ ...base, bottom: -10, left: 16, ...downTail }} />;
     case 'top-right':
-      return <div style={{ ...base, top: -10, right: 20,
-        borderLeft: '12px solid transparent',
-        borderBottom: `10px solid ${BG}` }} />;
+      return <div style={{ ...base, top: -10, right: 16, ...upTail }} />;
     case 'top-left':
-      return <div style={{ ...base, top: -10, left: 20,
-        borderRight: '12px solid transparent',
-        borderBottom: `10px solid ${BG}` }} />;
+      return <div style={{ ...base, top: -10, left: 16, ...upTail }} />;
   }
 }
 
