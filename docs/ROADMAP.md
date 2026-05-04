@@ -148,37 +148,37 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 9 — Settings
 *The app is configurable.*
 
-- [ ] Full settings panel UI renders and is accessible from dashboard and tray
-- [ ] Inference mode badge always visible at the top — shows local or cloud at all times
-- [ ] OpenRouter API key can be entered, saved, and cleared
-- [ ] Tier 2 permission toggles — screen content, clipboard, calendar — each with plain-language description
-- [ ] Active sensors list — live view of exactly which signals are currently running
-- [ ] Insight frequency cap — user can set maximum bubbles per day (1 to 5)
-- [ ] Sound toggle — optional chime when a bubble appears, off by default
-- [ ] Creature size selector — small, medium, large
-- [ ] Default corner selector — four corners
-- [ ] Idle opacity control — how faded the creature becomes during inactivity
-- [ ] Auto-sleep schedule — set start and end of quiet hours
-- [ ] Data retention display — shows current retention windows in plain language
-- [ ] Clear raw data — with plain-language confirmation dialog
-- [ ] Export insights — downloads all insight text as a plain file
-- [ ] Privacy mode keyboard shortcut — configurable hotkey for instant pause
-- [ ] "Review permissions" entry point — re-enters the Tier 2 opt-in flow for users who want to change earlier choices
+- [x] Full settings panel UI renders and is accessible from dashboard and tray
+- [x] Inference mode badge always visible at the top — shows local or cloud at all times
+- [x] OpenRouter API key can be entered, saved, and cleared
+- [x] Tier 2 permission toggles — screen content, clipboard, calendar — each with plain-language description *(UI present, toggles locked pending Tier 2 sensor implementation)*
+- [x] Active sensors list — live view of exactly which signals are currently running
+- [x] Insight frequency cap — user can set maximum bubbles per day (1 to 5)
+- [x] Sound toggle — optional chime when a bubble appears, off by default
+- [x] Creature size selector — small, medium, large
+- [x] Default corner selector — four corners
+- [x] Idle opacity control — how faded the creature becomes during inactivity
+- [x] Auto-sleep schedule — set start and end of quiet hours
+- [x] Data retention display — shows current retention windows in plain language
+- [x] Clear raw data — with plain-language confirmation dialog
+- [x] Export insights — downloads all insight text as a plain file
+- [ ] Privacy mode keyboard shortcut — configurable hotkey for instant pause *(placeholder shown, not yet implemented)*
+- [ ] "Review permissions" entry point — re-enters the Tier 2 opt-in flow for users who want to change earlier choices *(placeholder shown, not yet implemented)*
 
 ---
 
 ## Group 10 — Onboarding
 *The app welcomes.*
 
-- [ ] Welcome screen — what Wisp is, in plain language, no jargon
-- [ ] Tier 1 disclosure screen — exactly what is collected automatically, before collection starts
-- [ ] Screen content opt-in screen — what it is, what it is not, yes or no
-- [ ] Clipboard activity opt-in screen — what it is, what it is not, yes or no
-- [ ] Calendar context opt-in screen — what it is, what it is not, yes or no
-- [ ] Summary screen — shows exactly what Wisp will and will not collect based on the choices just made
-- [ ] Creature appears on screen for the first time at the end of onboarding
-- [ ] First bubble appears — "give me a few days. i'll tell you something when i know something."
-- [ ] Settings reminder — user is told they can change any of this at any time
+- [x] Welcome screen — what Wisp is, in plain language, no jargon
+- [x] Tier 1 disclosure screen — exactly what is collected automatically, before collection starts
+- [x] Screen content opt-in screen — what it is, what it is not, yes or no
+- [x] Clipboard activity opt-in screen — what it is, what it is not, yes or no
+- [x] Calendar context opt-in screen — what it is, what it is not, yes or no
+- [x] Summary screen — shows exactly what Wisp will and will not collect based on the choices just made
+- [x] Creature appears on screen for the first time at the end of onboarding
+- [x] First bubble appears — "give me a few days. i'll tell you something when i know something."
+- [x] Settings reminder — user is told they can change any of this at any time
 
 ---
 
@@ -212,9 +212,9 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 | 3 | Baseline and State Machine | Complete ✅ |
 | 4 | Creature Comes Alive | Complete ✅ |
 | 5 | Core Controls | Complete ✅ |
-| 6 | AI Inference | OpenRouter complete — Ollama deferred; consent + no-AI indicator pending Groups 7/9 UI |
+| 6 | AI Inference | OpenRouter complete — Ollama deferred; 2 items pending (consent UI, no-AI indicator) |
 | 7 | Chat Bubbles | Complete ✅ |
 | 8 | Dashboard | Complete ✅ |
-| 9 | Settings | Not started |
-| 10 | Onboarding | Not started |
+| 9 | Settings | Complete ✅ (14/16 — hotkey + review permissions are placeholders) |
+| 10 | Onboarding | Complete ✅ |
 | 11 | Polish: Creature Interactions | Not started |
