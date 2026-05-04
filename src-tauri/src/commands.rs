@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
+use crate::classifier::state_machine::StateMachine;
 use crate::click_through::Rect;
 use crate::session::SessionId;
 use crate::settings;
@@ -59,14 +60,33 @@ pub struct DebugInfo {
     pub last_ram_percent: f32,
     pub last_window_count: i32,
     pub last_snapshot_age_secs: Option<i64>,
+    pub current_state: String,
+    pub cold_start: bool,
+    pub days_since_first_session: Option<i64>,
 }
 
 #[tauri::command]
 pub async fn get_debug_info(
     pools: tauri::State<'_, DbPools>,
     session_id: tauri::State<'_, SessionId>,
+    state_machine: tauri::State<'_, Arc<Mutex<StateMachine>>>,
 ) -> Result<DebugInfo, String> {
     let sid = *session_id.lock().unwrap();
+    let (current_state, cold_start, days_since_first_session) = {
+        let first_ms = crate::storage::queries::get_first_session_ms(pools.read.as_ref())
+            .await
+            .map_err(|e| e.to_string())?;
+        let cold = crate::classifier::is_cold_start(first_ms);
+        let days = first_ms.map(|ms| {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64;
+            (now_ms - ms) / (86_400 * 1_000)
+        });
+        let state = state_machine.lock().unwrap().current_state.as_str().to_string();
+        (state, cold, days)
+    };
 
     let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM behavioral_snapshots")
         .fetch_one(pools.read.as_ref())
@@ -109,6 +129,9 @@ pub async fn get_debug_info(
         last_ram_percent,
         last_window_count,
         last_snapshot_age_secs,
+        current_state,
+        cold_start,
+        days_since_first_session,
     })
 }
 
@@ -164,5 +187,48 @@ mod tests {
         let p = WispReadyPayload { version: "0.1.0".into() };
         let json = serde_json::to_string(&p).unwrap();
         assert_eq!(json, r#"{"version":"0.1.0"}"#);
+    }
+
+    #[test]
+    fn debug_info_includes_classifier_fields() {
+        let info = DebugInfo {
+            session_id: Some(1),
+            snapshot_count: 5,
+            last_typing_speed: 1.2,
+            last_mouse_speed: 300.0,
+            last_click_count: 3,
+            last_cpu_percent: 20.0,
+            last_ram_percent: 50.0,
+            last_window_count: 4,
+            last_snapshot_age_secs: Some(30),
+            current_state: "focus".into(),
+            cold_start: true,
+            days_since_first_session: Some(7),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"current_state\":\"focus\""));
+        assert!(json.contains("\"cold_start\":true"));
+        assert!(json.contains("\"days_since_first_session\":7"));
+    }
+
+    #[test]
+    fn debug_info_none_days_when_no_session() {
+        let info = DebugInfo {
+            session_id: None,
+            snapshot_count: 0,
+            last_typing_speed: 0.0,
+            last_mouse_speed: 0.0,
+            last_click_count: 0,
+            last_cpu_percent: 0.0,
+            last_ram_percent: 0.0,
+            last_window_count: 0,
+            last_snapshot_age_secs: None,
+            current_state: "rest".into(),
+            cold_start: true,
+            days_since_first_session: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("\"days_since_first_session\":null"));
+        assert!(json.contains("\"session_id\":null"));
     }
 }
