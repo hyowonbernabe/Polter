@@ -6,13 +6,12 @@ import InsightBubble from "./components/InsightBubble";
 import { getBubblePosition } from "./lib/bubblePosition";
 import { usePreInsightGlow } from "./hooks/usePreInsightGlow";
 import { useInsightQueue } from "./hooks/useInsightQueue";
-import { useCreaturePosition } from "./hooks/useCreaturePosition";
+import { useCreaturePhysics } from "./hooks/useCreaturePhysics";
 import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
 import { loadPreferences, type CreatureSize, SIZE_MULTIPLIERS } from "./lib/preferences";
 
 const BURN_DISTRESS_MS = 90 * 60 * 1_000;
-const DEBUG_MONITORS = false;
 
 interface StateChangedPayload {
   state: WispState;
@@ -34,7 +33,7 @@ export interface InsightPayload {
 }
 
 export default function App() {
-  const [wispState, setWispState] = useState<WispState>("rest");
+  const [wispState, setWispStateR] = useState<WispState>("rest");
   const [coldStart, setColdStart] = useState(true);
   const [showReturning, setShowReturning] = useState(false);
   const [showBestSession, setShowBestSession] = useState(false);
@@ -50,24 +49,25 @@ export default function App() {
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onBoundsChange = useCallback(
-    (x: number, y: number, w: number, h: number) => {
-      invoke("set_creature_bounds", { x, y, width: w, height: h });
-    },
-    []
-  );
-
-  const { pos, spriteSize, workArea, monitors, updatePosition } = useCreaturePosition(onBoundsChange);
+  const physics = useCreaturePhysics();
   const idleOpacity = useIdleDetection(idleFloor);
 
   const { current: activeInsight, isFirstEver, enqueue, dismiss } = useInsightQueue();
+  const { phase: preInsightPhase } = usePreInsightGlow(glowTriggered, isFirstEver);
 
-  const { phase: preInsightPhase } = usePreInsightGlow(
-    glowTriggered,
-    isFirstEver,
-  );
+  const bubbleVisible = activeInsight !== null && preInsightPhase === 3;
 
-  // Burn distress: arm a 90-min timer when entering burn, cancel on any other state
+  // Keep physics hook informed of current WispState (mood modifiers)
+  useEffect(() => {
+    physics.setWispState(wispState);
+  }, [wispState, physics.setWispState]);
+
+  // Forward-facing dialogue mode when bubble is showing
+  useEffect(() => {
+    physics.setDialogue(bubbleVisible);
+  }, [bubbleVisible, physics.setDialogue]);
+
+  // Burn distress: arm 90-min timer on burn, cancel on any other state
   useEffect(() => {
     if (burnTimerRef.current !== null) {
       clearTimeout(burnTimerRef.current);
@@ -97,7 +97,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeInsight?.insight]);
 
-  // Load preferences on mount; re-apply when settings window changes them.
+  // Load preferences on mount; re-apply when settings window changes them
   useEffect(() => {
     loadPreferences().then((p) => {
       setCreatureSize(p.creature_size);
@@ -109,48 +109,27 @@ export default function App() {
     const unlistenOpacity = listen<number>("idle_opacity_changed", (e) => {
       setIdleFloor(e.payload);
     });
-    const unlistenSnap = listen<{ corner: string }>("creature_snap_to_corner", (e) => {
-      if (monitors.length === 0) return;
-      const primary = monitors[0];
-      const size = spriteSize * SIZE_MULTIPLIERS[creatureSize];
-      const margin = 16;
-      let x = primary.x + margin;
-      let y = primary.y + margin;
-      if (e.payload.corner === "tr" || e.payload.corner === "br")
-        x = primary.x + primary.width - size - margin;
-      if (e.payload.corner === "bl" || e.payload.corner === "br")
-        y = primary.y + primary.height - size - margin;
-      updatePosition(x, y);
-    });
     return () => {
       unlistenSize.then((f) => f());
       unlistenOpacity.then((f) => f());
-      unlistenSnap.then((f) => f());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monitors, spriteSize, creatureSize]);
+  }, []);
 
   useEffect(() => {
     const unlistenReady = listen<{ version: string }>("wisp_ready", (event) => {
       console.log("[wisp] bridge confirmed, version:", event.payload.version);
     });
     const unlistenState = listen<StateChangedPayload>("state_changed", (event) => {
-      setWispState(event.payload.state);
+      setWispStateR(event.payload.state);
       setColdStart(event.payload.cold_start);
     });
-    const unlistenReturning = listen("returning_user", () => {
-      setShowReturning(true);
-    });
-    const unlistenBest = listen("best_session", () => {
-      setShowBestSession(true);
-    });
+    const unlistenReturning = listen("returning_user", () => setShowReturning(true));
+    const unlistenBest = listen("best_session", () => setShowBestSession(true));
     const unlistenSleep = listen<SleepChangedPayload>("sleep_changed", (event) => {
       setSleeping(event.payload.sleeping);
       setPrivacyMode(event.payload.privacy);
     });
-    const unlistenWake = listen("wake_animation", () => {
-      setShowWake(true);
-    });
+    const unlistenWake = listen("wake_animation", () => setShowWake(true));
     const unlistenInsight = listen<InsightPayload>("insight_ready", (event) => {
       console.log("[wisp] insight received:", event.payload.type);
       enqueue({ ...event.payload, receivedAt: Date.now() });
@@ -172,40 +151,25 @@ export default function App() {
     dismiss();
   }, [dismiss]);
 
+  // Read creature position from physics element at render time (for bubble placement)
+  function getCreaturePos() {
+    const el = physics.elementRef.current;
+    if (!el) return { x: 100, y: 100 };
+    const m = el.style.transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/);
+    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 100, y: 100 };
+  }
+
+  const displaySize = Math.round(physics.spriteSize * SIZE_MULTIPLIERS[creatureSize]);
+
   return (
     <div style={{ width: "100vw", height: "100vh", background: "transparent" }}>
-      {DEBUG_MONITORS && monitors.map((m, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'fixed',
-            left: m.x,
-            top: m.y,
-            width: m.width,
-            height: m.height,
-            background: 'rgba(255,0,0,0.15)',
-            border: '2px solid rgba(255,0,0,0.6)',
-            pointerEvents: 'none',
-            zIndex: 9998,
-            boxSizing: 'border-box',
-          }}
-        />
-      ))}
-      {DEBUG_MONITORS && (
-        <div style={{
-          position: 'fixed', left: 8, top: 8, color: 'white', fontSize: 11,
-          fontFamily: 'monospace', textShadow: '1px 1px 2px black',
-          pointerEvents: 'none', zIndex: 9999,
-        }}>
-          wa: {workArea.width}×{workArea.height} | sprite: {spriteSize} | vw: {window.innerWidth} vh: {window.innerHeight}
-          {monitors.map((m, i) => ` | m${i}: ${m.x},${m.y} ${m.width}×${m.height}`)}
-        </div>
-      )}
       <Creature
-        x={pos.x}
-        y={pos.y}
-        displaySize={Math.round(spriteSize * SIZE_MULTIPLIERS[creatureSize])}
+        displaySize={displaySize}
         state={wispState}
+        physicsState={physics.physicsState}
+        velocity={physics.velocity}
+        facing={physics.facing}
+        dragSquish={physics.dragSquish}
         coldStart={coldStart}
         opacity={idleOpacity}
         showReturning={showReturning}
@@ -217,16 +181,23 @@ export default function App() {
         preInsightPhase={preInsightPhase as 0 | 1 | 2 | 3}
         isFirstEverInsight={isFirstEver}
         showNod={showNod}
-        onPositionChange={updatePosition}
+        bubbleVisible={bubbleVisible}
+        elementRef={physics.elementRef}
+        onPointerDown={(e) => { if (e.button === 0) physics.notifyDragStart(e.clientX, e.clientY); }}
+        onPointerMove={(e) => { if (e.buttons === 1) physics.notifyDragMove(e.clientX, e.clientY); }}
+        onPointerUp={() => physics.notifyDragEnd()}
+        onClick={(e) => physics.notifySingleClick(e.clientX, e.clientY)}
+        onBubbleClick={() => { physics.notifyBubbleClick(); handleDismiss(); }}
         onReturningDone={() => setShowReturning(false)}
         onBestSessionDone={() => setShowBestSession(false)}
         onWakeDone={() => setShowWake(false)}
         onNodDone={() => setShowNod(false)}
       />
       {activeInsight && preInsightPhase === 3 && (() => {
+        const cp = getCreaturePos();
         const bp = getBubblePosition(
-          pos.x, pos.y, spriteSize, spriteSize, monitors,
-          300, window.innerHeight,
+          cp.x, cp.y, physics.spriteSize, physics.spriteSize,
+          physics.monitors, 300, window.innerHeight,
         );
         return (
           <InsightBubble

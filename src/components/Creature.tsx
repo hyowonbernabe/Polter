@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { type WispState, SPRITE_CONFIG, STATE_GLOW, ALL_STATES } from '../lib/spriteConfig';
+import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
+import CreatureContextMenu from './CreatureContextMenu';
 
 interface CreatureProps {
-  x: number;
-  y: number;
   displaySize: number;
-  onPositionChange: (x: number, y: number) => void;
   state: WispState;
+  physicsState: PhysicsState;
+  velocity: Vec2;
+  facing: FacingDirection;
+  dragSquish: Vec2;
   coldStart: boolean;
   opacity?: number;
   showReturning?: boolean;
@@ -19,6 +22,13 @@ interface CreatureProps {
   preInsightPhase?: 0 | 1 | 2 | 3;
   isFirstEverInsight?: boolean;
   showNod?: boolean;
+  bubbleVisible?: boolean;
+  elementRef: React.RefObject<HTMLDivElement>;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+  onClick: (e: React.MouseEvent) => void;
+  onBubbleClick?: () => void;
   onReturningDone?: () => void;
   onBestSessionDone?: () => void;
   onWakeDone?: () => void;
@@ -66,16 +76,26 @@ function ensureKeyframes() {
       35%  { transform: translateY(5px); }
       100% { transform: translateY(0); }
     }
+    @keyframes land-squash {
+      0%   { transform: scaleX(1.2) scaleY(0.7); }
+      60%  { transform: scaleX(0.95) scaleY(1.05); }
+      100% { transform: scaleX(1) scaleY(1); }
+    }
+    @keyframes stun-spin {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   `;
   document.head.appendChild(style);
 }
 
 export default function Creature({
-  x,
-  y,
   displaySize,
-  onPositionChange,
   state,
+  physicsState,
+  velocity,
+  facing,
+  dragSquish,
   coldStart,
   opacity = 1.0,
   showReturning = false,
@@ -87,6 +107,13 @@ export default function Creature({
   preInsightPhase = 0,
   isFirstEverInsight = false,
   showNod = false,
+  bubbleVisible = false,
+  elementRef,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onClick,
+  onBubbleClick,
   onReturningDone,
   onBestSessionDone,
   onWakeDone,
@@ -95,14 +122,12 @@ export default function Creature({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spritesRef = useRef<Map<WispState, HTMLImageElement>>(new Map());
   const [spritesReady, setSpritesReady] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  const anim = useCreatureAnimation(state);
+  const anim = useCreatureAnimation(state, physicsState, velocity, facing);
 
-  useEffect(() => {
-    ensureKeyframes();
-  }, []);
+  useEffect(() => { ensureKeyframes(); }, []);
 
-  // Preload all 7 sprites on mount
   useEffect(() => {
     let loaded = 0;
     const total = ALL_STATES.length;
@@ -113,15 +138,12 @@ export default function Creature({
         loaded++;
         if (loaded === total) setSpritesReady(true);
       };
-      img.onerror = () => {
-        loaded++;
-        if (loaded === total) setSpritesReady(true);
-      };
+      img.onerror = () => { loaded++; if (loaded === total) setSpritesReady(true); };
       img.src = new URL(`../assets/sprites/${SPRITE_CONFIG[s].file}`, import.meta.url).href;
     }
   }, []);
 
-  // Draw canvas whenever animation state or sprites change
+  // Draw canvas with horizontal flip support
   useEffect(() => {
     if (!spritesReady) return;
     const canvas = canvasRef.current;
@@ -129,14 +151,19 @@ export default function Creature({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { frameIndex, crossfadeProgress, prevState, currentState } = anim;
+    const { frameIndex, crossfadeProgress, prevState, currentState, flip } = anim;
     const cfg = SPRITE_CONFIG[currentState];
     const w = cfg.width;
     const h = cfg.height;
 
     ctx.clearRect(0, 0, w, h);
+    ctx.save();
 
-    // Draw outgoing sprite during crossfade
+    if (flip) {
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+    }
+
     if (prevState !== null && crossfadeProgress < 1) {
       const prevImg = spritesRef.current.get(prevState);
       if (prevImg) {
@@ -146,7 +173,6 @@ export default function Creature({
       }
     }
 
-    // Draw current sprite
     const curImg = spritesRef.current.get(currentState);
     if (curImg) {
       const srcX = frameIndex * w;
@@ -155,64 +181,46 @@ export default function Creature({
     }
 
     ctx.globalAlpha = 1;
+    ctx.restore();
   }, [anim, spritesReady]);
 
-  // Auto-clear returning animation after 600ms
   useEffect(() => {
     if (!showReturning) return;
     const id = setTimeout(() => onReturningDone?.(), 600);
     return () => clearTimeout(id);
   }, [showReturning, onReturningDone]);
 
-  // Auto-clear best-session animation after 1500ms
   useEffect(() => {
     if (!showBestSession) return;
     const id = setTimeout(() => onBestSessionDone?.(), 1500);
     return () => clearTimeout(id);
   }, [showBestSession, onBestSessionDone]);
 
-  // Auto-clear wake animation after 800ms
   useEffect(() => {
     if (!showWake) return;
     const id = setTimeout(() => onWakeDone?.(), 800);
     return () => clearTimeout(id);
   }, [showWake, onWakeDone]);
 
-  // Auto-clear nod after 420ms
   useEffect(() => {
     if (!showNod) return;
     const id = setTimeout(() => onNodDone?.(), 420);
     return () => clearTimeout(id);
   }, [showNod, onNodDone]);
 
-  // Drag logic
-  const dragging = useRef(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
-
-  function onMouseDown(e: React.MouseEvent) {
-    dragging.current = true;
-    dragOffset.current = { x: e.clientX - x, y: e.clientY - y };
+  function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
   }
 
-  useEffect(() => {
-    function onMouseMove(e: MouseEvent) {
-      if (!dragging.current) return;
-      onPositionChange(e.clientX - dragOffset.current.x, e.clientY - dragOffset.current.y);
+  function handleClick(e: React.MouseEvent) {
+    if (bubbleVisible) {
+      onBubbleClick?.();
+      return;
     }
-    function onMouseUp() {
-      dragging.current = false;
-    }
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [onPositionChange]);
+    onClick(e);
+  }
 
-  // Glow / desaturation filter — priority order:
-  // privacy > sleeping > pre-insight > returning > burn-distress > cold-start > normal
   let glowFilter: string;
   if (privacyMode) {
     glowFilter = 'grayscale(1) brightness(0.45)';
@@ -234,76 +242,87 @@ export default function Creature({
     glowFilter = STATE_GLOW[state];
   }
 
-  // Outer animation priority: nod > wake-unfurl > returning-bounce > pre-glow-pulse > sleeping breathe > normal breathe
-  const outerAnimation = showNod
-    ? 'nod 0.42s ease-in-out'
-    : showWake
-    ? 'wake-unfurl 0.8s ease-out'
-    : showReturning
-    ? 'returning-bounce 0.6s ease-in-out'
-    : preInsightPhase === 2
-    ? 'pre-glow-pulse 0.8s ease-in-out'
-    : sleeping
-    ? 'breathe-sleep 8s ease-in-out infinite'
-    : 'breathe 3s ease-in-out infinite';
+  const outerAnimation =
+    physicsState === 'stunned'     ? 'stun-spin 0.4s linear infinite' :
+    physicsState === 'land_impact' ? 'land-squash 0.3s ease-out' :
+    showNod        ? 'nod 0.42s ease-in-out' :
+    showWake       ? 'wake-unfurl 0.8s ease-out' :
+    showReturning  ? 'returning-bounce 0.6s ease-in-out' :
+    preInsightPhase === 2 ? 'pre-glow-pulse 0.8s ease-in-out' :
+    sleeping       ? 'breathe-sleep 8s ease-in-out infinite' :
+    'breathe 3s ease-in-out infinite';
 
-  // Sleep reduces opacity further on top of the existing idle opacity
   const effectiveOpacity = sleeping ? Math.min(opacity, 0.45) : opacity;
-
   const cfg = SPRITE_CONFIG[state];
   const scale = displaySize / cfg.width;
 
   return (
-    <div
-      onContextMenu={(e) => e.preventDefault()}
-      style={{
-        position: 'fixed',
-        left: x,
-        top: y,
-        width: displaySize,
-        height: displaySize,
-        filter: glowFilter,
-        transition: 'filter 500ms ease, opacity 2s ease',
-        animation: outerAnimation,
-        opacity: effectiveOpacity,
-      }}
-    >
-      {/* Inner div: tremble animation when burn distress is active */}
+    <>
+      {/* Physics position wrapper — physics loop writes transform here */}
       <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          animation: burnDistress ? 'tremble 0.15s ease-in-out infinite' : undefined,
-        }}
+        ref={elementRef}
+        style={{ position: 'fixed', left: 0, top: 0, willChange: 'transform' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onContextMenu={handleContextMenu}
+        onClick={handleClick}
       >
-        <canvas
-          ref={canvasRef}
-          width={cfg.width}
-          height={cfg.height}
-          onMouseDown={onMouseDown}
+        {/* Visual / animation layer */}
+        <div
           style={{
-            imageRendering: 'pixelated',
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            cursor: 'grab',
-            display: 'block',
+            width: displaySize,
+            height: displaySize,
+            filter: glowFilter,
+            transition: 'filter 500ms ease, opacity 2s ease',
+            animation: outerAnimation,
+            opacity: effectiveOpacity,
+            transform: `scaleX(${dragSquish.x}) scaleY(${dragSquish.y})`,
+            transformOrigin: 'center center',
           }}
-        />
-        {/* White flash overlay for best-session recognition */}
-        {showBestSession && (
+        >
           <div
             style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'white',
-              animation: 'best-session-flash 1.5s ease-in-out',
-              pointerEvents: 'none',
-              borderRadius: 2,
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              animation: burnDistress ? 'tremble 0.15s ease-in-out infinite' : undefined,
             }}
-          />
-        )}
+          >
+            <canvas
+              ref={canvasRef}
+              width={cfg.width}
+              height={cfg.height}
+              style={{
+                imageRendering: 'pixelated',
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                cursor: physicsState === 'grabbed' ? 'grabbing' : 'grab',
+                display: 'block',
+              }}
+            />
+            {showBestSession && (
+              <div style={{
+                position: 'absolute', inset: 0, background: 'white',
+                animation: 'best-session-flash 1.5s ease-in-out',
+                pointerEvents: 'none', borderRadius: 2,
+              }} />
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+
+      {contextMenu && (
+        <CreatureContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          wispState={state}
+          sleeping={sleeping ?? false}
+          bubbleVisible={bubbleVisible}
+          onClose={() => setContextMenu(null)}
+          onDismissBubble={() => { onBubbleClick?.(); setContextMenu(null); }}
+        />
+      )}
+    </>
   );
 }

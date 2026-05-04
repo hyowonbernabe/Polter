@@ -88,6 +88,8 @@ pub fn run() {
             commands::get_current_state_info,
             commands::open_dashboard,
             commands::close_dashboard,
+            commands::toggle_dashboard,
+            commands::quit_app,
             commands::open_settings,
             commands::close_settings,
             commands::clear_snapshots,

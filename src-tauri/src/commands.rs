@@ -668,6 +668,22 @@ pub fn close_dashboard(app_handle: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+pub fn toggle_dashboard(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(dash) = app_handle.get_webview_window("dashboard") {
+        if dash.is_visible().unwrap_or(false) {
+            let _ = dash.hide();
+            return Ok(());
+        }
+    }
+    do_open_dashboard(&app_handle)
+}
+
+#[tauri::command]
+pub fn quit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
 // ── Settings window ───────────────────────────────────────────────────────────
 
 pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
