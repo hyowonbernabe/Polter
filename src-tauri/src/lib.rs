@@ -1,3 +1,4 @@
+pub mod classifier;
 mod click_through;
 mod commands;
 pub mod pipeline;
@@ -6,12 +7,36 @@ pub mod session;
 pub mod settings;
 pub mod storage;
 
+use classifier::{
+    anomaly::AnomalyDetector,
+    daily_summary::DailySummaryAccumulator,
+    state_machine::StateMachine,
+};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
+
+/// Returns (x, y, width, height) of the bounding rectangle covering all monitors.
+/// On Windows this is the virtual screen; falls back to 1920×1080 on other platforms.
+fn virtual_screen_rect() -> (i32, i32, u32, u32) {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
+            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+        };
+        let x = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
+        let y = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
+        let w = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
+        let h = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
+        (x, y, w as u32, h as u32)
+    }
+    #[cfg(not(target_os = "windows"))]
+    (0, 0, 1920, 1080)
+}
 
 pub fn run() {
     tracing_subscriber::fmt::init();
@@ -33,6 +58,7 @@ pub fn run() {
         ))
         .manage(bounds.clone())
         .invoke_handler(tauri::generate_handler![
+            commands::get_debug_info,
             commands::get_work_area,
             commands::set_creature_bounds,
             commands::set_api_key,
@@ -55,7 +81,7 @@ pub fn run() {
             }
             let db_path_str = db_path.to_string_lossy().to_string();
             let pools = tauri::async_runtime::block_on(storage::init(&db_path_str))?;
-            let write_pool = pools.write.clone();
+            app.manage(pools.clone());
 
             // Shared pipeline state.
             let ring: Arc<Mutex<pipeline::RingBuffer>> =
@@ -63,6 +89,22 @@ pub fn run() {
             let system_snap: Arc<RwLock<sensors::system::SystemSnapshot>> =
                 Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
             let session_id: session::SessionId = Arc::new(Mutex::new(None));
+            app.manage(session_id.clone());
+
+            // Classifier state.
+            let now_setup_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let state_machine: Arc<Mutex<StateMachine>> =
+                Arc::new(Mutex::new(StateMachine::new()));
+            let anomaly_detector: Arc<Mutex<AnomalyDetector>> =
+                Arc::new(Mutex::new(AnomalyDetector::new()));
+            let summary_acc: Arc<Mutex<DailySummaryAccumulator>> =
+                Arc::new(Mutex::new(DailySummaryAccumulator::new(now_setup_ms)));
+            app.manage(state_machine.clone());
+            app.manage(anomaly_detector.clone());
+            app.manage(summary_acc.clone());
 
             // Start the first session.
             {
@@ -85,29 +127,38 @@ pub fn run() {
                 ring.clone(),
                 system_snap.clone(),
                 session_id.clone(),
-                write_pool,
+                pools.clone(),
+                app.handle().clone(),
+                state_machine.clone(),
+                anomaly_detector.clone(),
+                summary_acc.clone(),
             );
 
             // Start inactivity watcher (ends session after 10 min idle).
-            session::start_inactivity_watcher(ring.clone(), pools.clone(), session_id.clone());
+            session::start_inactivity_watcher(
+                ring.clone(), pools.clone(), session_id.clone(), summary_acc.clone(),
+            );
 
             // Handle sleep/wake: loop on the internal Notify rather than the event bus.
             {
                 let pools_wake = pools.clone();
                 let sid_wake = session_id.clone();
+                let summary_wake = summary_acc.clone();
                 tauri::async_runtime::spawn(async move {
                     loop {
                         wake_signal.notified().await;
                         let _ = session::handle_wake(&pools_wake, &sid_wake).await;
+                        session::finalize_session(&pools_wake, &summary_wake).await;
                     }
                 });
             }
 
-            // Size the window to the primary monitor work area, then show it.
+            // Size the window to the full virtual screen (spans all monitors), then show it.
+            // Creature positioning is clamped to per-monitor work areas separately.
             let window = app.get_webview_window("main").expect("main window missing");
-            let wa = commands::get_work_area();
-            window.set_position(tauri::PhysicalPosition::new(wa.x, wa.y))?;
-            window.set_size(tauri::PhysicalSize::new(wa.width, wa.height))?;
+            let (vx, vy, vw, vh) = virtual_screen_rect();
+            window.set_position(tauri::PhysicalPosition::new(vx, vy))?;
+            window.set_size(tauri::PhysicalSize::new(vw, vh))?;
             window.show()?;
 
             // Signal to the React frontend that the backend is ready.

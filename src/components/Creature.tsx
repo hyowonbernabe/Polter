@@ -11,6 +11,8 @@ interface CreatureProps {
   x: number;
   y: number;
   onPositionChange: (x: number, y: number) => void;
+  state?: string;
+  coldStart?: boolean;
 }
 
 export default function Creature({ x, y, onPositionChange }: CreatureProps) {

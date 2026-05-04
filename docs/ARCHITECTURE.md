@@ -83,14 +83,14 @@ The baseline is updated once per day, at the end of the last session of the day.
 
 Baselines are **segmented by time-of-day bucket and day-of-week**. Tuesday afternoon behavior is tracked and compared separately from Monday morning behavior. This means the thresholds for "typing faster than normal" adjust for your actual patterns at that time, not a flat average across your entire history.
 
-### Cold Start (First 7 Days)
+### Cold Start (First 30 Days)
 
-No personal baseline exists yet during the first week.
+No personal baseline exists yet during the first 30 days.
 
 - The creature shows a "still learning" visual state
 - The state machine runs using population-level defaults as a temporary stand-in
 - No insights or bubbles are generated during this period
-- After 7 days, the app silently switches to the personal baseline
+- After 30 days, the app silently switches to the personal baseline
 - The very first insight ever shown gets special treatment: a longer pre-glow, a deeper bloom animation (see Layer 6)
 
 ### The 7 States

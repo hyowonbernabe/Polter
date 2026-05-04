@@ -44,15 +44,15 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 3 — Baseline and State Machine
 *The app understands what it is seeing.*
 
-- [ ] Cold start mode active — app flags no personal baseline exists yet, uses population-level defaults for first 30 days
-- [ ] Anomaly detection suppressed during cold start period
-- [ ] Personal baseline builds from accumulated snapshots — EMA with 14-day decay, segmented by time-of-day and day-of-week
-- [ ] Baseline updates once daily at end of last session
-- [ ] Silent switch from population defaults to personal baseline at day 30
-- [ ] Rule-based state classifier runs — 7 states derived from relative deviation from personal baseline
-- [ ] State transition debounce — 3-minute dwell required before state commits, timer resets on drift
-- [ ] Anomaly detection — 1.96 SD on log-transformed metrics, sustained 5 minutes, 2-hour cooldown per type
-- [ ] Daily summaries pre-aggregated at session end into daily_summaries table
+- [x] Cold start mode active — app flags no personal baseline exists yet, uses population-level defaults for first 30 days
+- [x] Anomaly detection suppressed during cold start period
+- [x] Personal baseline builds from accumulated snapshots — EMA with 14-day decay, segmented by time-of-day and day-of-week
+- [x] Baseline updates once daily at end of last session
+- [x] Silent switch from population defaults to personal baseline at day 30
+- [x] Rule-based state classifier runs — 7 states derived from relative deviation from personal baseline
+- [x] State transition debounce — 3-minute dwell required before state commits, timer resets on drift
+- [x] Anomaly detection — 1.96 SD on log-transformed metrics, sustained 5 minutes, 2-hour cooldown per type
+- [x] Daily summaries pre-aggregated at session end into daily_summaries table
 
 ---
 

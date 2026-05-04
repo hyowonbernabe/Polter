@@ -35,6 +35,10 @@ pub async fn init(db_path: &str) -> Result<DbPools, sqlx::Error> {
         .execute(&write)
         .await?;
 
+    sqlx::raw_sql(include_str!("../../migrations/002_group3.sql"))
+        .execute(&write)
+        .await?;
+
     Ok(DbPools {
         write: Arc::new(write),
         read: Arc::new(read),
@@ -82,5 +86,25 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(row.0, "wal");
+    }
+
+    #[tokio::test]
+    async fn baseline_table_exists() {
+        let (pools, _dir) = temp_db().await;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM baseline")
+            .fetch_one(pools.read.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(row.0, 0);
+    }
+
+    #[tokio::test]
+    async fn daily_summaries_table_exists() {
+        let (pools, _dir) = temp_db().await;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM daily_summaries")
+            .fetch_one(pools.read.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(row.0, 0);
     }
 }

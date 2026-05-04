@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use crate::click_through::Rect;
+use crate::session::SessionId;
 use crate::settings;
+use crate::storage::DbPools;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WorkArea {
@@ -44,6 +46,70 @@ pub fn get_work_area() -> WorkArea {
     }
     #[cfg(not(target_os = "windows"))]
     WorkArea { x: 0, y: 0, width: 1920, height: 1040 }
+}
+
+#[derive(Debug, Serialize)]
+pub struct DebugInfo {
+    pub session_id: Option<i64>,
+    pub snapshot_count: i64,
+    pub last_typing_speed: f64,
+    pub last_mouse_speed: f64,
+    pub last_click_count: i32,
+    pub last_cpu_percent: f32,
+    pub last_ram_percent: f32,
+    pub last_window_count: i32,
+    pub last_snapshot_age_secs: Option<i64>,
+}
+
+#[tauri::command]
+pub async fn get_debug_info(
+    pools: tauri::State<'_, DbPools>,
+    session_id: tauri::State<'_, SessionId>,
+) -> Result<DebugInfo, String> {
+    let sid = *session_id.lock().unwrap();
+
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM behavioral_snapshots")
+        .fetch_one(pools.read.as_ref())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let latest = sqlx::query(
+        "SELECT typing_speed, mouse_speed, click_count, cpu_percent, ram_percent, window_count, timestamp
+         FROM behavioral_snapshots ORDER BY timestamp DESC LIMIT 1",
+    )
+    .fetch_optional(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
+    let (last_typing_speed, last_mouse_speed, last_click_count, last_cpu_percent,
+         last_ram_percent, last_window_count, last_snapshot_age_secs) = match latest {
+        Some(row) => {
+            use sqlx::Row;
+            let ts: i64 = row.get(6);
+            let age = (now_ms - ts) / 1000;
+            (row.get::<f64, _>(0), row.get::<f64, _>(1), row.get::<i64, _>(2) as i32,
+             row.get::<f64, _>(3) as f32, row.get::<f64, _>(4) as f32,
+             row.get::<i64, _>(5) as i32, Some(age))
+        }
+        None => (0.0, 0.0, 0, 0.0, 0.0, 0, None),
+    };
+
+    Ok(DebugInfo {
+        session_id: sid,
+        snapshot_count: count.0,
+        last_typing_speed,
+        last_mouse_speed,
+        last_click_count,
+        last_cpu_percent,
+        last_ram_percent,
+        last_window_count,
+        last_snapshot_age_secs,
+    })
 }
 
 #[tauri::command]

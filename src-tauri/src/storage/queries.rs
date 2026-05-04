@@ -100,6 +100,187 @@ pub async fn latest_snapshot_for_session(
     }))
 }
 
+// ── Baseline ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct BaselineRow {
+    pub signal: String,
+    pub time_of_day_bucket: i32,
+    pub day_of_week: i32,
+    pub ema_mean: f64,
+    pub ema_variance: f64,
+    pub sample_count: i64,
+    pub last_updated_ms: i64,
+}
+
+pub async fn upsert_baseline(
+    pool: &DbWritePool,
+    signal: &str,
+    time_of_day_bucket: i32,
+    day_of_week: i32,
+    ema_mean: f64,
+    ema_variance: f64,
+    sample_count: i64,
+    last_updated_ms: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO baseline
+               (signal, time_of_day_bucket, day_of_week, ema_mean, ema_variance, sample_count, last_updated_ms)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(signal, time_of_day_bucket, day_of_week) DO UPDATE SET
+               ema_mean        = excluded.ema_mean,
+               ema_variance    = excluded.ema_variance,
+               sample_count    = excluded.sample_count,
+               last_updated_ms = excluded.last_updated_ms"#,
+    )
+    .bind(signal)
+    .bind(time_of_day_bucket)
+    .bind(day_of_week)
+    .bind(ema_mean)
+    .bind(ema_variance)
+    .bind(sample_count)
+    .bind(last_updated_ms)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn get_baseline(
+    pool: &DbReadPool,
+    signal: &str,
+    time_of_day_bucket: i32,
+    day_of_week: i32,
+) -> Result<Option<BaselineRow>, sqlx::Error> {
+    let row = sqlx::query(
+        "SELECT signal, time_of_day_bucket, day_of_week, ema_mean, ema_variance,
+                sample_count, last_updated_ms
+         FROM baseline
+         WHERE signal = ? AND time_of_day_bucket = ? AND day_of_week = ?",
+    )
+    .bind(signal)
+    .bind(time_of_day_bucket)
+    .bind(day_of_week)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| {
+        use sqlx::Row;
+        BaselineRow {
+            signal:             r.get(0),
+            time_of_day_bucket: r.get::<i64, _>(1) as i32,
+            day_of_week:        r.get::<i64, _>(2) as i32,
+            ema_mean:           r.get(3),
+            ema_variance:       r.get(4),
+            sample_count:       r.get(5),
+            last_updated_ms:    r.get(6),
+        }
+    }))
+}
+
+// ── Daily Summaries ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct DailySummaryRow {
+    pub date: String,
+    pub total_active_minutes: i64,
+    pub focus_minutes: i64,
+    pub calm_minutes: i64,
+    pub deep_minutes: i64,
+    pub spark_minutes: i64,
+    pub burn_minutes: i64,
+    pub fade_minutes: i64,
+    pub rest_minutes: i64,
+    pub longest_focus_block_minutes: i64,
+    pub session_count: i64,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn upsert_daily_summary(
+    pool: &DbWritePool,
+    date: &str,
+    total_active_minutes: i64,
+    focus_minutes: i64,
+    calm_minutes: i64,
+    deep_minutes: i64,
+    spark_minutes: i64,
+    burn_minutes: i64,
+    fade_minutes: i64,
+    rest_minutes: i64,
+    longest_focus_block_minutes: i64,
+    session_count: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO daily_summaries
+               (date, total_active_minutes, focus_minutes, calm_minutes, deep_minutes,
+                spark_minutes, burn_minutes, fade_minutes, rest_minutes,
+                longest_focus_block_minutes, session_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(date) DO UPDATE SET
+               total_active_minutes        = total_active_minutes        + excluded.total_active_minutes,
+               focus_minutes               = focus_minutes               + excluded.focus_minutes,
+               calm_minutes                = calm_minutes                + excluded.calm_minutes,
+               deep_minutes                = deep_minutes                + excluded.deep_minutes,
+               spark_minutes               = spark_minutes               + excluded.spark_minutes,
+               burn_minutes                = burn_minutes                + excluded.burn_minutes,
+               fade_minutes                = fade_minutes                + excluded.fade_minutes,
+               rest_minutes                = rest_minutes                + excluded.rest_minutes,
+               longest_focus_block_minutes = MAX(longest_focus_block_minutes, excluded.longest_focus_block_minutes),
+               session_count               = session_count               + excluded.session_count"#,
+    )
+    .bind(date)
+    .bind(total_active_minutes)
+    .bind(focus_minutes)
+    .bind(calm_minutes)
+    .bind(deep_minutes)
+    .bind(spark_minutes)
+    .bind(burn_minutes)
+    .bind(fade_minutes)
+    .bind(rest_minutes)
+    .bind(longest_focus_block_minutes)
+    .bind(session_count)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn get_daily_summary(
+    pool: &DbReadPool,
+    date: &str,
+) -> Result<Option<DailySummaryRow>, sqlx::Error> {
+    let row = sqlx::query(
+        "SELECT date, total_active_minutes, focus_minutes, calm_minutes, deep_minutes,
+                spark_minutes, burn_minutes, fade_minutes, rest_minutes,
+                longest_focus_block_minutes, session_count
+         FROM daily_summaries WHERE date = ?",
+    )
+    .bind(date)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| {
+        use sqlx::Row;
+        DailySummaryRow {
+            date:                        r.get(0),
+            total_active_minutes:        r.get(1),
+            focus_minutes:               r.get(2),
+            calm_minutes:                r.get(3),
+            deep_minutes:                r.get(4),
+            spark_minutes:               r.get(5),
+            burn_minutes:                r.get(6),
+            fade_minutes:                r.get(7),
+            rest_minutes:                r.get(8),
+            longest_focus_block_minutes: r.get(9),
+            session_count:               r.get(10),
+        }
+    }))
+}
+
+pub async fn get_first_session_ms(pool: &DbReadPool) -> Result<Option<i64>, sqlx::Error> {
+    let row = sqlx::query("SELECT MIN(start_time) FROM sessions")
+        .fetch_one(pool)
+        .await?;
+    use sqlx::Row;
+    Ok(row.get::<Option<i64>, _>(0))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,5 +400,71 @@ mod tests {
             .unwrap();
         assert!((result.typing_speed - 2.5).abs() < 0.01);
         assert_eq!(result.timestamp_ms, 2_000_000);
+    }
+
+    #[tokio::test]
+    async fn upsert_and_get_baseline() {
+        let (pools, _dir) = temp_db().await;
+        upsert_baseline(pools.write.as_ref(), "typing_speed", 1, 3, 1.5, 0.64, 10, 1_000_000)
+            .await.unwrap();
+        let row = get_baseline(pools.read.as_ref(), "typing_speed", 1, 3)
+            .await.unwrap().unwrap();
+        assert!((row.ema_mean - 1.5).abs() < 0.001);
+        assert!((row.ema_variance - 0.64).abs() < 0.001);
+        assert_eq!(row.sample_count, 10);
+
+        upsert_baseline(pools.write.as_ref(), "typing_speed", 1, 3, 2.0, 0.81, 11, 2_000_000)
+            .await.unwrap();
+        let row2 = get_baseline(pools.read.as_ref(), "typing_speed", 1, 3)
+            .await.unwrap().unwrap();
+        assert!((row2.ema_mean - 2.0).abs() < 0.001);
+    }
+
+    #[tokio::test]
+    async fn get_baseline_returns_none_for_missing() {
+        let (pools, _dir) = temp_db().await;
+        let result = get_baseline(pools.read.as_ref(), "typing_speed", 0, 0)
+            .await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn upsert_daily_summary_accumulates() {
+        let (pools, _dir) = temp_db().await;
+        upsert_daily_summary(
+            pools.write.as_ref(), "2026-05-04",
+            30, 10, 5, 8, 3, 2, 1, 1, 12, 1,
+        ).await.unwrap();
+        let row = get_daily_summary(pools.read.as_ref(), "2026-05-04")
+            .await.unwrap().unwrap();
+        assert_eq!(row.total_active_minutes, 30);
+        assert_eq!(row.session_count, 1);
+
+        upsert_daily_summary(
+            pools.write.as_ref(), "2026-05-04",
+            20, 5, 3, 4, 2, 1, 1, 4, 15, 1,
+        ).await.unwrap();
+        let row2 = get_daily_summary(pools.read.as_ref(), "2026-05-04")
+            .await.unwrap().unwrap();
+        assert_eq!(row2.total_active_minutes, 50);
+        assert_eq!(row2.session_count, 2);
+        assert_eq!(row2.longest_focus_block_minutes, 15);
+    }
+
+    #[tokio::test]
+    async fn get_first_session_ms_returns_none_on_empty() {
+        let (pools, _dir) = temp_db().await;
+        let result = get_first_session_ms(pools.read.as_ref()).await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn get_first_session_ms_returns_earliest() {
+        let (pools, _dir) = temp_db().await;
+        start_session(pools.write.as_ref(), 5_000_000).await.unwrap();
+        start_session(pools.write.as_ref(), 1_000_000).await.unwrap();
+        start_session(pools.write.as_ref(), 9_000_000).await.unwrap();
+        let first = get_first_session_ms(pools.read.as_ref()).await.unwrap();
+        assert_eq!(first, Some(1_000_000));
     }
 }

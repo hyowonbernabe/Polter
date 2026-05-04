@@ -1,3 +1,8 @@
+use crate::classifier::{
+    baseline::update_baseline,
+    daily_summary::DailySummaryAccumulator,
+    local_date_and_time, time_of_day_bucket,
+};
 use crate::pipeline::ring_buffer::RingBuffer;
 use crate::storage::DbPools;
 use crate::storage::queries;
@@ -43,12 +48,60 @@ pub async fn handle_wake(pools: &DbPools, session_id: &SessionId) -> Result<i64,
     start_new_session(pools, session_id).await
 }
 
+/// Writes the daily summary and (once per day) updates the EMA baseline.
+/// Call after end_current_session.
+pub async fn finalize_session(
+    pools: &DbPools,
+    summary_acc: &Arc<Mutex<DailySummaryAccumulator>>,
+) {
+    let now = now_ms() as u64;
+    // Single syscall for both the date string and the time-bucket values.
+    let (date, hour, dow) = local_date_and_time();
+    let tod_bucket = time_of_day_bucket(hour);
+
+    // Extract all data while holding the lock, then release before any await.
+    let (write_params, daily_avgs) = {
+        let mut acc = summary_acc.lock().unwrap();
+        acc.flush(now);
+        let params = acc.write_params();
+        let avgs = acc.session_averages(crate::pipeline::aggregator::AGGREGATION_SECS as f64);
+        (params, avgs)
+    };
+
+    let (total, focus, calm, deep, spark, burn, fade, rest, longest) = write_params;
+    if let Err(e) = crate::storage::queries::upsert_daily_summary(
+        pools.write.as_ref(), &date,
+        total, focus, calm, deep, spark, burn, fade, rest, longest, 1,
+    ).await {
+        tracing::error!("[session] daily summary write failed: {e}");
+    }
+
+    let already = crate::classifier::baseline::already_updated_today(
+        pools.read.as_ref(), tod_bucket, dow as i32,
+    ).await.unwrap_or(false);
+
+    if !already && !daily_avgs.is_empty() {
+        match update_baseline(
+            pools.read.as_ref(), pools.write.as_ref(),
+            tod_bucket, dow as i32, &daily_avgs,
+        ).await {
+            Ok(_) => tracing::info!("[session] baseline updated"),
+            Err(e) => tracing::error!("[session] baseline update failed: {e}"),
+        }
+    }
+
+    // Reset accumulator so the next session starts clean.
+    let new_start = now_ms() as u64;
+    summary_acc.lock().unwrap().reset(new_start);
+}
+
 /// Polls every 60 seconds for inactivity. Ends the session if the ring buffer
 /// has seen no events for 10 minutes (600,000 ms).
 pub fn start_inactivity_watcher(
     ring: Arc<Mutex<RingBuffer>>,
     pools: DbPools,
     session_id: SessionId,
+    summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
 ) {
     tauri::async_runtime::spawn(async move {
         let mut ticker = interval(Duration::from_secs(60));
@@ -74,6 +127,7 @@ pub fn start_inactivity_watcher(
 
             if idle_ms >= 600_000 {
                 let _ = end_current_session(&pools, &session_id, "inactivity").await;
+                finalize_session(&pools, &summary_acc).await;
             }
         }
     });
