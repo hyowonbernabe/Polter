@@ -680,23 +680,28 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
         use windows::Win32::Graphics::Gdi::{
             GetMonitorInfoW, MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY, MONITORINFO,
         };
-        let scale = app
-            .get_webview_window("main")
-            .map(|w| w.scale_factor().unwrap_or(1.0))
+        let scale = app.monitors()
+            .ok()
+            .and_then(|m| m.into_iter().find(|mon| mon.is_primary().unwrap_or(false)))
+            .map(|mon| mon.scale_factor())
             .unwrap_or(1.0);
+
         let hmon = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
         let mut info = MONITORINFO {
             cbSize: std::mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
         let _ = GetMonitorInfoW(hmon, &mut info);
-        let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
-        let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        let logical_right = info.rcWork.right as f64 / scale;
+        let logical_bottom = info.rcWork.bottom as f64 / scale;
+        let logical_x = (logical_right - 420.0 - 20.0) as i32;
+        let logical_y = (logical_bottom - 680.0 - 20.0) as i32;
         
         if let Some(dash) = app.get_webview_window("dashboard") {
             dash.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
                 .map_err(|e| e.to_string())?;
             dash.show().map_err(|e| e.to_string())?;
+            dash.unminimize().map_err(|e| e.to_string())?;
             dash.set_focus().map_err(|e| e.to_string())?;
             let _ = dash.emit("window_show", ());
         } else {
@@ -775,23 +780,28 @@ pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
         use windows::Win32::Graphics::Gdi::{
             GetMonitorInfoW, MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY, MONITORINFO,
         };
-        let scale = app
-            .get_webview_window("main")
-            .map(|w| w.scale_factor().unwrap_or(1.0))
+        let scale = app.monitors()
+            .ok()
+            .and_then(|m| m.into_iter().find(|mon| mon.is_primary().unwrap_or(false)))
+            .map(|mon| mon.scale_factor())
             .unwrap_or(1.0);
+
         let hmon = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
         let mut info = MONITORINFO {
             cbSize: std::mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
         let _ = GetMonitorInfoW(hmon, &mut info);
-        let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
-        let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        let logical_right = info.rcWork.right as f64 / scale;
+        let logical_bottom = info.rcWork.bottom as f64 / scale;
+        let logical_x = (logical_right - 420.0 - 20.0) as i32;
+        let logical_y = (logical_bottom - 680.0 - 20.0) as i32;
         
         if let Some(win) = app.get_webview_window("settings") {
             win.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
                 .map_err(|e| e.to_string())?;
             win.show().map_err(|e| e.to_string())?;
+            win.unminimize().map_err(|e| e.to_string())?;
             win.set_focus().map_err(|e| e.to_string())?;
             let _ = win.emit("window_show", ());
         } else {

@@ -158,18 +158,38 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
-  // Ensure visibility when backend forces show
+  // Consolidate visibility and data fetching logic
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen("window_show", () => {
+    const win = getCurrentWebviewWindow();
+    let unlistenFocus: (() => void) | undefined;
+    let unlistenShow: (() => void) | undefined;
+
+    const showHandler = () => {
       cancelClose();
       invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
       invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
       invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
       requestAnimationFrame(() => setVisible(true));
-    }).then(fn => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, [cancelClose]);
+    };
+
+    win.onFocusChanged(({ payload: focused }) => {
+      if (focused) {
+        showHandler();
+      } else {
+        handleClose();
+      }
+    }).then(fn => { unlistenFocus = fn; });
+
+    listen("window_show", showHandler).then(fn => { unlistenShow = fn; });
+
+    // Initial mount show
+    showHandler();
+
+    return () => {
+      unlistenFocus?.();
+      unlistenShow?.();
+    };
+  }, [handleClose, cancelClose]);
 
   // Derive countdown from last_snapshot_ms whenever liveStatus changes
   useEffect(() => {
@@ -179,33 +199,6 @@ export default function Dashboard() {
       setSecondsUntilSnap(remaining);
     }
   }, [liveStatus.last_snapshot_ms]);
-
-  // Reload data and re-animate every time the window gains focus (i.e. is reopened)
-  useEffect(() => {
-    const win = getCurrentWebviewWindow();
-    let unlisten: (() => void) | undefined;
-    win.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
-        cancelClose();
-        invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
-        invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
-        invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
-        requestAnimationFrame(() => setVisible(true));
-      } else {
-        handleClose();
-      }
-    }).then((fn) => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, [handleClose, cancelClose]);
-
-  // Initial open — data fetch + animate in
-  useEffect(() => {
-    invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
-    invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
-    invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   // Merge live focus data into dashboard data so Today's longest focus reflects the running session
   const mergedData = data ? {

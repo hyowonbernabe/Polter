@@ -32,34 +32,35 @@ export default function Settings() {
     }, 240);
   }, [cancelClose]);
 
+  // Consolidate visibility logic
   useEffect(() => {
     const win = getCurrentWebviewWindow();
-    let unlisten: (() => void) | undefined;
+    let unlistenFocus: (() => void) | undefined;
+    let unlistenShow: (() => void) | undefined;
+
+    const showHandler = () => {
+      cancelClose();
+      requestAnimationFrame(() => setVisible(true));
+    };
+
     win.onFocusChanged(({ payload: focused }) => {
       if (focused) {
-        cancelClose();
-        requestAnimationFrame(() => setVisible(true));
+        showHandler();
       } else {
         handleClose();
       }
-    }).then((fn) => { unlisten = fn; });
-    return () => { unlisten?.(); };
+    }).then(fn => { unlistenFocus = fn; });
+
+    listen("window_show", showHandler).then(fn => { unlistenShow = fn; });
+
+    // Initial mount show
+    showHandler();
+
+    return () => {
+      unlistenFocus?.();
+      unlistenShow?.();
+    };
   }, [handleClose, cancelClose]);
-
-  // Ensure visibility when backend forces show
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen("window_show", () => {
-      cancelClose();
-      requestAnimationFrame(() => setVisible(true));
-    }).then(fn => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, [cancelClose]);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   return (
     <div style={{
