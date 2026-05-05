@@ -268,8 +268,10 @@ pub fn run() {
                 let dev_anomaly   = MenuItemBuilder::with_id("dev_anomaly",      "Anomaly").build(app)?;
                 let dev_first     = MenuItemBuilder::with_id("dev_first_ever",   "First-Ever Insight").build(app)?;
                 let dev_onboarding = MenuItemBuilder::with_id("dev_onboarding",  "Reset Onboarding").build(app)?;
+                let dev_goal       = MenuItemBuilder::with_id("dev_goal",        "Trigger Goal").build(app)?;
+                let dev_flee       = MenuItemBuilder::with_id("dev_flee",        "Trigger Flee").build(app)?;
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
-                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_onboarding])
+                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_onboarding, &dev_goal, &dev_flee])
                     .build()?;
                 MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &debug_check, &quit]).build()?
             } else {
@@ -362,6 +364,14 @@ pub fn run() {
                         id if cfg!(debug_assertions) && id.starts_with("dev_") => {
                             if id == "dev_onboarding" {
                                 let _ = commands::reset_onboarding(app.clone());
+                                return;
+                            }
+                            if id == "dev_goal" {
+                                let _ = app.emit("dev_trigger_goal", ());
+                                return;
+                            }
+                            if id == "dev_flee" {
+                                let _ = app.emit("wisp://fullscreen-detected", ());
                                 return;
                             }
                             let insight_type = match id {

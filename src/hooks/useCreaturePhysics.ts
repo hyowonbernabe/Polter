@@ -75,10 +75,11 @@ export function useCreaturePhysics(): PhysicsOutput {
   const perchSurfaceRef = useRef<PerchSurface>('bottom');
   const dialogueActiveRef = useRef<boolean>(false);
 
-  // Direction tracking (computed in tick, committed after 120ms of stability)
-  const dirLastIdealRef = useRef<number>(0);
-  const dirHoldMsRef    = useRef<number>(0);
-  const committedDirRef = useRef<number>(0);
+  // Direction tracking (computed in tick, committed after DIR_COMMIT_MS of stability)
+  const dirLastIdealRef  = useRef<number>(0);
+  const dirHoldMsRef     = useRef<number>(0);
+  const committedDirRef  = useRef<number>(0);
+  const lastSyncedDirRef = useRef<number>(0); // last value pushed to React state
 
   // Goal system
   const goalTimerRef     = useRef<number>(randBetween(PHYSICS.GOAL_INTERVAL_MIN, PHYSICS.GOAL_INTERVAL_MAX));
@@ -152,7 +153,6 @@ export function useCreaturePhysics(): PhysicsOutput {
       setPhysicsStateR(stateRef.current);
       setFacingR(facingRef.current);
       setVelocityR({ ...vel.current });
-      setCommittedDirR(committedDirRef.current);
     }, 80);
   }
 
@@ -675,14 +675,14 @@ export function useCreaturePhysics(): PhysicsOutput {
     }
 
     // ── Direction tracking — runs every tick with fresh velocity ─────────────
-    // Commits a direction only after it has been stable for DIR_COMMIT_MS,
-    // preventing jitter when the creature briefly changes direction.
+    // Lower thresholds so the creature turns visibly even at modest speeds or
+    // shallow angles. Commits after DIR_COMMIT_MS of stable direction.
     {
       const spd = magnitude(v);
       let ideal = 0;
-      if (spd >= 15) {
+      if (spd >= 8) {
         const ratio = Math.abs(v.x) / spd;
-        if (ratio >= 0.25) {
+        if (ratio >= 0.15) {
           if (v.x > 0) ideal = ratio < 0.65 ? 1 : 2;
           else          ideal = ratio < 0.65 ? 7 : 6;
         }
@@ -695,6 +695,10 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
       if (dirHoldMsRef.current >= PHYSICS.DIR_COMMIT_MS) {
         committedDirRef.current = ideal;
+        if (committedDirRef.current !== lastSyncedDirRef.current) {
+          lastSyncedDirRef.current = committedDirRef.current;
+          setCommittedDirR(committedDirRef.current);
+        }
       }
     }
 
@@ -823,19 +827,42 @@ export function useCreaturePhysics(): PhysicsOutput {
 
     let unlistenFullscreen: (() => void) | null = null;
     listen('wisp://fullscreen-detected', () => {
+      // Block only if already fleeing or in a user-interaction state.
       const cur = stateRef.current;
-      const calmStates: PhysicsState[] = [
-        'wander', 'glide', 'burst', 'fly_idle', 'hover',
-        'goal_thinking', 'goal_travel', 'goal_arrived',
-      ];
-      if (calmStates.includes(cur)) {
-        goalDestRef.current = null;
-        fleeStartRef.current = performance.now();
-        fleePhaseRef.current = 'startled';
-        fleeTargetRef.current = null;
-        transitionTo('flee');
-      }
+      const blocked: PhysicsState[] = ['flee', 'tether_grab', 'thrown', 'stunned', 'recovering', 'goal_interrupted'];
+      if (blocked.includes(cur)) return;
+      console.log('[wisp] fullscreen-detected → triggering flee from state:', cur);
+      goalDestRef.current = null;
+      fleeStartRef.current = performance.now();
+      fleePhaseRef.current = 'startled';
+      fleeTargetRef.current = null;
+      transitionTo('flee');
     }).then(unlisten => { unlistenFullscreen = unlisten; });
+
+    let unlistenDevGoal: (() => void) | null = null;
+    listen('dev_trigger_goal', () => {
+      // Block only if in a user-interaction or already-goal state.
+      const cur = stateRef.current;
+      const blocked: PhysicsState[] = ['tether_grab', 'thrown', 'stunned', 'recovering', 'goal_interrupted', 'goal_thinking', 'goal_travel', 'flee'];
+      if (blocked.includes(cur)) return;
+      console.log('[wisp] dev_trigger_goal → triggering goal from state:', cur);
+      const mb = monitorsRef.current.find(m => {
+        const cx = pos.current.x + spriteSizeRef.current / 2;
+        const cy = pos.current.y + spriteSizeRef.current / 2;
+        return cx >= m.x && cx <= m.x + m.width && cy >= m.y && cy <= m.y + m.height;
+      }) ?? monitorsRef.current[0] ?? workAreaRef.current;
+      const margin = PHYSICS.GOAL_EDGE_MARGIN;
+      const sz = spriteSizeRef.current;
+      const safeW = mb.width  - margin * 2 - sz;
+      const safeH = mb.height - margin * 2 - sz;
+      if (safeW <= 0 || safeH <= 0) return;
+      goalDestRef.current = {
+        x: mb.x + margin + Math.random() * safeW,
+        y: mb.y + margin + Math.random() * safeH,
+      };
+      goalThinkEndRef.current = performance.now() + randBetween(PHYSICS.GOAL_THINKING_MIN, PHYSICS.GOAL_THINKING_MAX);
+      transitionTo('goal_thinking');
+    }).then(unlisten => { unlistenDevGoal = unlisten; });
 
     init();
 
@@ -880,6 +907,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
       unlistenFullscreen?.();
+      unlistenDevGoal?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

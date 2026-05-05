@@ -64,7 +64,7 @@ function stepToward(cur: number, tgt: number, preferCW: boolean): number {
 export function useCreatureAnimation(
   wispState: WispState,
   physicsState: PhysicsState,
-  velocity: Vec2,
+  _velocity: Vec2,
   facing: FacingDirection,
   committedDir: number,
 ): GhostAnimationResult {
@@ -139,7 +139,9 @@ export function useCreatureAnimation(
 
   useEffect(() => {
     if (physicsState !== 'thrown') { setThrowFrame(0); return; }
-    throwFlipRef.current = velocity.x < -5;
+    // Use cursor-movement facing, not spring velocity — the spring oscillates and can point
+    // the wrong way at the exact frame of release, causing 50/50 wrong throw direction.
+    throwFlipRef.current = facing === 'left';
     setThrowFrame(0);
     const id = setInterval(() => setThrowFrame(f => Math.min(f + 1, 3)), THROW_FRAME_MS);
     return () => clearInterval(id);
@@ -216,10 +218,11 @@ export function useCreatureAnimation(
     file = goalFunSprite ?? MOOD_SPRITE[wispState];
   } else if (funSprite !== null) {
     file = funSprite;
+  } else if (physicsState === 'goal_thinking') {
+    file = 'thinking.png';
   } else if (
     physicsState === 'perching'    || physicsState === 'land_impact' ||
-    physicsState === 'hover'       || physicsState === 'fly_idle'    ||
-    physicsState === 'goal_thinking'
+    physicsState === 'hover'       || physicsState === 'fly_idle'
   ) {
     file = MOOD_SPRITE[wispState];
   } else {

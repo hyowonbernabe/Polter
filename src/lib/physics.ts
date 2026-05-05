@@ -116,7 +116,7 @@ export const PHYSICS = {
   FLEE_SPEED: 400,
 
   // Direction commitment
-  DIR_COMMIT_MS: 120,
+  DIR_COMMIT_MS: 50,
 
   // Drag squish/stretch
   SQUISH_ON_GRAB_X: 0.8,
