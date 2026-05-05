@@ -9,6 +9,7 @@ import {
   clamp, normalize, magnitude, clampVec2, randBetween, lerp,
 } from '../lib/physics';
 import { type WispState } from '../lib/spriteConfig';
+import { loadPreferences } from '../lib/preferences';
 import {
   spriteDisplaySize, clampToMonitors,
   type MonitorInfo,
@@ -290,16 +291,25 @@ export function useCreaturePhysics(): PhysicsOutput {
       const toCenterN = normalize({ x: cx - (p.x + sz / 2), y: cy - (p.y + sz / 2) });
       const centerF = { x: toCenterN.x * PHYSICS.CENTER_PULL, y: toCenterN.y * PHYSICS.CENTER_PULL };
 
-      // Cursor influence
+      // Cursor influence (avoidance)
       const cursorSpeed = magnitude(cursorVelRef.current);
       let cursorF = { x: 0, y: 0 };
-      if (cursorSpeed < PHYSICS.SLOW_CURSOR_THRESHOLD) {
+      const distToCursor = magnitude({
+        x: cursorPosRef.current.x - (p.x + sz / 2),
+        y: cursorPosRef.current.y - (p.y + sz / 2),
+      });
+
+      if (distToCursor < PHYSICS.CURSOR_AVOID_RADIUS) {
         const toCursor = normalize({
           x: cursorPosRef.current.x - (p.x + sz / 2),
           y: cursorPosRef.current.y - (p.y + sz / 2),
         });
-        cursorF = { x: toCursor.x * PHYSICS.CURSOR_ATTRACT, y: toCursor.y * PHYSICS.CURSOR_ATTRACT };
-      } else if (cursorSpeed > PHYSICS.FAST_CURSOR_THRESHOLD && !locked) {
+        // Push away strongly if close
+        const repelForce = -PHYSICS.CURSOR_REPULSE * (1 - distToCursor / PHYSICS.CURSOR_AVOID_RADIUS);
+        cursorF = { x: toCursor.x * repelForce, y: toCursor.y * repelForce };
+      }
+
+      if (cursorSpeed > PHYSICS.FAST_CURSOR_THRESHOLD && distToCursor < PHYSICS.CURSOR_AVOID_RADIUS && !locked) {
         transitionTo('evade');
       }
 
@@ -311,36 +321,11 @@ export function useCreaturePhysics(): PhysicsOutput {
       const repTop    = isOuterEdge(mb, 'top')    && p.y - mb.y < margin             ? PHYSICS.EDGE_REPULSE * (1 - (p.y - mb.y) / margin) : 0;
       const repBottom = isOuterEdge(mb, 'bottom') && (mb.y + mb.height) - (p.y + sz) < margin ? -PHYSICS.EDGE_REPULSE * (1 - ((mb.y + mb.height) - (p.y + sz)) / margin) : 0;
 
-      // Cursor edge following: detect edges relative to the monitor the cursor is on
-      const em = PHYSICS.CURSOR_EDGE_MARGIN;
-      const cpx = cursorPosRef.current.x;
-      const cpy = cursorPosRef.current.y;
-      const cursorMon = monitorsRef.current.find(
-        m => cpx >= m.x && cpx <= m.x + m.width && cpy >= m.y && cpy <= m.y + m.height
-      ) ?? monitorsRef.current[0] ?? wa;
-      const cursorNearLeft   = cpx - cursorMon.x < em;
-      const cursorNearRight  = (cursorMon.x + cursorMon.width)  - cpx < em;
-      const cursorNearTop    = cpy - cursorMon.y < em;
-      const cursorNearBottom = (cursorMon.y + cursorMon.height) - cpy < em;
-      const cursorOnEdge = cursorNearLeft || cursorNearRight || cursorNearTop || cursorNearBottom;
+      edgeFx += repLeft + repRight;
+      edgeFy += repTop + repBottom;
 
-      edgeFx += cursorNearLeft  ? 0 : repLeft;
-      edgeFx += cursorNearRight ? 0 : repRight;
-      edgeFy += cursorNearTop   ? 0 : repTop;
-      edgeFy += cursorNearBottom ? 0 : repBottom;
-
-      let edgeFollowFx = 0, edgeFollowFy = 0;
-      if (cursorOnEdge) {
-        const toCursor = normalize({
-          x: cursorPosRef.current.x - (p.x + sz / 2),
-          y: cursorPosRef.current.y - (p.y + sz / 2),
-        });
-        edgeFollowFx = toCursor.x * PHYSICS.CURSOR_EDGE_ATTRACT;
-        edgeFollowFy = toCursor.y * PHYSICS.CURSOR_EDGE_ATTRACT;
-      }
-
-      v.x += (steer.x + centerF.x + cursorF.x + edgeFx + edgeFollowFx) * dt;
-      v.y += (steer.y + centerF.y + cursorF.y + edgeFy + edgeFollowFy) * dt;
+      v.x += (steer.x + centerF.x + cursorF.x + edgeFx) * dt;
+      v.y += (steer.y + centerF.y + cursorF.y + edgeFy) * dt;
       const clamped = clampVec2(v, effectiveMax);
       v.x = clamped.x; v.y = clamped.y;
 
@@ -821,12 +806,19 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
       await applyMonitors(mons);
 
-      const sz = spriteDisplaySize();
-      spriteSizeRef.current = sz;
-      setSpriteSizeR(sz);
-
       const store = await Store.load(STORE_FILE);
       storeRef.current = store;
+
+      let scale = 1.0;
+      try {
+        const prefs = await loadPreferences();
+        scale = prefs.creature_scale;
+      } catch { /* ignore */ }
+      
+      const baseSz = spriteDisplaySize();
+      const sz = Math.round(baseSz * scale);
+      spriteSizeRef.current = sz;
+      setSpriteSizeR(sz);
 
       const saved = await store.get<{ xPct: number; yPct: number }>(POS_KEY);
       if (saved) {
@@ -846,6 +838,13 @@ export function useCreaturePhysics(): PhysicsOutput {
         rafRef.current = requestAnimationFrame(tick);
       }
     }
+
+    let unlistenScale: (() => void) | null = null;
+    listen<number>('creature_scale_changed', (e) => {
+      const sz = Math.round(spriteDisplaySize() * e.payload);
+      spriteSizeRef.current = sz;
+      setSpriteSizeR(sz);
+    }).then(unlisten => { unlistenScale = unlisten; });
 
     let unlistenFullscreen: (() => void) | null = null;
     listen('wisp://fullscreen-detected', () => {
@@ -947,6 +946,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       unlistenFullscreen?.();
       unlistenDevGoal?.();
       unlistenReady?.();
+      unlistenScale?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

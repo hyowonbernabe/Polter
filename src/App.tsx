@@ -261,32 +261,24 @@ export default function App() {
         onNodDone={() => setShowNod(false)}
       />
       {activeMutter && (() => {
-        const cp = getCreaturePos();
         return (
           <MutterBubble
             key={activeMutter}
             text={activeMutter}
-            x={cp.x}
-            y={cp.y - 40}
+            creatureRef={physics.elementRef}
             onDismiss={() => setActiveMutter(null)}
           />
         );
       })()}
       {activeInsight && preInsightPhase === 3 && (() => {
-        const cp = getCreaturePos();
-        const bp = getBubblePosition(
-          cp.x, cp.y, physics.spriteSize, physics.spriteSize,
-          physics.monitors, 300, window.innerHeight,
-        );
         return (
           <InsightBubble
             key={activeInsight.insight}
             insight={activeInsight.insight}
             extended={activeInsight.extended}
-            x={bp.x}
-            y={bp.y}
-            tailSide={bp.tailSide}
-            tailOffset={bp.tailOffset}
+            creatureRef={physics.elementRef}
+            monitors={physics.monitors}
+            spriteSize={physics.spriteSize}
             onDismiss={handleDismiss}
             onExpand={() => setBubbleExpanded(true)}
             isExpanded={bubbleExpanded}

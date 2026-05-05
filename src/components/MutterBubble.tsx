@@ -3,15 +3,14 @@ import { invoke } from '@tauri-apps/api/core';
 
 interface MutterBubbleProps {
   text: string;
-  x: number;
-  y: number;
+  creatureRef: React.RefObject<HTMLDivElement>;
   onDismiss: () => void;
 }
 
 const BG = 'rgba(12, 12, 20, 0.72)';
 const BUBBLE_W = 220;
 
-export default function MutterBubble({ text, x, y, onDismiss }: MutterBubbleProps) {
+export default function MutterBubble({ text, creatureRef, onDismiss }: MutterBubbleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -26,22 +25,40 @@ export default function MutterBubble({ text, x, y, onDismiss }: MutterBubbleProp
     return () => clearTimeout(id);
   }, [onDismiss]);
 
+  // 60fps positioning loop
+  useEffect(() => {
+    let rafId: number;
+    function tick() {
+      const el = creatureRef.current;
+      const bubbleEl = ref.current;
+      if (el && bubbleEl) {
+        const m = el.style.transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/);
+        const cx = m ? parseFloat(m[1]) : 100;
+        const cy = m ? parseFloat(m[2]) : 100;
+
+        bubbleEl.style.left = `${cx}px`;
+        bubbleEl.style.top = `${cy - 40}px`;
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [creatureRef]);
+
   // Register bounds so click-through skips this area
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    invoke('set_bubble_bounds', { x: rect.left, y: rect.top, width: rect.width, height: rect.height });
-    return () => { invoke('clear_bubble_bounds'); };
-  }, [x, y]);
+    invoke('set_bubble_bounds', { x: rect.left, y: rect.top, width: rect.width, height: rect.height }).catch(() => {});
+    return () => { invoke('clear_bubble_bounds').catch(() => {}); };
+  }, []); // Re-register not needed dynamically since MutterBubble bounds aren't strict
 
   return (
     <div
       ref={ref}
       style={{
         position: 'fixed',
-        left: x,
-        top: y,
         width: BUBBLE_W,
         zIndex: 8900,
         background: BG,
