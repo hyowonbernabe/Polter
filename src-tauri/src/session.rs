@@ -128,6 +128,10 @@ pub fn start_inactivity_watcher(
             if idle_ms >= 600_000 {
                 let _ = end_current_session(&pools, &session_id, "inactivity").await;
                 finalize_session(&pools, &summary_acc).await;
+                if let Err(e) = start_new_session(&pools, &session_id).await {
+                    tracing::error!("[session] failed to restart session after inactivity: {e}");
+                }
+                ring.lock().unwrap().reset_activity();
             }
         }
     });
