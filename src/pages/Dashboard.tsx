@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import StateHeader from "../components/dashboard/StateHeader";
 import TodayGlance from "../components/dashboard/TodayGlance";
@@ -10,6 +11,7 @@ import InsightHistory from "../components/dashboard/InsightHistory";
 import WhatWispKnows from "../components/dashboard/WhatWispKnows";
 import DashboardDivider from "../components/dashboard/DashboardDivider";
 import LiveMetrics from "../components/dashboard/LiveMetrics";
+import LivePulse from "../components/dashboard/LivePulse";
 import ActivityTimeline from "../components/dashboard/ActivityTimeline";
 
 export interface DashboardDaySummary {
@@ -75,6 +77,11 @@ export default function Dashboard() {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
+  const [bufferStats, setBufferStats] = useState({ keys: 0, clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null });
+  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false });
+  const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
+  const [justUpdated, setJustUpdated] = useState(false);
+  const snapCountdownRef = useRef(60);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +100,37 @@ export default function Dashboard() {
       invoke("close_dashboard").catch(console.error);
     }, 240);
   }, [cancelClose]);
+
+  // 500ms polling for live buffer stats and monitor status
+  useEffect(() => {
+    const id = setInterval(() => {
+      invoke<typeof bufferStats>("get_buffer_stats").then(setBufferStats).catch(() => {});
+      invoke<typeof liveStatus>("get_live_status").then(setLiveStatus).catch(() => {});
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // 1-second countdown tick toward next snapshot
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsUntilSnap(s => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Listen for snapshot-fired event from the backend
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("activity_pulse", () => {
+      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+      snapCountdownRef.current = 60;
+      setSecondsUntilSnap(60);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 600);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
 
   // Reload data and re-animate every time the window gains focus (i.e. is reopened)
   useEffect(() => {
@@ -142,6 +180,12 @@ export default function Dashboard() {
           background: rgba(255,255,255,0.22);
         }
         .wisp-close:hover { background: rgba(255,255,255,0.12) !important; }
+        @keyframes snap-flash {
+          0%   { box-shadow: 0 0 0 0 rgba(100,200,180,0.0); }
+          20%  { box-shadow: 0 0 0 6px rgba(100,200,180,0.25); }
+          100% { box-shadow: 0 0 0 0 rgba(100,200,180,0.0); }
+        }
+        .snap-flash { animation: snap-flash 600ms ease-out; }
       `}</style>
 
       {/* Outer panel — clipping container so scrollbar respects border-radius */}
@@ -229,6 +273,18 @@ export default function Dashboard() {
           className="wisp-scroll"
           style={{ overflowY: "auto", overflowX: "hidden", flex: 1, minHeight: 0 }}
         >
+          <div style={{ padding: "14px 20px" }}>
+            <LivePulse
+              bufferKeys={bufferStats.keys}
+              bufferClicks={bufferStats.clicks}
+              bufferScrolls={bufferStats.scrolls}
+              snapshotsToday={liveStatus.snapshots_today}
+              inputMonitorAlive={liveStatus.input_monitor_alive}
+              secondsUntilSnap={secondsUntilSnap}
+              justUpdated={justUpdated}
+            />
+          </div>
+
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
@@ -238,7 +294,7 @@ export default function Dashboard() {
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <LiveMetrics metrics={data?.today_metrics ?? null} />
+            <LiveMetrics metrics={data?.today_metrics ?? null} flash={justUpdated} />
           </div>
 
           <DashboardDivider />

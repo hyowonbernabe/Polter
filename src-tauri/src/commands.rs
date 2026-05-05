@@ -894,6 +894,77 @@ pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct BufferStats {
+    pub keys: usize,
+    pub clicks: usize,
+    pub scrolls: usize,
+    pub moves: usize,
+    pub last_event_ms: Option<u64>,
+}
+
+#[tauri::command]
+pub fn get_buffer_stats(
+    ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
+) -> BufferStats {
+    let guard = ring.lock().unwrap();
+    let counts = guard.pending_counts();
+    BufferStats {
+        keys: counts.keys,
+        clicks: counts.clicks,
+        scrolls: counts.scrolls,
+        moves: counts.moves,
+        last_event_ms: guard.last_event_ts(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveStatus {
+    pub session_id: Option<i64>,
+    pub snapshots_today: i64,
+    pub last_snapshot_ms: Option<i64>,
+    pub input_monitor_alive: bool,
+}
+
+#[tauri::command]
+pub async fn get_live_status(
+    pools: tauri::State<'_, DbPools>,
+    session_id: tauri::State<'_, SessionId>,
+    ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
+) -> Result<LiveStatus, String> {
+    let sid = *session_id.lock().unwrap();
+    let today_ms = today_start_ms();
+
+    let snapshots_today: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM behavioral_snapshots WHERE timestamp >= ?",
+    )
+    .bind(today_ms)
+    .fetch_one(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let last_snap: Option<(i64,)> = sqlx::query_as(
+        "SELECT timestamp FROM behavioral_snapshots ORDER BY timestamp DESC LIMIT 1",
+    )
+    .fetch_optional(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let last_event_ms = ring.lock().unwrap().last_event_ts();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let input_monitor_alive = last_event_ms.map_or(false, |ts| now_ms.saturating_sub(ts) < 30_000);
+
+    Ok(LiveStatus {
+        session_id: sid,
+        snapshots_today: snapshots_today.0,
+        last_snapshot_ms: last_snap.map(|r| r.0),
+        input_monitor_alive,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

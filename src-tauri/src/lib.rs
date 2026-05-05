@@ -102,6 +102,8 @@ pub fn run() {
             commands::open_onboarding,
             commands::dismiss_onboarding,
             commands::reset_onboarding,
+            commands::get_buffer_stats,
+            commands::get_live_status,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -123,6 +125,7 @@ pub fn run() {
             // Shared pipeline state.
             let ring: Arc<Mutex<pipeline::RingBuffer>> =
                 Arc::new(Mutex::new(pipeline::RingBuffer::new(10_000)));
+            app.manage(ring.clone());
             let system_snap: Arc<RwLock<sensors::system::SystemSnapshot>> =
                 Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
             let session_id: session::SessionId = Arc::new(Mutex::new(None));
