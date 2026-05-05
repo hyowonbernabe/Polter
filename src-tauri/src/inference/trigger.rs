@@ -68,11 +68,6 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
     pools: &DbPools,
     app_handle: &tauri::AppHandle<R>,
 ) {
-    // Guard: cold start — no inference during first 30 days
-    if cold_start {
-        return;
-    }
-
     // Guard: sleep / privacy mode
     if sleep_state.lock().unwrap().is_paused() {
         return;
@@ -157,6 +152,7 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
         hour: hour as u32,
         day_of_week: dow as u32,
         prior_occurrences: 0, // we'll do a post-call dedup check; pre-call count not needed
+        cold_start,
     };
 
     // Check first-ever BEFORE inserting so we know if this will be insight #1

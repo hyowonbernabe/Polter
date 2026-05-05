@@ -523,7 +523,7 @@ pub async fn get_dashboard_data(
     use crate::storage::queries::{
         get_best_day_this_week_minutes, get_daily_insight_count, get_daily_summary,
         get_last_7_daily_summaries, get_longest_focus_block_ms, get_recent_insights,
-        get_today_hourly, get_today_metrics,
+        get_today_hourly, get_today_metrics, get_today_session_count,
     };
     let today_str = today_date_str();
     let today_ms = today_start_ms();
@@ -531,10 +531,17 @@ pub async fn get_dashboard_data(
     let today = get_daily_summary(pools.read.as_ref(), &today_str)
         .await
         .map_err(|e| e.to_string())?;
-    let today_active_minutes    = today.as_ref().map(|r| r.total_active_minutes).unwrap_or(0);
     let today_longest_focus_minutes = today.as_ref().map(|r| r.longest_focus_block_minutes).unwrap_or(0);
-    let today_session_count     = today.as_ref().map(|r| r.session_count).unwrap_or(0);
     let today_insight_count = get_daily_insight_count(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let m = get_today_metrics(pools.read.as_ref(), today_ms)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let today_active_minutes    = m.snapshot_count;
+    let today_session_count     = get_today_session_count(pools.read.as_ref(), today_ms)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -577,9 +584,6 @@ pub async fn get_dashboard_data(
         .await
         .map_err(|e| e.to_string())?;
 
-    let m = get_today_metrics(pools.read.as_ref(), today_ms)
-        .await
-        .map_err(|e| e.to_string())?;
     let today_metrics = TodayMetrics {
         avg_typing_speed:   m.avg_typing_speed,
         avg_error_rate:     m.avg_error_rate,

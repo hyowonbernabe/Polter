@@ -5,6 +5,7 @@ pub struct PromptContext {
     pub hour: u32,
     pub day_of_week: u32,
     pub prior_occurrences: i64,
+    pub cold_start: bool,
 }
 
 pub fn build_system_prompt() -> &'static str {
@@ -76,11 +77,13 @@ pub fn build_user_message(ctx: &PromptContext) -> String {
                 } else {
                     "slightly"
                 };
+                let reference = if ctx.cold_start { "baseline" } else { "your normal" };
                 format!(
-                    "{} is {} {} your normal",
+                    "{} is {} {} {}",
                     name.replace('_', " "),
                     magnitude,
-                    direction
+                    direction,
+                    reference
                 )
             })
             .collect();
@@ -93,6 +96,10 @@ pub fn build_user_message(ctx: &PromptContext) -> String {
         parts.push("this is the third time this pattern has appeared in 48 hours.".to_string());
     } else if ctx.prior_occurrences >= 3 {
         parts.push("this pattern has been recurring.".to_string());
+    }
+
+    if ctx.cold_start {
+        parts.push("note: early data — no personal baseline yet. speak from direct observation of current signals only.".to_string());
     }
 
     parts.join(" ")

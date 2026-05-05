@@ -32,14 +32,16 @@ impl RawInputEvent {
 pub struct RingBuffer {
     events: VecDeque<RawInputEvent>,
     capacity: usize,
+    last_pushed_ts: Option<u64>,
 }
 
 impl RingBuffer {
     pub fn new(capacity: usize) -> Self {
-        Self { events: VecDeque::with_capacity(capacity), capacity }
+        Self { events: VecDeque::with_capacity(capacity), capacity, last_pushed_ts: None }
     }
 
     pub fn push(&mut self, event: RawInputEvent) {
+        self.last_pushed_ts = Some(event.ts_ms());
         if self.events.len() == self.capacity {
             self.events.pop_front();
         }
@@ -51,7 +53,11 @@ impl RingBuffer {
     }
 
     pub fn last_event_ts(&self) -> Option<u64> {
-        self.events.back().map(|e| e.ts_ms())
+        self.last_pushed_ts
+    }
+
+    pub fn reset_activity(&mut self) {
+        self.last_pushed_ts = None;
     }
 
     pub fn len(&self) -> usize {
@@ -117,5 +123,23 @@ mod tests {
         buf.push(key_down(100));
         buf.push(key_down(500));
         assert_eq!(buf.last_event_ts(), Some(500));
+    }
+
+    #[test]
+    fn last_event_ts_persists_after_drain() {
+        let mut buf = RingBuffer::new(10);
+        buf.push(key_down(100));
+        buf.push(key_down(750));
+        let _ = buf.drain_all();
+        assert!(buf.is_empty());
+        assert_eq!(buf.last_event_ts(), Some(750));
+    }
+
+    #[test]
+    fn reset_activity_clears_last_ts() {
+        let mut buf = RingBuffer::new(10);
+        buf.push(key_down(300));
+        buf.reset_activity();
+        assert!(buf.last_event_ts().is_none());
     }
 }

@@ -581,6 +581,19 @@ pub async fn get_today_hourly(
     }).collect())
 }
 
+pub async fn get_today_session_count(
+    pool: &DbReadPool,
+    day_start_ms: i64,
+) -> Result<i64, sqlx::Error> {
+    let row: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM sessions WHERE start_time >= ?",
+    )
+    .bind(day_start_ms)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0)
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
