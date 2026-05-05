@@ -8,6 +8,15 @@ pub enum MouseButton {
     Other,
 }
 
+/// The set of raw input events captured from the input monitor subprocess.
+///
+/// Intentionally excluded signals:
+/// - Right-click disambiguation: `MouseButton::Right` is tracked for raw click
+///   count only; right-click-specific behavior is not a behavioral signal.
+/// - Zoom / scroll-to-zoom: zoom events conflate scroll and keyboard input in
+///   ways that pollute both signals. They are not collected.
+/// - File-save and screenshot: reserved as future low-impact context signals.
+///   They must never be the sole trigger for an insight when added.
 #[derive(Debug, Clone)]
 pub enum RawInputEvent {
     KeyDown { ts_ms: u64, is_deletion: bool },

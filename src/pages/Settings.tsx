@@ -184,37 +184,6 @@ export default function Settings() {
             </div>
           </SettingsSection>
 
-          <SettingsSection title="Permissions">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.70)" }}>Review Tier 2 permissions</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
-                  Revisit your screen, clipboard, and calendar choices
-                </div>
-              </div>
-              <button
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 7,
-                  padding: "5px 12px",
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.50)",
-                  cursor: "not-allowed",
-                  fontFamily: "inherit",
-                  opacity: 0.6,
-                }}
-                disabled
-                title="Permission review flow arrives in the onboarding update"
-              >
-                Review
-              </button>
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 10, fontStyle: "italic" }}>
-              Full permission management arrives with the onboarding update.
-            </div>
-          </SettingsSection>
-
           <div style={{ height: 8 }} />
         </div>
       </div>

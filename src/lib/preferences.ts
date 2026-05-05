@@ -14,7 +14,6 @@ export interface Preferences {
   creature_scale: number;
   default_corner: Corner;
   idle_opacity: number;
-  insight_cap_per_day: number;
   bubble_sound_enabled: boolean;
   privacy_hotkey: string | null;
 }
@@ -23,7 +22,6 @@ export const PREF_DEFAULTS: Preferences = {
   creature_scale: 1.0,
   default_corner: "br",
   idle_opacity: 0.35,
-  insight_cap_per_day: 3,
   bubble_sound_enabled: false,
   privacy_hotkey: null,
 };

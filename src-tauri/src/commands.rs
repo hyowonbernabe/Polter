@@ -836,6 +836,103 @@ pub struct Tier2Choices {
     pub inference_provider: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tier2Permissions {
+    pub screen: bool,
+    pub clipboard: bool,
+    pub calendar: bool,
+}
+
+impl Default for Tier2Permissions {
+    fn default() -> Self {
+        Self {
+            screen: false,
+            clipboard: false,
+            calendar: false,
+        }
+    }
+}
+
+fn load_tier2_permissions(app_handle: &tauri::AppHandle) -> Tier2Permissions {
+    use tauri_plugin_store::StoreExt;
+
+    let store = match app_handle.store("wisp-settings.json") {
+        Ok(s) => s,
+        Err(_) => return Tier2Permissions::default(),
+    };
+
+    let parsed = store
+        .get("tier2_choices")
+        .and_then(|v| serde_json::from_value::<Tier2Choices>(v).ok())
+        .map(|c| Tier2Permissions {
+            screen: c.screen,
+            clipboard: c.clipboard,
+            calendar: c.calendar,
+        });
+
+    if let Some(p) = parsed {
+        return p;
+    }
+
+    // Migration fallback for earlier temporary key shape.
+    store
+        .get("tier2_permissions")
+        .and_then(|v| serde_json::from_value::<Tier2Permissions>(v).ok())
+        .unwrap_or_default()
+}
+
+fn save_tier2_permissions(
+    app_handle: &tauri::AppHandle,
+    perms: &Tier2Permissions,
+) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+
+    let provider = store
+        .get("inference_provider")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| "skipped".to_string());
+
+    let merged = Tier2Choices {
+        screen: perms.screen,
+        clipboard: perms.clipboard,
+        calendar: perms.calendar,
+        inference_provider: provider,
+    };
+
+    store.set(
+        "tier2_choices",
+        serde_json::to_value(&merged).unwrap_or(serde_json::Value::Null),
+    );
+
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Synchronous helper for backend sensor gating.
+/// Call this from the aggregator or inference engine before using optional
+/// signals (screen, clipboard, calendar). Not yet wired — signals are unimplemented.
+#[allow(dead_code)]
+pub fn get_tier2_permissions_sync(app_handle: &tauri::AppHandle) -> Tier2Permissions {
+    load_tier2_permissions(app_handle)
+}
+
+#[tauri::command]
+pub fn get_tier2_permissions(app_handle: tauri::AppHandle) -> Tier2Permissions {
+    load_tier2_permissions(&app_handle)
+}
+
+#[tauri::command]
+pub fn set_tier2_permissions(
+    permissions: Tier2Permissions,
+    app_handle: tauri::AppHandle,
+) -> Result<Tier2Permissions, String> {
+    save_tier2_permissions(&app_handle, &permissions)?;
+    let _ = app_handle.emit("tier2_permissions_changed", permissions.clone());
+    Ok(permissions)
+}
+
 #[tauri::command]
 pub fn is_onboarding_complete(app_handle: tauri::AppHandle) -> bool {
     use tauri_plugin_store::StoreExt;
@@ -1040,6 +1137,14 @@ mod tests {
         };
         let json = serde_json::to_string(&c).unwrap();
         assert!(json.contains("\"inference_provider\":\"openrouter\""));
+    }
+
+    #[test]
+    fn tier2_permissions_default_is_all_false() {
+        let p = Tier2Permissions::default();
+        assert!(!p.screen);
+        assert!(!p.clipboard);
+        assert!(!p.calendar);
     }
 
     #[test]

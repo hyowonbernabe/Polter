@@ -99,6 +99,8 @@ pub fn run() {
             commands::export_insights,
             commands::is_onboarding_complete,
             commands::complete_onboarding,
+            commands::get_tier2_permissions,
+            commands::set_tier2_permissions,
             commands::open_onboarding,
             commands::dismiss_onboarding,
             commands::reset_onboarding,

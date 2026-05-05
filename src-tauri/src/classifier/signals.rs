@@ -2,6 +2,15 @@ use crate::pipeline::aggregator::BehavioralSnapshot;
 use crate::storage::queries::BaselineRow;
 use std::collections::HashMap;
 
+/// Z-scores computed from one 60-second behavioral snapshot.
+///
+/// **Intentionally absent signals:**
+/// - Right-click rate: raw `click_count` includes all buttons; right-click
+///   frequency is not meaningful enough as a standalone behavioral signal.
+/// - Zoom events: not captured at the input layer.
+/// - File-save / screenshot: when these are added as context signals they must
+///   be treated as low-impact context only — they cannot be the sole driver of
+///   an insight on their own. Enforce this in `classify_state` weighting.
 #[derive(Debug, Clone, Default)]
 pub struct SignalZScores {
     pub typing_speed: f64,

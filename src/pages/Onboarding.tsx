@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Keyboard,
@@ -283,6 +283,18 @@ export default function Onboarding() {
   const [apiKeyError, setApiKeyError] = useState("");
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [apiKeySaving, setApiKeySaving] = useState(false);
+
+  useEffect(() => {
+    invoke<{ screen: boolean; clipboard: boolean; calendar: boolean }>("get_tier2_permissions")
+      .then((saved) => {
+        setChoices({
+          screen: saved.screen,
+          clipboard: saved.clipboard,
+          calendar: saved.calendar,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   function next() {
     if (step === "ai_choice") {

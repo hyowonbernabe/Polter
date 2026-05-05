@@ -13,6 +13,7 @@ import DashboardDivider from "../components/dashboard/DashboardDivider";
 import LiveMetrics from "../components/dashboard/LiveMetrics";
 import LivePulse from "../components/dashboard/LivePulse";
 import ActivityTimeline from "../components/dashboard/ActivityTimeline";
+import PermissionStatus, { Tier2Permissions } from "../components/dashboard/PermissionStatus";
 
 export interface DashboardDaySummary {
   date: string;
@@ -81,6 +82,7 @@ export default function Dashboard() {
   const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0, inference_active_secs: 0, inference_last_error: null as string | null, api_key_present: false });
   const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
   const [justUpdated, setJustUpdated] = useState(false);
+  const [tier2Permissions, setTier2Permissions] = useState<Tier2Permissions>({ screen: false, clipboard: false, calendar: false });
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -147,6 +149,15 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
+  // Listen for permission changes from Settings
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<Tier2Permissions>("tier2_permissions_changed", (event) => {
+      setTier2Permissions(event.payload);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
   // Derive countdown from last_snapshot_ms whenever liveStatus changes
   useEffect(() => {
     if (liveStatus.last_snapshot_ms) {
@@ -165,6 +176,7 @@ export default function Dashboard() {
         cancelClose();
         invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
         invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+        invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
         requestAnimationFrame(() => setVisible(true));
       } else {
         handleClose();
@@ -177,6 +189,7 @@ export default function Dashboard() {
   useEffect(() => {
     invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
     invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
   }, []);
@@ -369,8 +382,14 @@ export default function Dashboard() {
 
           <DashboardDivider />
 
-          <div style={{ padding: "14px 20px 18px" }}>
+          <div style={{ padding: "14px 20px" }}>
             <WhatWispKnows data={mergedData} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px 18px" }}>
+            <PermissionStatus permissions={tier2Permissions} />
           </div>
         </div>
       </div>
