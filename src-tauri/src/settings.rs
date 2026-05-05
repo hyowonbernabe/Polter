@@ -1,97 +1,68 @@
-// Windows Credential Manager API via windows-rs (already a dependency).
-// This replaces the keyring crate which does not persist on this machine.
+use std::fs;
+use std::path::PathBuf;
 
-#[cfg(windows)]
-mod credential {
-    use windows::Win32::Foundation::{ERROR_NOT_FOUND, FILETIME};
-    use windows::Win32::Security::Credentials::{
-        CredDeleteW, CredReadW, CredWriteW, CREDENTIALW, CRED_FLAGS, CRED_TYPE_GENERIC,
-    };
-    use windows::core::{PCWSTR, PWSTR};
-
-    const TARGET: &str = "wisp/openrouter-api-key";
-
-    fn to_wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(std::iter::once(0)).collect()
-    }
-
-    pub fn set(key: &str) -> Result<(), String> {
-        let target = to_wide(TARGET);
-        let mut blob: Vec<u8> = key.as_bytes().to_vec();
-        let cred = CREDENTIALW {
-            Flags: CRED_FLAGS(0),
-            Type: CRED_TYPE_GENERIC,
-            TargetName: PWSTR(target.as_ptr() as *mut u16),
-            Comment: PWSTR::null(),
-            LastWritten: FILETIME::default(),
-            CredentialBlobSize: blob.len() as u32,
-            CredentialBlob: blob.as_mut_ptr(),
-            // CRED_PERSIST_ENTERPRISE (3): persists for the user's logon session lifetime,
-            // correct for per-user secrets on both local and domain-joined accounts.
-            Persist: windows::Win32::Security::Credentials::CRED_PERSIST(3),
-            AttributeCount: 0,
-            Attributes: std::ptr::null_mut(),
-            TargetAlias: PWSTR::null(),
-            UserName: PWSTR::null(),
-        };
-        unsafe { CredWriteW(&cred, 0).map_err(|e| e.to_string()) }
-    }
-
-    pub fn get() -> Option<String> {
-        let target = to_wide(TARGET);
-        let mut cred_ptr = std::ptr::null_mut();
-        unsafe {
-            CredReadW(
-                PCWSTR(target.as_ptr()),
-                CRED_TYPE_GENERIC,
-                0,
-                &mut cred_ptr,
-            )
-            .ok()?;
-            let cred = &*cred_ptr;
-            let blob = std::slice::from_raw_parts(
-                cred.CredentialBlob,
-                cred.CredentialBlobSize as usize,
-            );
-            let s = String::from_utf8(blob.to_vec()).ok();
-            windows::Win32::Security::Credentials::CredFree(cred_ptr as *const _);
-            s
-        }
-    }
-
-    pub fn delete() -> Result<(), String> {
-        let target = to_wide(TARGET);
-        unsafe {
-            match CredDeleteW(PCWSTR(target.as_ptr()), CRED_TYPE_GENERIC, 0) {
-                Ok(()) => Ok(()),
-                Err(e) if e.code() == ERROR_NOT_FOUND.to_hresult() => Ok(()),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-    }
-}
-
-#[cfg(not(windows))]
-mod credential {
-    pub fn set(_key: &str) -> Result<(), String> { Ok(()) }
-    pub fn get() -> Option<String> { None }
-    pub fn delete() -> Result<(), String> { Ok(()) }
+fn env_file_path() -> PathBuf {
+    std::env::current_dir().unwrap_or_default().join(".env")
 }
 
 pub fn get_api_key() -> Option<String> {
-    credential::get()
+    let path = env_file_path();
+    let content = fs::read_to_string(path).ok()?;
+    for line in content.lines() {
+        if let Some(rest) = line.strip_prefix("OPENROUTER_API_KEY=") {
+            return Some(rest.trim().to_string());
+        }
+    }
+    None
 }
 
 pub fn set_api_key(key: &str) -> Result<(), String> {
-    credential::set(key)
+    let path = env_file_path();
+    let mut new_lines = Vec::new();
+    let mut found = false;
+    
+    if let Ok(content) = fs::read_to_string(&path) {
+        for line in content.lines() {
+            if line.starts_with("OPENROUTER_API_KEY=") {
+                new_lines.push(format!("OPENROUTER_API_KEY={}", key));
+                found = true;
+            } else {
+                new_lines.push(line.to_string());
+            }
+        }
+    }
+    
+    if !found {
+        new_lines.push(format!("OPENROUTER_API_KEY={}", key));
+    }
+    
+    fs::write(path, new_lines.join("\n")).map_err(|e| e.to_string())
 }
 
 pub fn clear_api_key() -> Result<(), String> {
-    credential::delete()
+    let path = env_file_path();
+    let mut new_lines = Vec::new();
+    let mut changed = false;
+    
+    if let Ok(content) = fs::read_to_string(&path) {
+        for line in content.lines() {
+            if line.starts_with("OPENROUTER_API_KEY=") {
+                changed = true;
+            } else {
+                new_lines.push(line.to_string());
+            }
+        }
+    }
+    
+    if changed {
+        fs::write(path, new_lines.join("\n")).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
 }
 
 pub fn has_api_key() -> bool {
-    credential::get().is_some()
+    get_api_key().is_some()
 }
 
 #[cfg(test)]
