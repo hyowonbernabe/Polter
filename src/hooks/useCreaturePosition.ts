@@ -20,7 +20,7 @@ const STORE_FILE = "wisp-settings.json";
 const POS_KEY = "creature_position";
 
 const REFERENCE_HEIGHT = 1080;
-const REFERENCE_SPRITE_PX = 64;
+const REFERENCE_SPRITE_PX = 40;
 
 // Sprite scales with the PRIMARY monitor's physical pixel height.
 // Multiplying by devicePixelRatio converts CSS logical pixels → physical pixels,

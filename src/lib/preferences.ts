@@ -1,6 +1,5 @@
 import { Store } from "@tauri-apps/plugin-store";
 
-export type CreatureSize = "small" | "medium" | "large";
 export type Corner = "tl" | "tr" | "bl" | "br";
 
 export interface SleepSchedule {
@@ -12,7 +11,7 @@ export interface SleepSchedule {
 }
 
 export interface Preferences {
-  creature_size: CreatureSize;
+  creature_scale: number;
   default_corner: Corner;
   idle_opacity: number;
   insight_cap_per_day: number;
@@ -21,18 +20,12 @@ export interface Preferences {
 }
 
 export const PREF_DEFAULTS: Preferences = {
-  creature_size: "medium",
+  creature_scale: 1.0,
   default_corner: "br",
   idle_opacity: 0.35,
   insight_cap_per_day: 3,
   bubble_sound_enabled: false,
   privacy_hotkey: null,
-};
-
-export const SIZE_MULTIPLIERS: Record<CreatureSize, number> = {
-  small: 0.75,
-  medium: 1.0,
-  large: 1.4,
 };
 
 const STORE_FILE = "wisp-settings.json";

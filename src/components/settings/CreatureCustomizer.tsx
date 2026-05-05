@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
-import { loadPreferences, savePref, type CreatureSize, type Corner } from "../../lib/preferences";
-
-const SIZES: { key: CreatureSize; label: string }[] = [
-  { key: "small",  label: "Small"  },
-  { key: "medium", label: "Medium" },
-  { key: "large",  label: "Large"  },
-];
+import { loadPreferences, savePref, type Corner } from "../../lib/preferences";
 
 const CORNERS: { key: Corner; label: string; symbol: string }[] = [
   { key: "tl", label: "Top-left",     symbol: "↖" },
@@ -40,22 +34,22 @@ function PillButton({
 }
 
 export default function CreatureCustomizer() {
-  const [size, setSize]       = useState<CreatureSize>("medium");
+  const [scale, setScale]     = useState<number>(1.0);
   const [corner, setCorner]   = useState<Corner>("br");
   const [opacity, setOpacity] = useState(0.35);
 
   useEffect(() => {
     loadPreferences().then((p) => {
-      setSize(p.creature_size);
+      setScale(p.creature_scale);
       setCorner(p.default_corner);
       setOpacity(p.idle_opacity);
     });
   }, []);
 
-  async function changeSize(s: CreatureSize) {
-    setSize(s);
-    await savePref("creature_size", s);
-    await emit("creature_size_changed", s);
+  async function changeScale(v: number) {
+    setScale(v);
+    await savePref("creature_scale", v);
+    await emit("creature_scale_changed", v);
   }
 
   async function changeCorner(c: Corner) {
@@ -75,15 +69,26 @@ export default function CreatureCustomizer() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Size */}
+      {/* Scale */}
       <div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 8 }}>Size</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {SIZES.map((s) => (
-            <PillButton key={s.key} active={size === s.key} onClick={() => changeSize(s.key)}>
-              {s.label}
-            </PillButton>
-          ))}
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Scale</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.40)" }}>
+            {scale.toFixed(2)}×
+          </div>
+        </div>
+        <input
+          type="range"
+          min={0.5}
+          max={2.0}
+          step={0.05}
+          value={scale}
+          onChange={(e) => changeScale(Number(e.target.value))}
+          style={{ width: "100%", accentColor: "#6ba3d6" }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>Tiny</div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>Huge</div>
         </div>
       </div>
 

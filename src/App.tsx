@@ -9,7 +9,7 @@ import { useInsightQueue } from "./hooks/useInsightQueue";
 import { useCreaturePhysics } from "./hooks/useCreaturePhysics";
 import { useIdleDetection } from "./hooks/useIdleDetection";
 import { type WispState } from "./lib/spriteConfig";
-import { loadPreferences, type CreatureSize, SIZE_MULTIPLIERS } from "./lib/preferences";
+import { loadPreferences } from "./lib/preferences";
 import { PHYSICS } from "./lib/physics";
 
 const BURN_DISTRESS_MS = 90 * 60 * 1_000;
@@ -45,7 +45,7 @@ export default function App() {
   const [showNod, setShowNod] = useState(false);
   const [bubbleExpanded, setBubbleExpanded] = useState(false);
   const [glowTriggered, setGlowTriggered] = useState(false);
-  const [creatureSize, setCreatureSize] = useState<CreatureSize>("medium");
+  const [creatureScale, setCreatureScale] = useState<number>(1.0);
   const [idleFloor, setIdleFloor] = useState(0.35);
   const [debugMode, setDebugMode] = useState(false);
 
@@ -103,11 +103,11 @@ export default function App() {
   // Load preferences on mount; re-apply when settings window changes them
   useEffect(() => {
     loadPreferences().then((p) => {
-      setCreatureSize(p.creature_size);
+      setCreatureScale(p.creature_scale);
       setIdleFloor(p.idle_opacity);
     });
-    const unlistenSize = listen<CreatureSize>("creature_size_changed", (e) => {
-      setCreatureSize(e.payload);
+    const unlistenSize = listen<number>("creature_scale_changed", (e) => {
+      setCreatureScale(e.payload);
     });
     const unlistenOpacity = listen<number>("idle_opacity_changed", (e) => {
       setIdleFloor(e.payload);
@@ -166,7 +166,7 @@ export default function App() {
     return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 100, y: 100 };
   }
 
-  const displaySize = Math.round(physics.spriteSize * SIZE_MULTIPLIERS[creatureSize]);
+  const displaySize = Math.round(physics.spriteSize * creatureScale);
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "transparent" }}>
