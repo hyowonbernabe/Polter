@@ -4,7 +4,7 @@ pub type TrayDotState = Arc<Mutex<bool>>;
 pub type DragActiveState = Arc<AtomicBool>;
 pub type BubbleBoundsState = Arc<Mutex<Option<crate::click_through::Rect>>>;
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewWindowBuilder, WebviewUrl};
 use crate::classifier::{daily_summary::DailySummaryAccumulator, state_machine::StateMachine};
 use crate::click_through::Rect;
 use crate::session::SessionId;
@@ -692,17 +692,48 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
         let _ = GetMonitorInfoW(hmon, &mut info);
         let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
         let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        
         if let Some(dash) = app.get_webview_window("dashboard") {
             dash.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
                 .map_err(|e| e.to_string())?;
             dash.show().map_err(|e| e.to_string())?;
             dash.set_focus().map_err(|e| e.to_string())?;
+            let _ = dash.emit("window_show", ());
+        } else {
+            // Recreate if missing
+            let dash = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App("index.html".into()))
+                .title("Wisp Dashboard")
+                .inner_size(420.0, 680.0)
+                .position(logical_x as f64, logical_y as f64)
+                .transparent(true)
+                .decorations(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .resizable(false)
+                .build()
+                .map_err(|e| e.to_string())?;
+            let _ = dash.show();
+            let _ = dash.set_focus();
         }
     }
     #[cfg(not(target_os = "windows"))]
     if let Some(dash) = app.get_webview_window("dashboard") {
         dash.show().map_err(|e| e.to_string())?;
         dash.set_focus().map_err(|e| e.to_string())?;
+        let _ = dash.emit("window_show", ());
+    } else {
+        let dash = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App("index.html".into()))
+            .title("Wisp Dashboard")
+            .inner_size(420.0, 680.0)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(false)
+            .build()
+            .map_err(|e| e.to_string())?;
+        let _ = dash.show();
+        let _ = dash.set_focus();
     }
     Ok(())
 }
@@ -756,17 +787,47 @@ pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
         let _ = GetMonitorInfoW(hmon, &mut info);
         let logical_x = ((info.rcWork.right as f64 - 420.0 - 20.0) / scale) as i32;
         let logical_y = ((info.rcWork.bottom as f64 - 680.0 - 20.0) / scale) as i32;
+        
         if let Some(win) = app.get_webview_window("settings") {
             win.set_position(tauri::LogicalPosition::new(logical_x as f64, logical_y as f64))
                 .map_err(|e| e.to_string())?;
             win.show().map_err(|e| e.to_string())?;
             win.set_focus().map_err(|e| e.to_string())?;
+            let _ = win.emit("window_show", ());
+        } else {
+            let win = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
+                .title("Wisp Settings")
+                .inner_size(420.0, 680.0)
+                .position(logical_x as f64, logical_y as f64)
+                .transparent(true)
+                .decorations(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .resizable(false)
+                .build()
+                .map_err(|e| e.to_string())?;
+            let _ = win.show();
+            let _ = win.set_focus();
         }
     }
     #[cfg(not(target_os = "windows"))]
     if let Some(win) = app.get_webview_window("settings") {
         win.show().map_err(|e| e.to_string())?;
         win.set_focus().map_err(|e| e.to_string())?;
+        let _ = win.emit("window_show", ());
+    } else {
+        let win = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
+            .title("Wisp Settings")
+            .inner_size(420.0, 680.0)
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(false)
+            .build()
+            .map_err(|e| e.to_string())?;
+        let _ = win.show();
+        let _ = win.set_focus();
     }
     Ok(())
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import InferenceBadge from "../components/settings/InferenceBadge";
 import ApiKeyField from "../components/settings/ApiKeyField";
@@ -44,6 +45,16 @@ export default function Settings() {
     }).then((fn) => { unlisten = fn; });
     return () => { unlisten?.(); };
   }, [handleClose, cancelClose]);
+
+  // Ensure visibility when backend forces show
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("window_show", () => {
+      cancelClose();
+      requestAnimationFrame(() => setVisible(true));
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [cancelClose]);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));

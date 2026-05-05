@@ -158,6 +158,19 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
+  // Ensure visibility when backend forces show
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("window_show", () => {
+      cancelClose();
+      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+      invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
+      requestAnimationFrame(() => setVisible(true));
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [cancelClose]);
+
   // Derive countdown from last_snapshot_ms whenever liveStatus changes
   useEffect(() => {
     if (liveStatus.last_snapshot_ms) {
