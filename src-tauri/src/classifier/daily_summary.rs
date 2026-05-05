@@ -6,7 +6,7 @@ pub struct DailySummaryAccumulator {
     state_ms:                        HashMap<WispState, u64>,
     last_state:                      WispState,
     last_state_start_ms:             u64,
-    longest_focus_block_ms:          u64,
+    pub longest_focus_block_ms:      u64,
     focus_block_start_ms:            Option<u64>,
     last_completed_focus_block_ms:   Option<u64>,
     pub session_start_ms:            u64,

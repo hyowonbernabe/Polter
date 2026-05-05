@@ -78,10 +78,9 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
   const [bufferStats, setBufferStats] = useState({ keys: 0, clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null });
-  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false });
+  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0 });
   const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
   const [justUpdated, setJustUpdated] = useState(false);
-  const snapCountdownRef = useRef(60);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -124,13 +123,29 @@ export default function Dashboard() {
     listen("activity_pulse", () => {
       invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
       invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
-      snapCountdownRef.current = 60;
-      setSecondsUntilSnap(60);
       setJustUpdated(true);
       setTimeout(() => setJustUpdated(false), 600);
     }).then(fn => { unlisten = fn; });
     return () => { unlisten?.(); };
   }, []);
+
+  // Listen for state machine transitions from the backend
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ state: string; cold_start: boolean }>("state_changed", () => {
+      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
+  // Derive countdown from last_snapshot_ms whenever liveStatus changes
+  useEffect(() => {
+    if (liveStatus.last_snapshot_ms) {
+      const elapsed = Math.floor((Date.now() - liveStatus.last_snapshot_ms) / 1000);
+      const remaining = Math.max(0, 60 - elapsed);
+      setSecondsUntilSnap(remaining);
+    }
+  }, [liveStatus.last_snapshot_ms]);
 
   // Reload data and re-animate every time the window gains focus (i.e. is reopened)
   useEffect(() => {
@@ -156,6 +171,19 @@ export default function Dashboard() {
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  // Merge live focus data into dashboard data so Today's longest focus reflects the running session
+  const mergedData = data ? {
+    ...data,
+    today_longest_focus_minutes: Math.max(
+      data.today_longest_focus_minutes,
+      liveStatus.current_longest_focus_mins
+    ),
+    best_day_this_week_minutes: Math.max(
+      data.best_day_this_week_minutes,
+      liveStatus.current_longest_focus_mins
+    ),
+  } : null;
 
   return (
     <div
@@ -288,49 +316,49 @@ export default function Dashboard() {
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <TodayGlance data={data} />
+            <TodayGlance data={mergedData} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <LiveMetrics metrics={data?.today_metrics ?? null} flash={justUpdated} />
+            <LiveMetrics metrics={mergedData?.today_metrics ?? null} flash={justUpdated} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <ActivityTimeline hourly={data?.today_hourly ?? []} />
+            <ActivityTimeline hourly={mergedData?.today_hourly ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <ActivityChart days={data?.days ?? []} />
+            <ActivityChart days={mergedData?.days ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <StateDistribution days={data?.days ?? []} />
+            <StateDistribution days={mergedData?.days ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <PersonalBests data={data} />
+            <PersonalBests data={mergedData} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <InsightHistory insights={data?.recent_insights ?? []} />
+            <InsightHistory insights={mergedData?.recent_insights ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px 18px" }}>
-            <WhatWispKnows data={data} />
+            <WhatWispKnows data={mergedData} />
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-pub const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite-preview";
+pub const DEFAULT_MODEL: &str = "google/gemini-flash-1.5";
 const TIMEOUT_SECS: u64 = 10;
 
 const VALID_STATES: &[&str] = &["focus", "calm", "deep", "spark", "burn", "fade", "rest"];
@@ -36,31 +36,17 @@ struct MessageContent {
     content: String,
 }
 
-fn insight_json_schema() -> serde_json::Value {
-    json!({
-        "type": "json_schema",
-        "json_schema": {
-            "name": "wisp_insight",
-            "strict": true,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "state": {
-                        "type": "string",
-                        "enum": VALID_STATES
-                    },
-                    "insight": { "type": "string" },
-                    "extended": { "type": "string" },
-                    "type": {
-                        "type": "string",
-                        "enum": VALID_TYPES
-                    }
-                },
-                "required": ["state", "insight", "extended", "type"],
-                "additionalProperties": false
-            }
-        }
-    })
+fn extract_json(content: &str) -> &str {
+    let s = content.trim();
+    // Strip ```json ... ``` or ``` ... ``` wrapper
+    let inner = if let Some(rest) = s.strip_prefix("```json") {
+        rest
+    } else if let Some(rest) = s.strip_prefix("```") {
+        rest
+    } else {
+        return s;
+    };
+    inner.trim_start_matches('\n').trim_end().trim_end_matches("```").trim()
 }
 
 pub async fn call_openrouter(
@@ -79,7 +65,7 @@ pub async fn call_openrouter(
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": user_message  }
         ],
-        "response_format": insight_json_schema(),
+        "response_format": { "type": "json_object" },
         "max_tokens": 300
     });
 
@@ -110,7 +96,7 @@ pub async fn call_openrouter(
         .content;
 
     let insight: InsightResponse =
-        serde_json::from_str(&content).map_err(|e| format!("parse error: {e}"))?;
+        serde_json::from_str(extract_json(&content)).map_err(|e| format!("parse error: {e}"))?;
 
     // Strict schema should catch these, but defend at runtime too
     if !VALID_STATES.contains(&insight.state.as_str()) {

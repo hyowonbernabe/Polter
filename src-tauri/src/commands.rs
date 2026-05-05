@@ -583,6 +583,7 @@ pub async fn get_dashboard_data(
     let best_day_this_week_minutes = get_best_day_this_week_minutes(pools.read.as_ref())
         .await
         .map_err(|e| e.to_string())?;
+    let best_day_this_week_minutes = best_day_this_week_minutes.max(today_active_minutes);
 
     let today_metrics = TodayMetrics {
         avg_typing_speed:   m.avg_typing_speed,
@@ -924,6 +925,7 @@ pub struct LiveStatus {
     pub snapshots_today: i64,
     pub last_snapshot_ms: Option<i64>,
     pub input_monitor_alive: bool,
+    pub current_longest_focus_mins: i64,
 }
 
 #[tauri::command]
@@ -931,6 +933,7 @@ pub async fn get_live_status(
     pools: tauri::State<'_, DbPools>,
     session_id: tauri::State<'_, SessionId>,
     ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
+    summary_acc: tauri::State<'_, Arc<Mutex<crate::classifier::daily_summary::DailySummaryAccumulator>>>,
 ) -> Result<LiveStatus, String> {
     let sid = *session_id.lock().unwrap();
     let today_ms = today_start_ms();
@@ -957,11 +960,17 @@ pub async fn get_live_status(
         .as_millis() as u64;
     let input_monitor_alive = last_event_ms.map_or(false, |ts| now_ms.saturating_sub(ts) < 30_000);
 
+    let current_longest_focus_mins = {
+        let acc = summary_acc.lock().unwrap();
+        (acc.longest_focus_block_ms / 60_000) as i64
+    };
+
     Ok(LiveStatus {
         session_id: sid,
         snapshots_today: snapshots_today.0,
         last_snapshot_ms: last_snap.map(|r| r.0),
         input_monitor_alive,
+        current_longest_focus_mins,
     })
 }
 
