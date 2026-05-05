@@ -246,9 +246,17 @@ pub fn run() {
             }
 
             // Signal to the React frontend that the backend is ready.
-            app.emit("wisp_ready", commands::WispReadyPayload {
-                version: app.package_info().version.to_string(),
-            })?;
+            // Delay briefly so the OS has time to process SetWindowPos/SetWindowSize —
+            // without this, get_monitors() may still see a stale outer_position() and
+            // compute wrong monitor coordinates relative to the window origin.
+            {
+                let app_ready = app.handle().clone();
+                let version = app.package_info().version.to_string();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                    let _ = app_ready.emit("wisp_ready", commands::WispReadyPayload { version });
+                });
+            }
 
             // Emit initial inference mode: "cloud" if API key set, otherwise "unavailable".
             let initial_mode = if settings::has_api_key(app.handle()) { "cloud" } else { "unavailable" };

@@ -788,16 +788,38 @@ export function useCreaturePhysics(): PhysicsOutput {
   useEffect(() => {
     let cancelled = false;
 
+    async function fetchMonitors(): Promise<MonitorInfo[]> {
+      try {
+        const mons = await invoke<MonitorInfo[]>('get_monitors');
+        if (mons.length > 0) return mons;
+      } catch { /* fall through */ }
+      return [{ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }];
+    }
+
+    async function applyMonitors(mons: MonitorInfo[]) {
+      if (cancelled) return;
+      monitorsRef.current = mons;
+      setMonitors(mons);
+    }
+
     async function init() {
       const wa: WorkArea = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
       workAreaRef.current = wa;
       setWorkArea(wa);
 
-      let mons: MonitorInfo[] = [];
-      try { mons = await invoke<MonitorInfo[]>('get_monitors'); }
-      catch { mons = [{ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }]; }
-      monitorsRef.current = mons;
-      setMonitors(mons);
+      // Fetch monitor layout. The backend emits wisp_ready only after the window
+      // has been repositioned, but we defensively retry once if the result looks
+      // stale (every monitor sits at the window's logical origin with a size that
+      // matches the full viewport — the symptom of a pre-position fetch).
+      let mons = await fetchMonitors();
+      const looksStale = mons.length > 0 && mons.every(
+        m => m.x === 0 && m.y === 0 && m.width === window.innerWidth && m.height === window.innerHeight
+      );
+      if (looksStale) {
+        await new Promise(r => setTimeout(r, 300));
+        mons = await fetchMonitors();
+      }
+      await applyMonitors(mons);
 
       const sz = spriteDisplaySize();
       spriteSizeRef.current = sz;
@@ -864,7 +886,22 @@ export function useCreaturePhysics(): PhysicsOutput {
       transitionTo('goal_thinking');
     }).then(unlisten => { unlistenDevGoal = unlisten; });
 
-    init();
+    // Wait for wisp_ready before fetching monitors — by that point the backend
+    // has finished repositioning the window and get_monitors() will subtract
+    // the correct outer_position() from the physical monitor rects.
+    let unlistenReady: (() => void) | null = null;
+    listen<{ version: string }>('wisp_ready', () => {
+      if (!cancelled) init();
+    }).then(unlisten => { unlistenReady = unlisten; });
+
+    // Safety fallback: if wisp_ready never fires (e.g. backend already emitted
+    // it before our listener registered), kick off init after 500ms.
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled && monitorsRef.current.length === 0) {
+        console.warn('[wisp] wisp_ready not received within 500ms — running init fallback');
+        init();
+      }
+    }, 500);
 
     function onPointerMove(e: PointerEvent) {
       const now = performance.now();
@@ -902,12 +939,14 @@ export function useCreaturePhysics(): PhysicsOutput {
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
+      clearTimeout(fallbackTimer);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onWindowPointerUp);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
       unlistenFullscreen?.();
       unlistenDevGoal?.();
+      unlistenReady?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
