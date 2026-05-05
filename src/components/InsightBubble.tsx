@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { TailSide } from '../lib/bubblePosition';
 
@@ -51,6 +51,7 @@ export default function InsightBubble({
   insight, extended, x, y, tailSide, tailOffset, onDismiss, onExpand, isExpanded, isFirstEver,
 }: InsightBubbleProps) {
   const [visible, setVisible] = useState(false);
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
@@ -63,8 +64,11 @@ export default function InsightBubble({
   }, [onDismiss]);
 
   useEffect(() => {
-    const h = isExpanded ? 260 : 180;
-    invoke('set_bubble_bounds', { x, y, width: BUBBLE_W, height: h });
+    const el = bubbleRef.current;
+    if (!el) return;
+    // Use the actual DOM position — correct regardless of whether bubble uses top or bottom CSS.
+    const rect = el.getBoundingClientRect();
+    invoke('set_bubble_bounds', { x: rect.left, y: rect.top, width: rect.width, height: rect.height });
     return () => { invoke('clear_bubble_bounds'); };
   }, [x, y, isExpanded]);
 
@@ -74,6 +78,7 @@ export default function InsightBubble({
 
   return (
     <div
+      ref={bubbleRef}
       style={{
         position: 'fixed',
         left: x,

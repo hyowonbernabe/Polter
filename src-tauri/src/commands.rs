@@ -519,6 +519,7 @@ fn today_date_str() -> String {
 #[tauri::command]
 pub async fn get_dashboard_data(
     pools: tauri::State<'_, DbPools>,
+    summary_acc: tauri::State<'_, Arc<Mutex<DailySummaryAccumulator>>>,
 ) -> Result<DashboardData, String> {
     use crate::storage::queries::{
         get_best_day_this_week_minutes, get_daily_insight_count, get_daily_summary,
@@ -545,7 +546,7 @@ pub async fn get_dashboard_data(
         .await
         .map_err(|e| e.to_string())?;
 
-    let days = get_last_7_daily_summaries(pools.read.as_ref())
+    let mut days: Vec<DashboardDaySummary> = get_last_7_daily_summaries(pools.read.as_ref())
         .await
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -575,6 +576,44 @@ pub async fn get_dashboard_data(
         })
         .collect();
 
+    // Inject live today data from the in-memory accumulator into the days array.
+    // daily_summaries is only written on session END, so an ongoing session would be absent.
+    {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let (_, live_focus, live_calm, live_deep, live_spark, live_burn, live_fade, _, _) = {
+            summary_acc.lock().unwrap().peek_params(now_ms)
+        };
+
+        let today_pos = days.iter().position(|d| d.date == today_str);
+        if let Some(i) = today_pos {
+            // Session already ended once today and wrote a DB row — add current session on top.
+            days[i].focus_minutes += live_focus;
+            days[i].calm_minutes  += live_calm;
+            days[i].deep_minutes  += live_deep;
+            days[i].spark_minutes += live_spark;
+            days[i].burn_minutes  += live_burn;
+            days[i].fade_minutes  += live_fade;
+            days[i].total_active_minutes = today_active_minutes;
+        } else {
+            // First session of the day hasn't ended yet — synthesize today's row.
+            days.push(DashboardDaySummary {
+                date:                 today_str.clone(),
+                focus_minutes:        live_focus,
+                calm_minutes:         live_calm,
+                deep_minutes:         live_deep,
+                spark_minutes:        live_spark,
+                burn_minutes:         live_burn,
+                fade_minutes:         live_fade,
+                total_active_minutes: today_active_minutes,
+            });
+            days.sort_by(|a, b| b.date.cmp(&a.date));
+            days.truncate(7);
+        }
+    }
+
     let longest_focus_ever_minutes = get_longest_focus_block_ms(pools.read.as_ref())
         .await
         .map_err(|e| e.to_string())?
@@ -583,6 +622,7 @@ pub async fn get_dashboard_data(
     let best_day_this_week_minutes = get_best_day_this_week_minutes(pools.read.as_ref())
         .await
         .map_err(|e| e.to_string())?;
+    let best_day_this_week_minutes = best_day_this_week_minutes.max(today_active_minutes);
 
     let today_metrics = TodayMetrics {
         avg_typing_speed:   m.avg_typing_speed,
@@ -842,6 +882,7 @@ pub fn complete_onboarding(
         let _ = handle.emit(
             "insight_ready",
             crate::inference::trigger::InsightReadyPayload {
+                tier: "insight".to_string(),
                 state: "rest".to_string(),
                 insight: "give me a few days. i'll tell you something when i know something.".to_string(),
                 extended: "Wisp is quietly learning your patterns. Check back soon.".to_string(),
@@ -892,6 +933,97 @@ pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
         ob.set_focus().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BufferStats {
+    pub keys: usize,
+    pub clicks: usize,
+    pub scrolls: usize,
+    pub moves: usize,
+    pub last_event_ms: Option<u64>,
+}
+
+#[tauri::command]
+pub fn get_buffer_stats(
+    ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
+) -> BufferStats {
+    let guard = ring.lock().unwrap();
+    let counts = guard.pending_counts();
+    BufferStats {
+        keys: counts.keys,
+        clicks: counts.clicks,
+        scrolls: counts.scrolls,
+        moves: counts.moves,
+        last_event_ms: guard.last_event_ts(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveStatus {
+    pub session_id: Option<i64>,
+    pub snapshots_today: i64,
+    pub last_snapshot_ms: Option<i64>,
+    pub input_monitor_alive: bool,
+    pub current_longest_focus_mins: i64,
+    pub inference_active_secs: u64,
+    pub inference_last_error: Option<String>,
+    pub api_key_present: bool,
+}
+
+#[tauri::command]
+pub async fn get_live_status(
+    pools: tauri::State<'_, DbPools>,
+    session_id: tauri::State<'_, SessionId>,
+    ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
+    summary_acc: tauri::State<'_, Arc<Mutex<crate::classifier::daily_summary::DailySummaryAccumulator>>>,
+    inference_engine: tauri::State<'_, Arc<Mutex<crate::inference::InferenceEngine>>>,
+) -> Result<LiveStatus, String> {
+    let (inference_active_secs, inference_last_error) = {
+        let eng = inference_engine.lock().unwrap();
+        (eng.session_active_secs, eng.last_error.clone())
+    };
+
+    let sid = *session_id.lock().unwrap();
+    let today_ms = today_start_ms();
+
+    let snapshots_today: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM behavioral_snapshots WHERE timestamp >= ?",
+    )
+    .bind(today_ms)
+    .fetch_one(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let last_snap: Option<(i64,)> = sqlx::query_as(
+        "SELECT timestamp FROM behavioral_snapshots ORDER BY timestamp DESC LIMIT 1",
+    )
+    .fetch_optional(pools.read.as_ref())
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let last_event_ms = ring.lock().unwrap().last_event_ts();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let input_monitor_alive = last_event_ms.map_or(false, |ts| now_ms.saturating_sub(ts) < 30_000);
+
+    let current_longest_focus_mins = {
+        let acc = summary_acc.lock().unwrap();
+        (acc.longest_focus_block_ms / 60_000) as i64
+    };
+
+    Ok(LiveStatus {
+        session_id: sid,
+        snapshots_today: snapshots_today.0,
+        last_snapshot_ms: last_snap.map(|r| r.0),
+        input_monitor_alive,
+        current_longest_focus_mins,
+        inference_active_secs,
+        inference_last_error,
+        api_key_present: settings::has_api_key(),
+    })
 }
 
 #[cfg(test)]

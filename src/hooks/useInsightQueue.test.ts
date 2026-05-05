@@ -6,7 +6,7 @@ import type { InsightPayload } from '../App';
 
 function makeInsight(type = 'flow_detection', overrideTs?: number): InsightPayload & { receivedAt: number } {
   return {
-    state: 'focus', insight: 'something noticed.', extended: 'more detail.',
+    tier: 'insight', state: 'focus', insight: 'something noticed.', extended: 'more detail.',
     type, is_first_ever: false, receivedAt: overrideTs ?? Date.now(),
   };
 }

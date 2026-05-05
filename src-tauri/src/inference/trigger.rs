@@ -1,28 +1,27 @@
 use crate::classifier::signals::SignalZScores;
 use crate::classifier::state_machine::StateMachine;
-use crate::inference::{openrouter, prompt};
+use crate::inference::{
+    openrouter::{self, VoiceResponse},
+    pool::PoolState,
+    prompt,
+};
 use crate::settings;
 use crate::sleep::SleepState;
 use crate::storage::{queries, DbPools};
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 
-const DAILY_CAP: i64 = 3;
-const FLOOR_MINS: u64 = 90;
-const MIN_ACTIVE_SECS: u64 = 5 * 60;
 const DEDUP_SUPPRESS_AT: i64 = 4;
-
-#[derive(Debug, Clone)]
-pub enum TriggerKind {
-    StateTransition,
-    Anomaly,
-    TimerFloor,
-}
 
 pub struct InferenceEngine {
     pub last_inference_ms: u64,
     pub state_committed_ms: u64,
     pub session_active_secs: u64,
+    pub last_error: Option<String>,
+    /// Latest z-scores written by the aggregator every 60 seconds.
+    pub last_z: SignalZScores,
+    /// Cold-start flag written by the aggregator every 60 seconds.
+    pub cold_start: bool,
 }
 
 impl InferenceEngine {
@@ -31,6 +30,9 @@ impl InferenceEngine {
             last_inference_ms: 0,
             state_committed_ms: 0,
             session_active_secs: 0,
+            last_error: None,
+            last_z: SignalZScores::default(),
+            cold_start: true,
         }
     }
 
@@ -50,6 +52,7 @@ impl InferenceEngine {
 
 #[derive(serde::Serialize, Clone)]
 pub struct InsightReadyPayload {
+    pub tier: String,
     pub state: String,
     pub insight: String,
     pub extended: String,
@@ -58,70 +61,49 @@ pub struct InsightReadyPayload {
     pub is_first_ever: bool,
 }
 
-pub async fn maybe_trigger<R: tauri::Runtime>(
+pub async fn tick_voice<R: tauri::Runtime>(
     engine: Arc<Mutex<InferenceEngine>>,
-    trigger: TriggerKind,
-    z_scores: &SignalZScores,
     state_machine: Arc<Mutex<StateMachine>>,
-    cold_start: bool,
     sleep_state: &SleepState,
     pools: &DbPools,
     app_handle: &tauri::AppHandle<R>,
+    pool_state: &mut PoolState,
+    session_start_ms: u64,
 ) {
     // Guard: sleep / privacy mode
     if sleep_state.lock().unwrap().is_paused() {
         return;
     }
 
-    // Guard: API key must exist
-    let api_key = match settings::get_api_key() {
-        Some(k) => k,
-        None => return,
-    };
-
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
 
-    // Guard: 5-minute active floor
-    {
+    let (hour, dow) = crate::classifier::local_time_parts();
+    let session_secs = now_ms.saturating_sub(session_start_ms) / 1000;
+
+    let (z_scores, cold_start) = {
         let eng = engine.lock().unwrap();
-        if eng.session_active_secs < MIN_ACTIVE_SECS {
-            return;
-        }
-
-        // Guard: 90-minute floor for TimerFloor trigger
-        if matches!(trigger, TriggerKind::TimerFloor) {
-            let elapsed_mins = now_ms.saturating_sub(eng.last_inference_ms) / 60_000;
-            if elapsed_mins < FLOOR_MINS {
-                return;
-            }
-        }
-    }
-
-    // Guard: daily cap
-    let day_start_ms = {
-        let now = chrono::Local::now();
-        let midnight = now
-            .date_naive()
-            .and_hms_opt(0, 0, 0)
-            .unwrap();
-        midnight
-            .and_local_timezone(chrono::Local)
-            .single()
-            .map(|dt| dt.timestamp_millis())
-            .unwrap_or(0)
+        (eng.last_z.clone(), eng.cold_start)
     };
 
-    let daily_count = queries::get_daily_insight_count(pools.read.as_ref(), day_start_ms)
-        .await
-        .unwrap_or(0);
-    if daily_count >= DAILY_CAP {
-        return;
-    }
+    // No API key: speak from the pre-written pool
+    let api_key = match settings::get_api_key() {
+        Some(k) => {
+            engine.lock().unwrap().last_error = None;
+            k
+        }
+        None => {
+            engine.lock().unwrap().last_error =
+                Some("no API key -- add one in Settings".to_string());
+            let text = pool_state.get_mutter(hour as u32, session_secs);
+            emit_mutter(app_handle, &text);
+            return;
+        }
+    };
 
-    // Build context for the prompt
+    // Build prompt context
     let (current_state, state_duration_mins) = {
         let sm = state_machine.lock().unwrap();
         let state = sm.current_state.as_str().to_string();
@@ -134,13 +116,11 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
         (state, duration_mins)
     };
 
-    let (hour, dow) = crate::classifier::local_time_parts();
-
     let signal_deviations = vec![
-        ("typing_speed".to_string(), z_scores.typing_speed),
-        ("error_rate".to_string(), z_scores.error_rate),
-        ("mouse_speed".to_string(), z_scores.mouse_speed),
-        ("mouse_jitter".to_string(), z_scores.mouse_jitter),
+        ("typing_speed".to_string(),    z_scores.typing_speed),
+        ("error_rate".to_string(),      z_scores.error_rate),
+        ("mouse_speed".to_string(),     z_scores.mouse_speed),
+        ("mouse_jitter".to_string(),    z_scores.mouse_jitter),
         ("pause_frequency".to_string(), z_scores.pause_frequency),
         ("app_switch_rate".to_string(), z_scores.app_switch_rate),
     ];
@@ -151,29 +131,38 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
         signal_deviations,
         hour: hour as u32,
         day_of_week: dow as u32,
-        prior_occurrences: 0, // we'll do a post-call dedup check; pre-call count not needed
+        prior_occurrences: 0,
         cold_start,
+        session_mins: session_secs / 60,
     };
-
-    // Check first-ever BEFORE inserting so we know if this will be insight #1
-    let is_first_ever = queries::get_total_insight_count(pools.read.as_ref())
-        .await
-        .unwrap_or(1) == 0;
 
     let system = prompt::build_system_prompt();
     let user = prompt::build_user_message(&ctx);
 
     tracing::info!(
-        "[inference] calling openrouter — trigger: {:?} state: {} duration: {}m",
-        trigger, current_state, state_duration_mins
+        "[voice] calling openrouter -- state: {} session: {}m",
+        current_state,
+        session_secs / 60
     );
 
     match openrouter::call_openrouter(&api_key, system, &user).await {
         Err(e) => {
-            tracing::warn!("[inference] call failed: {e}");
+            tracing::warn!("[voice] call failed: {e}");
+            engine.lock().unwrap().last_error = Some(e);
+            // Fallback to pre-written pool on API failure
+            let text = pool_state.get_mutter(hour as u32, session_secs);
+            emit_mutter(app_handle, &text);
         }
-        Ok(insight) => {
-            // Post-call dedup: anomaly type is never suppressed
+        Ok(VoiceResponse::Mutter(text)) => {
+            engine.lock().unwrap().last_error = None;
+            engine.lock().unwrap().last_inference_ms = now_ms;
+            tracing::info!("[voice] mutter emitted");
+            emit_mutter(app_handle, &text);
+        }
+        Ok(VoiceResponse::Insight(insight)) => {
+            engine.lock().unwrap().last_error = None;
+
+            // Dedup: insight types seen 4+ times in 48h are suppressed; mutters never are
             let dedup_count =
                 queries::get_dedup_count_48h(pools.read.as_ref(), &insight.insight_type, now_ms)
                     .await
@@ -181,13 +170,20 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
 
             if insight.insight_type != "anomaly" && dedup_count >= DEDUP_SUPPRESS_AT {
                 tracing::info!(
-                    "[inference] suppressed — {} seen {} times in 48h",
-                    insight.insight_type, dedup_count
+                    "[voice] suppressed -- {} seen {} times in 48h",
+                    insight.insight_type,
+                    dedup_count
                 );
+                // Emit a pool mutter rather than going silent
+                let text = pool_state.get_mutter(hour as u32, session_secs);
+                emit_mutter(app_handle, &text);
                 return;
             }
 
-            // Persist insight
+            let is_first_ever = queries::get_total_insight_count(pools.read.as_ref())
+                .await
+                .unwrap_or(1) == 0;
+
             let _ = queries::insert_insight(
                 pools.write.as_ref(),
                 now_ms as i64,
@@ -199,7 +195,6 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
             )
             .await;
 
-            // Update dedup log
             let _ = queries::upsert_dedup_entry(
                 pools.write.as_ref(),
                 &insight.insight_type,
@@ -207,7 +202,6 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
             )
             .await;
 
-            // Mark engine time
             engine.lock().unwrap().last_inference_ms = now_ms;
 
             let insight_state_copy = insight.state.clone();
@@ -215,6 +209,7 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
             let _ = app_handle.emit(
                 "insight_ready",
                 InsightReadyPayload {
+                    tier: "insight".to_string(),
                     state: insight.state,
                     insight: insight.insight,
                     extended: insight.extended,
@@ -223,7 +218,6 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
                 },
             );
 
-            // Show tray dot — a pending bubble is waiting
             if let Some(tray) = app_handle.tray_by_id("main") {
                 let (r, g, b) = crate::tray::state_to_tray_color(&insight_state_copy);
                 let rgba = crate::tray::tray_icon_rgba_with_dot(r, g, b, true);
@@ -231,7 +225,21 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
                 let _ = tray.set_icon(Some(icon));
             }
 
-            tracing::info!("[inference] insight emitted");
+            tracing::info!("[voice] insight emitted");
         }
     }
+}
+
+fn emit_mutter<R: tauri::Runtime>(app: &tauri::AppHandle<R>, text: &str) {
+    let _ = app.emit(
+        "insight_ready",
+        InsightReadyPayload {
+            tier: "mutter".to_string(),
+            state: String::new(),
+            insight: text.to_string(),
+            extended: String::new(),
+            insight_type: String::new(),
+            is_first_ever: false,
+        },
+    );
 }

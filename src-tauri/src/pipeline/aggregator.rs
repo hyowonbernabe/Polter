@@ -213,7 +213,6 @@ pub fn start<R: tauri::Runtime>(
             let has_activity = !events.is_empty();
             let _ = app_handle.emit("activity_pulse", ActivityPulsePayload { has_activity });
 
-            // Track active time for inference floor guard.
             if has_activity {
                 inference_engine.lock().unwrap().tick_active(AGGREGATION_SECS);
             }
@@ -277,27 +276,17 @@ pub fn start<R: tauri::Runtime>(
                 tracing::info!("[classifier] anomaly: {} {:?}", a.signal, a.direction);
             }
 
-            // ── Inference trigger ─────────────────────────────────────────────
-            let trigger_kind = if state_opt.is_some() {
-                // Record when the new state was committed so duration is meaningful.
+            // ── Update inference engine context for the voice ticker ──────────
+            // on_state_committed is still needed: tick_voice uses state_committed_ms
+            // to compute how long the current state has been active.
+            if state_opt.is_some() {
                 inference_engine.lock().unwrap().on_state_committed(window_end_ms);
-                crate::inference::trigger::TriggerKind::StateTransition
-            } else if !anomalies.is_empty() {
-                crate::inference::trigger::TriggerKind::Anomaly
-            } else {
-                crate::inference::trigger::TriggerKind::TimerFloor
-            };
-
-            crate::inference::trigger::maybe_trigger(
-                inference_engine.clone(),
-                trigger_kind,
-                &z,
-                state_machine.clone(),
-                cold_start,
-                &sleep_state,
-                &pools,
-                &app_handle,
-            ).await;
+            }
+            {
+                let mut eng = inference_engine.lock().unwrap();
+                eng.last_z = z.clone();
+                eng.cold_start = cold_start;
+            }
         }
     });
 }

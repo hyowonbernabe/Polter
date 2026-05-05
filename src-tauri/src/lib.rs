@@ -102,6 +102,8 @@ pub fn run() {
             commands::open_onboarding,
             commands::dismiss_onboarding,
             commands::reset_onboarding,
+            commands::get_buffer_stats,
+            commands::get_live_status,
         ])
         .setup(move |app| {
             // Enable Windows startup autolaunch on first run.
@@ -123,6 +125,7 @@ pub fn run() {
             // Shared pipeline state.
             let ring: Arc<Mutex<pipeline::RingBuffer>> =
                 Arc::new(Mutex::new(pipeline::RingBuffer::new(10_000)));
+            app.manage(ring.clone());
             let system_snap: Arc<RwLock<sensors::system::SystemSnapshot>> =
                 Arc::new(RwLock::new(sensors::system::SystemSnapshot::default()));
             let session_id: session::SessionId = Arc::new(Mutex::new(None));
@@ -267,11 +270,12 @@ pub fn run() {
                 let dev_break     = MenuItemBuilder::with_id("dev_break",        "Break Signal").build(app)?;
                 let dev_anomaly   = MenuItemBuilder::with_id("dev_anomaly",      "Anomaly").build(app)?;
                 let dev_first     = MenuItemBuilder::with_id("dev_first_ever",   "First-Ever Insight").build(app)?;
+                let dev_mutter    = MenuItemBuilder::with_id("dev_mutter",       "Test Mutter").build(app)?;
                 let dev_onboarding = MenuItemBuilder::with_id("dev_onboarding",  "Reset Onboarding").build(app)?;
                 let dev_goal       = MenuItemBuilder::with_id("dev_goal",        "Trigger Goal").build(app)?;
                 let dev_flee       = MenuItemBuilder::with_id("dev_flee",        "Trigger Flee").build(app)?;
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
-                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_onboarding, &dev_goal, &dev_flee])
+                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_mutter, &dev_onboarding, &dev_goal, &dev_flee])
                     .build()?;
                 MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &debug_check, &quit]).build()?
             } else {
@@ -374,6 +378,20 @@ pub fn run() {
                                 let _ = app.emit("wisp://fullscreen-detected", ());
                                 return;
                             }
+                            if id == "dev_mutter" {
+                                let _ = app.emit(
+                                    "insight_ready",
+                                    crate::inference::trigger::InsightReadyPayload {
+                                        tier: "mutter".to_string(),
+                                        state: String::new(),
+                                        insight: "dev test mutter. something dry and low-key.".to_string(),
+                                        extended: String::new(),
+                                        insight_type: String::new(),
+                                        is_first_ever: false,
+                                    },
+                                );
+                                return;
+                            }
                             let insight_type = match id {
                                 "dev_flow"       => "flow_detection",
                                 "dev_fatigue"    => "fatigue_signal",
@@ -386,9 +404,10 @@ pub fn run() {
                             let _ = app.emit(
                                 "insight_ready",
                                 crate::inference::trigger::InsightReadyPayload {
+                                    tier: "insight".to_string(),
                                     state: "focus".to_string(),
-                                    insight: format!("Dev test: {} insight.", insight_type.replace('_', " ")),
-                                    extended: "This is a developer-triggered test insight. It bypasses all inference guards and fires immediately.".to_string(),
+                                    insight: format!("dev test: {} insight.", insight_type.replace('_', " ")),
+                                    extended: "developer-triggered test insight. bypasses all inference guards and fires immediately.".to_string(),
                                     insight_type: insight_type.to_string(),
                                     is_first_ever,
                                 },
@@ -461,6 +480,37 @@ pub fn run() {
 
             // Start the ~60fps click-through polling loop.
             click_through::start(app.handle().clone(), bounds.clone(), bubble_bounds.clone(), drag_active.clone());
+
+            // Start the 5-minute always-on voice ticker.
+            // 60-second warmup on startup before the first utterance.
+            {
+                let engine_v = inference_engine.clone();
+                let sm_v     = state_machine.clone();
+                let sleep_v  = sleep_state.clone();
+                let pools_v  = pools.clone();
+                let app_v    = app.handle().clone();
+                let start_ms = now_setup_ms;
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                    let mut pool_state = crate::inference::pool::PoolState::new(start_ms);
+                    let mut ticker = tokio::time::interval(
+                        tokio::time::Duration::from_secs(5 * 60),
+                    );
+                    loop {
+                        ticker.tick().await;
+                        crate::inference::trigger::tick_voice(
+                            engine_v.clone(),
+                            sm_v.clone(),
+                            &sleep_v,
+                            &pools_v,
+                            &app_v,
+                            &mut pool_state,
+                            start_ms,
+                        )
+                        .await;
+                    }
+                });
+            }
 
             Ok(())
         })

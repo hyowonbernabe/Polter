@@ -29,6 +29,14 @@ impl RawInputEvent {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BufferCounts {
+    pub keys: usize,
+    pub clicks: usize,
+    pub scrolls: usize,
+    pub moves: usize,
+}
+
 pub struct RingBuffer {
     events: VecDeque<RawInputEvent>,
     capacity: usize,
@@ -66,6 +74,20 @@ impl RingBuffer {
 
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    pub fn pending_counts(&self) -> BufferCounts {
+        let mut counts = BufferCounts { keys: 0, clicks: 0, scrolls: 0, moves: 0 };
+        for event in &self.events {
+            match event {
+                RawInputEvent::KeyDown { .. } => counts.keys += 1,
+                RawInputEvent::MouseClick { .. } => counts.clicks += 1,
+                RawInputEvent::Scroll { .. } => counts.scrolls += 1,
+                RawInputEvent::MouseMove { .. } => counts.moves += 1,
+                RawInputEvent::KeyUp { .. } => {}
+            }
+        }
+        counts
     }
 }
 
@@ -141,5 +163,24 @@ mod tests {
         buf.push(key_down(300));
         buf.reset_activity();
         assert!(buf.last_event_ts().is_none());
+    }
+
+    #[test]
+    fn pending_counts_tracks_by_type() {
+        let mut buf = RingBuffer::new(20);
+        buf.push(RawInputEvent::KeyDown { ts_ms: 1, is_deletion: false });
+        buf.push(RawInputEvent::KeyDown { ts_ms: 2, is_deletion: false });
+        buf.push(RawInputEvent::KeyDown { ts_ms: 3, is_deletion: true });
+        buf.push(RawInputEvent::MouseClick { button: MouseButton::Left, ts_ms: 4 });
+        buf.push(RawInputEvent::MouseClick { button: MouseButton::Right, ts_ms: 5 });
+        buf.push(RawInputEvent::Scroll { delta_x: 0, delta_y: -3, ts_ms: 6 });
+        buf.push(RawInputEvent::MouseMove { x: 10.0, y: 20.0, ts_ms: 7 });
+        let counts = buf.pending_counts();
+        assert_eq!(counts.keys, 3);
+        assert_eq!(counts.clicks, 2);
+        assert_eq!(counts.scrolls, 1);
+        assert_eq!(counts.moves, 1);
+        // buffer must not have been drained
+        assert_eq!(buf.len(), 7);
     }
 }

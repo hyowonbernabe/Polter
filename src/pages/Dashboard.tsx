@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import StateHeader from "../components/dashboard/StateHeader";
 import TodayGlance from "../components/dashboard/TodayGlance";
@@ -10,6 +11,7 @@ import InsightHistory from "../components/dashboard/InsightHistory";
 import WhatWispKnows from "../components/dashboard/WhatWispKnows";
 import DashboardDivider from "../components/dashboard/DashboardDivider";
 import LiveMetrics from "../components/dashboard/LiveMetrics";
+import LivePulse from "../components/dashboard/LivePulse";
 import ActivityTimeline from "../components/dashboard/ActivityTimeline";
 
 export interface DashboardDaySummary {
@@ -75,6 +77,10 @@ export default function Dashboard() {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
+  const [bufferStats, setBufferStats] = useState({ keys: 0, clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null });
+  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0, inference_active_secs: 0, inference_last_error: null as string | null, api_key_present: false });
+  const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
+  const [justUpdated, setJustUpdated] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +99,62 @@ export default function Dashboard() {
       invoke("close_dashboard").catch(console.error);
     }, 240);
   }, [cancelClose]);
+
+  // 500ms polling for live buffer stats and monitor status
+  useEffect(() => {
+    const id = setInterval(() => {
+      invoke<typeof bufferStats>("get_buffer_stats").then(setBufferStats).catch(() => {});
+      invoke<typeof liveStatus>("get_live_status").then(setLiveStatus).catch(() => {});
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // 1-second countdown tick toward next snapshot
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsUntilSnap(s => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Listen for snapshot-fired event from the backend
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("activity_pulse", () => {
+      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 600);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
+  // Listen for state machine transitions from the backend
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ state: string; cold_start: boolean }>("state_changed", () => {
+      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
+  // Refresh dashboard data immediately when an insight fires (keeps count + history live)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("insight_ready", () => {
+      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
+  // Derive countdown from last_snapshot_ms whenever liveStatus changes
+  useEffect(() => {
+    if (liveStatus.last_snapshot_ms) {
+      const elapsed = Math.floor((Date.now() - liveStatus.last_snapshot_ms) / 1000);
+      const remaining = Math.max(0, 60 - elapsed);
+      setSecondsUntilSnap(remaining);
+    }
+  }, [liveStatus.last_snapshot_ms]);
 
   // Reload data and re-animate every time the window gains focus (i.e. is reopened)
   useEffect(() => {
@@ -119,6 +181,19 @@ export default function Dashboard() {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // Merge live focus data into dashboard data so Today's longest focus reflects the running session
+  const mergedData = data ? {
+    ...data,
+    today_longest_focus_minutes: Math.max(
+      data.today_longest_focus_minutes,
+      liveStatus.current_longest_focus_mins
+    ),
+    best_day_this_week_minutes: Math.max(
+      data.best_day_this_week_minutes,
+      liveStatus.current_longest_focus_mins
+    ),
+  } : null;
+
   return (
     <div
       ref={containerRef}
@@ -142,6 +217,12 @@ export default function Dashboard() {
           background: rgba(255,255,255,0.22);
         }
         .wisp-close:hover { background: rgba(255,255,255,0.12) !important; }
+        @keyframes snap-flash {
+          0%   { box-shadow: 0 0 0 0 rgba(100,200,180,0.0); }
+          20%  { box-shadow: 0 0 0 6px rgba(100,200,180,0.25); }
+          100% { box-shadow: 0 0 0 0 rgba(100,200,180,0.0); }
+        }
+        .snap-flash { animation: snap-flash 600ms ease-out; }
       `}</style>
 
       {/* Outer panel — clipping container so scrollbar respects border-radius */}
@@ -229,52 +310,67 @@ export default function Dashboard() {
           className="wisp-scroll"
           style={{ overflowY: "auto", overflowX: "hidden", flex: 1, minHeight: 0 }}
         >
-          <DashboardDivider />
-
           <div style={{ padding: "14px 20px" }}>
-            <TodayGlance data={data} />
+            <LivePulse
+              bufferKeys={bufferStats.keys}
+              bufferClicks={bufferStats.clicks}
+              bufferScrolls={bufferStats.scrolls}
+              snapshotsToday={liveStatus.snapshots_today}
+              inputMonitorAlive={liveStatus.input_monitor_alive}
+              secondsUntilSnap={secondsUntilSnap}
+              justUpdated={justUpdated}
+              inferenceActiveSecs={liveStatus.inference_active_secs}
+              inferenceLastError={liveStatus.inference_last_error}
+              apiKeyPresent={liveStatus.api_key_present}
+            />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <LiveMetrics metrics={data?.today_metrics ?? null} />
+            <TodayGlance data={mergedData} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <ActivityTimeline hourly={data?.today_hourly ?? []} />
+            <LiveMetrics metrics={mergedData?.today_metrics ?? null} flash={justUpdated} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <ActivityChart days={data?.days ?? []} />
+            <ActivityTimeline hourly={mergedData?.today_hourly ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <StateDistribution days={data?.days ?? []} />
+            <ActivityChart days={mergedData?.days ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <PersonalBests data={data} />
+            <StateDistribution days={mergedData?.days ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <InsightHistory insights={data?.recent_insights ?? []} />
+            <PersonalBests data={mergedData} />
+          </div>
+
+          <DashboardDivider />
+
+          <div style={{ padding: "14px 20px" }}>
+            <InsightHistory insights={mergedData?.recent_insights ?? []} />
           </div>
 
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px 18px" }}>
-            <WhatWispKnows data={data} />
+            <WhatWispKnows data={mergedData} />
           </div>
         </div>
       </div>

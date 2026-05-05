@@ -54,12 +54,12 @@ function jitterLabel(jitter: number): string {
   return "erratic";
 }
 
-export default function LiveMetrics({ metrics }: { metrics: TodayMetrics | null }) {
+export default function LiveMetrics({ metrics, flash }: { metrics: TodayMetrics | null; flash?: boolean }) {
   const m = metrics;
   const noData = !m || (m.avg_typing_speed === 0 && m.total_clicks === 0 && m.total_scrolls === 0);
 
   return (
-    <div>
+    <div className={flash ? "snap-flash" : ""}>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
         Today's Metrics
       </div>

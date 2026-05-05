@@ -6,7 +6,7 @@ pub struct DailySummaryAccumulator {
     state_ms:                        HashMap<WispState, u64>,
     last_state:                      WispState,
     last_state_start_ms:             u64,
-    longest_focus_block_ms:          u64,
+    pub longest_focus_block_ms:      u64,
     focus_block_start_ms:            Option<u64>,
     last_completed_focus_block_ms:   Option<u64>,
     pub session_start_ms:            u64,
@@ -84,6 +84,37 @@ impl DailySummaryAccumulator {
 
     fn get(&self, s: WispState) -> i64 {
         Self::ms_to_min(*self.state_ms.get(&s).unwrap_or(&0))
+    }
+
+    /// Live read of state breakdown including the current open interval — does NOT modify state.
+    /// Returns (total, focus, calm, deep, spark, burn, fade, rest, longest_focus_block) in minutes.
+    pub fn peek_params(&self, now_ms: u64) -> (i64, i64, i64, i64, i64, i64, i64, i64, i64) {
+        let mut state_ms = self.state_ms.clone();
+        let open_duration = now_ms.saturating_sub(self.last_state_start_ms);
+        *state_ms.entry(self.last_state).or_insert(0) += open_duration;
+        let total: u64 = state_ms.values().sum();
+
+        let ms_to_min = |ms: u64| -> i64 { (ms / 60_000) as i64 };
+        let get = |s: WispState| ms_to_min(*state_ms.get(&s).unwrap_or(&0));
+
+        let longest_ms = if matches!(self.last_state, WispState::Focus | WispState::Calm | WispState::Deep) {
+            let start = self.focus_block_start_ms.unwrap_or(self.last_state_start_ms);
+            now_ms.saturating_sub(start).max(self.longest_focus_block_ms)
+        } else {
+            self.longest_focus_block_ms
+        };
+
+        (
+            ms_to_min(total),
+            get(WispState::Focus),
+            get(WispState::Calm),
+            get(WispState::Deep),
+            get(WispState::Spark),
+            get(WispState::Burn),
+            get(WispState::Fade),
+            get(WispState::Rest),
+            ms_to_min(longest_ms),
+        )
     }
 
     /// Returns (total, focus, calm, deep, spark, burn, fade, rest, longest_focus_block) in minutes.
