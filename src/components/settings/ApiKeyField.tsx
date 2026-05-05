@@ -55,7 +55,7 @@ export default function ApiKeyField() {
         OpenRouter API key
       </div>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10 }}>
-        Required for AI-generated insights. Your key is stored securely in Windows Credential Manager and never leaves your device.
+        Required for AI-generated insights. Your key is stored locally on your device and never sent anywhere except OpenRouter.
       </div>
 
       {hasKey ? (

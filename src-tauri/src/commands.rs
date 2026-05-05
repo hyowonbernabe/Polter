@@ -197,26 +197,26 @@ pub fn clear_bubble_bounds(bounds: tauri::State<'_, BubbleBoundsState>) {
 
 #[tauri::command]
 pub fn set_api_key(key: String, app_handle: tauri::AppHandle) -> Result<(), String> {
-    settings::set_api_key(&key).map_err(|e| e.to_string())?;
+    settings::set_api_key(&app_handle, &key)?;
     let _ = app_handle.emit("inference_mode_changed", "cloud");
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_api_key() -> Option<String> {
-    settings::get_api_key()
+pub fn get_api_key(app_handle: tauri::AppHandle) -> Option<String> {
+    settings::get_api_key(&app_handle)
 }
 
 #[tauri::command]
 pub fn clear_api_key(app_handle: tauri::AppHandle) -> Result<(), String> {
-    settings::clear_api_key().map_err(|e| e.to_string())?;
+    settings::clear_api_key(&app_handle)?;
     let _ = app_handle.emit("inference_mode_changed", "unavailable");
     Ok(())
 }
 
 #[tauri::command]
-pub fn has_api_key() -> bool {
-    settings::has_api_key()
+pub fn has_api_key(app_handle: tauri::AppHandle) -> bool {
+    settings::has_api_key(&app_handle)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1075,6 +1075,7 @@ pub async fn get_live_status(
     ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
     summary_acc: tauri::State<'_, Arc<Mutex<crate::classifier::daily_summary::DailySummaryAccumulator>>>,
     inference_engine: tauri::State<'_, Arc<Mutex<crate::inference::InferenceEngine>>>,
+    app_handle: tauri::AppHandle,
 ) -> Result<LiveStatus, String> {
     let (inference_active_secs, inference_last_error) = {
         let eng = inference_engine.lock().unwrap();
@@ -1119,7 +1120,7 @@ pub async fn get_live_status(
         current_longest_focus_mins,
         inference_active_secs,
         inference_last_error,
-        api_key_present: settings::has_api_key(),
+        api_key_present: settings::has_api_key(&app_handle),
     })
 }
 

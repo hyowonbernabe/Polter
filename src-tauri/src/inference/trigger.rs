@@ -89,7 +89,7 @@ pub async fn tick_voice<R: tauri::Runtime>(
     };
 
     // No API key: speak from the pre-written pool
-    let api_key = match settings::get_api_key() {
+    let api_key = match settings::get_api_key(app_handle) {
         Some(k) => {
             engine.lock().unwrap().last_error = None;
             k

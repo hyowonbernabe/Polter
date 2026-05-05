@@ -251,7 +251,7 @@ pub fn run() {
             })?;
 
             // Emit initial inference mode: "cloud" if API key set, otherwise "unavailable".
-            let initial_mode = if settings::has_api_key() { "cloud" } else { "unavailable" };
+            let initial_mode = if settings::has_api_key(app.handle()) { "cloud" } else { "unavailable" };
             app.emit("inference_mode_changed", initial_mode)?;
 
             // System tray: Sleep · Privacy Mode · [Developer] · Quit.
