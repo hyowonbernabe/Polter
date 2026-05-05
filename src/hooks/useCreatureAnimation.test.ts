@@ -1,36 +1,40 @@
 import { describe, it, expect } from 'vitest';
+import { velocityToDirectionKey } from './useCreatureAnimation';
 
-describe('useCreatureAnimation constants', () => {
-  it('MIN_FRAME_MS enforces 12fps', () => {
-    const fps12 = 1000 / 12;
-    expect(fps12).toBeGreaterThan(83);
-    expect(fps12).toBeLessThan(84);
+describe('velocityToDirectionKey', () => {
+  it('rightward maps to right', () => {
+    expect(velocityToDirectionKey(100, 0)).toEqual({ key: 'right', flip: false });
   });
 
-  it('crossfade duration is 300ms', () => {
-    const CROSSFADE_DURATION_MS = 300;
-    expect(CROSSFADE_DURATION_MS).toBe(300);
-  });
-});
-
-describe('crossfade progress logic (pure)', () => {
-  it('returns 1.0 when no crossfade is active', () => {
-    const crossfadeStart: number | null = null;
-    const progress = crossfadeStart === null ? 1 : 0;
-    expect(progress).toBe(1);
+  it('leftward maps to left (dedicated sprite, no flip)', () => {
+    expect(velocityToDirectionKey(-100, 0)).toEqual({ key: 'left', flip: false });
   });
 
-  it('progress is 0.5 at midpoint of 300ms fade', () => {
-    const crossfadeStart = 1000;
-    const now = 1150;
-    const progress = (now - crossfadeStart) / 300;
-    expect(progress).toBeCloseTo(0.5);
+  it('vertical movement maps to front', () => {
+    expect(velocityToDirectionKey(0, 200)).toEqual({ key: 'front', flip: false });
   });
 
-  it('progress reaches 1.0 at end of fade', () => {
-    const crossfadeStart = 1000;
-    const now = 1300;
-    const progress = Math.min((now - crossfadeStart) / 300, 1);
-    expect(progress).toBe(1);
+  it('slow/zero velocity maps to front', () => {
+    expect(velocityToDirectionKey(2, 1)).toEqual({ key: 'front', flip: false });
+  });
+
+  it('mostly-right diagonal (>65% horizontal) maps to right', () => {
+    // vx=100, vy=50 → speed=111.8, ratio=0.894 ≥ 0.65
+    expect(velocityToDirectionKey(100, 50)).toEqual({ key: 'right', flip: false });
+  });
+
+  it('slight-right diagonal (<65% horizontal) maps to front-right', () => {
+    // vx=50, vy=100 → speed=111.8, ratio=0.447 < 0.65
+    expect(velocityToDirectionKey(50, 100)).toEqual({ key: 'front-right', flip: false });
+  });
+
+  it('mostly-left diagonal (>65% horizontal) maps to left', () => {
+    // vx=-100, vy=50 → speed=111.8, ratio=0.894 ≥ 0.65
+    expect(velocityToDirectionKey(-100, 50)).toEqual({ key: 'left', flip: false });
+  });
+
+  it('slight-left diagonal (<65% horizontal) maps to front-left', () => {
+    // vx=-50, vy=100 → speed=111.8, ratio=0.447 < 0.65
+    expect(velocityToDirectionKey(-50, 100)).toEqual({ key: 'front-left', flip: false });
   });
 });

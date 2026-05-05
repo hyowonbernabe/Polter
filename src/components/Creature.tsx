@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { type WispState, SPRITE_CONFIG, STATE_GLOW, ALL_STATES } from '../lib/spriteConfig';
+import { type WispState, STATE_GLOW } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
 import CreatureContextMenu from './CreatureContextMenu';
@@ -122,70 +122,11 @@ export default function Creature({
   onWakeDone,
   onNodDone,
 }: CreatureProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const spritesRef = useRef<Map<WispState, HTMLImageElement>>(new Map());
-  const [spritesReady, setSpritesReady] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  const anim = useCreatureAnimation(state, physicsState, velocity, facing);
+  const { spritePath, flip } = useCreatureAnimation(state, physicsState, velocity, facing);
 
   useEffect(() => { ensureKeyframes(); }, []);
-
-  useEffect(() => {
-    let loaded = 0;
-    const total = ALL_STATES.length;
-    for (const s of ALL_STATES) {
-      const img = new Image();
-      img.onload = () => {
-        spritesRef.current.set(s, img);
-        loaded++;
-        if (loaded === total) setSpritesReady(true);
-      };
-      img.onerror = () => { loaded++; if (loaded === total) setSpritesReady(true); };
-      img.src = new URL(`../assets/sprites/${SPRITE_CONFIG[s].file}`, import.meta.url).href;
-    }
-  }, []);
-
-  // Draw canvas with horizontal flip support
-  useEffect(() => {
-    if (!spritesReady) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const { frameIndex, crossfadeProgress, prevState, currentState, flip } = anim;
-    const cfg = SPRITE_CONFIG[currentState];
-    const w = cfg.width;
-    const h = cfg.height;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-
-    if (flip) {
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-    }
-
-    if (prevState !== null && crossfadeProgress < 1) {
-      const prevImg = spritesRef.current.get(prevState);
-      if (prevImg) {
-        const prevCfg = SPRITE_CONFIG[prevState];
-        ctx.globalAlpha = 1 - crossfadeProgress;
-        ctx.drawImage(prevImg, 0, 0, prevCfg.width, prevCfg.height, 0, 0, w, h);
-      }
-    }
-
-    const curImg = spritesRef.current.get(currentState);
-    if (curImg) {
-      const srcX = frameIndex * w;
-      ctx.globalAlpha = crossfadeProgress;
-      ctx.drawImage(curImg, srcX, 0, w, h, 0, 0, w, h);
-    }
-
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  }, [anim, spritesReady]);
 
   useEffect(() => {
     if (!showReturning) return;
@@ -267,8 +208,6 @@ export default function Creature({
     'breathe 3s ease-in-out infinite';
 
   const effectiveOpacity = sleeping ? Math.min(opacity, 0.45) : opacity;
-  const cfg = SPRITE_CONFIG[state];
-  const scale = displaySize / cfg.width;
 
   return (
     <>
@@ -303,16 +242,19 @@ export default function Creature({
               animation: burnDistress ? 'tremble 0.15s ease-in-out infinite' : undefined,
             }}
           >
-            <canvas
-              ref={canvasRef}
-              width={cfg.width}
-              height={cfg.height}
+            <img
+              src={spritePath}
+              alt=""
+              draggable={false}
               style={{
+                width: displaySize,
+                height: displaySize,
                 imageRendering: 'pixelated',
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
+                transform: flip ? 'scaleX(-1)' : 'none',
+                transformOrigin: 'center center',
                 cursor: (physicsState === 'grabbed' || physicsState === 'tether_grab') ? 'grabbing' : 'grab',
                 display: 'block',
+                userSelect: 'none',
               }}
             />
             {showBestSession && (

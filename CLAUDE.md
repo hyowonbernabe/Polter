@@ -1,5 +1,11 @@
 # CLAUDE.md — Wisp
 
+## REQUIREMENT: Plain Language Always
+
+**This is non-negotiable.** Every explanation, plan, option, or decision you communicate to the user MUST be written in plain, everyday English. No jargon, no technical shorthand, no acronyms without explanation. Write as if you are explaining to a smart person who has never written code. If you catch yourself using a technical term, stop and replace it with a simple description of what it actually does. This applies to every single message — brainstorming, planning, code review, everything.
+
+---
+
 ## What Wisp Is
 
 Wisp is a passive Windows desktop companion. A pixel art creature (a winged ball) lives as a transparent always-on-top overlay. It silently monitors keyboard timing, mouse behavior, and system signals — never content, only patterns — builds a personal behavioral baseline over time, classifies the user's mental state using a rule-based engine, and occasionally surfaces AI-generated observations through chat bubbles. Everything runs locally. No account required.

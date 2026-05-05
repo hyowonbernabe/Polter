@@ -109,7 +109,13 @@ export function useCreaturePhysics(): PhysicsOutput {
   }
 
   function transitionTo(next: PhysicsState, lockMs = 0) {
-    stateRef.current = next;
+    if (stateRef.current !== next) {
+      stateRef.current = next;
+      setPhysicsStateR(next);
+    }
+    // Sync velocity and facing immediately so animation hook sees correct values
+    setVelocityR({ ...vel.current });
+    setFacingR(facingRef.current);
     if (lockMs > 0) lockedUntilRef.current = performance.now() + lockMs;
     scheduleReactSync();
   }
@@ -404,26 +410,29 @@ export function useCreaturePhysics(): PhysicsOutput {
       if (p.x < mb.x && isOuterEdge(mb, 'left')) {
         p.x = mb.x;
         v.x = Math.abs(v.x) * BOUNCE;
-        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+        if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
       if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
         p.x = mb.x + mb.width - sz;
         v.x = -Math.abs(v.x) * BOUNCE;
-        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+        if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
       if (p.y < mb.y && isOuterEdge(mb, 'top')) {
         p.y = mb.y;
         v.y = Math.abs(v.y) * BOUNCE;
-        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+        if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
       if (p.y + sz > mb.y + mb.height && isOuterEdge(mb, 'bottom')) {
         p.y = mb.y + mb.height - sz;
         v.y = -Math.abs(v.y) * BOUNCE;
         if (Math.abs(v.y) < 60) v.y = 0;
-        if (state === 'thrown' && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+        if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
       }
 
-      if (state === 'stunned'    && !locked) transitionTo('recovering', PHYSICS.RECOVER_DURATION_MS);
+      if (state === 'stunned' && !locked) {
+        v.y = -600; // upward impulse — produces the recovery swoop arc
+        transitionTo('recovering', PHYSICS.RECOVER_DURATION_MS);
+      }
       if (state === 'recovering' && !locked) transitionTo('wander');
       if (state === 'thrown'     && !locked && magnitude(v) < PHYSICS.FLIGHT_RESUME) transitionTo('wander');
 
