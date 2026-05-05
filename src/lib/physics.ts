@@ -3,24 +3,29 @@ import type { WispState } from './spriteConfig';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type PhysicsState =
-  | 'wander'       // Default autonomous simplex-noise flight
-  | 'fly_idle'     // Intentional stationary hover, wings beating in place
-  | 'glide'        // Coast phase within wander — speed bleeds off
-  | 'burst'        // Short acceleration surge
-  | 'hover'        // Physics-driven near-zero speed, nose-pitched up
-  | 'evade'        // Erratic jinks triggered by fast cursor
-  | 'approach'     // Descending arc toward landing surface
-  | 'land_impact'  // Contact frame — plays squash, transitions to perching
-  | 'perching'     // On a surface
-  | 'relaunch'     // Explosive departure from perch
-  | 'grabbed'      // (unused) legacy — replaced by tether_grab
-  | 'tether_grab'  // User holding — spring tether pulls creature toward cursor
-  | 'thrown'       // Released with velocity — carries momentum
-  | 'stunned'      // Hit wall hard — tumbles/falls
-  | 'recovering'   // Regaining flight after stun
-  | 'click_react'  // Startled by click — impulse away from click origin
-  | 'bubble_ack'   // Acknowledging bubble dismiss — small nod
-  | 'dialogue';    // Bubble is visible — forward-facing sprite, slows to fly_idle
+  | 'wander'           // Default autonomous simplex-noise flight
+  | 'fly_idle'         // Intentional stationary hover, wings beating in place
+  | 'glide'            // Coast phase within wander — speed bleeds off
+  | 'burst'            // Short acceleration surge
+  | 'hover'            // Physics-driven near-zero speed, nose-pitched up
+  | 'evade'            // Erratic jinks triggered by fast cursor
+  | 'approach'         // Descending arc toward landing surface
+  | 'land_impact'      // Contact frame — plays squash, transitions to perching
+  | 'perching'         // On a surface
+  | 'relaunch'         // Explosive departure from perch
+  | 'grabbed'          // (unused) legacy — replaced by tether_grab
+  | 'tether_grab'      // User holding — spring tether pulls creature toward cursor
+  | 'thrown'           // Released with velocity — carries momentum
+  | 'stunned'          // Hit wall hard — tumbles/falls
+  | 'recovering'       // Regaining flight after stun
+  | 'click_react'      // Startled by click — impulse away from click origin
+  | 'bubble_ack'       // Acknowledging bubble dismiss — small nod
+  | 'dialogue'         // Bubble is visible — forward-facing sprite, slows to fly_idle
+  | 'goal_thinking'    // Decided to go somewhere — pauses briefly with thinking bubble
+  | 'goal_travel'      // Steering toward chosen destination at elevated speed
+  | 'goal_arrived'     // Reached destination — plays a fun sprite action
+  | 'goal_interrupted' // Grab during goal — spring follows cursor, shows "forgot" bubble briefly
+  | 'flee';            // Fullscreen exclusive detected — startled then exits to adjacent monitor
 
 export type PerchSurface = 'bottom' | 'top' | 'left' | 'right';
 
@@ -92,6 +97,26 @@ export const PHYSICS = {
   CLICK_REACT_DURATION_MS: 500,
   BUBBLE_ACK_DURATION_MS: 400,
   RELAUNCH_DURATION_MS: 300,
+
+  // Goal system
+  GOAL_INTERRUPTED_MS: 150,
+  GOAL_INTERVAL_MIN: 3 * 60_000,
+  GOAL_INTERVAL_MAX: 8 * 60_000,
+  GOAL_THINKING_MIN: 1_000,
+  GOAL_THINKING_MAX: 2_000,
+  GOAL_TRAVEL_SPEED_MULT: 1.5,
+  GOAL_TRAVEL_NOISE_STRENGTH: 0.3,
+  GOAL_ARRIVAL_RADIUS: 40,
+  GOAL_ARRIVE_MIN: 4_000,
+  GOAL_ARRIVE_MAX: 10_000,
+  GOAL_EDGE_MARGIN: 100,
+
+  // Flee
+  FLEE_STARTLE_MS: 400,
+  FLEE_SPEED: 400,
+
+  // Direction commitment
+  DIR_COMMIT_MS: 50,
 
   // Drag squish/stretch
   SQUISH_ON_GRAB_X: 0.8,

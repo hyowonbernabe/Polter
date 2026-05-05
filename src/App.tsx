@@ -200,12 +200,34 @@ export default function App() {
           </span>
         </div>
       ))}
+      {debugMode && (
+        <div style={{
+          position: 'fixed',
+          top: 6,
+          right: 8,
+          color: 'rgba(0, 255, 120, 0.9)',
+          fontSize: 10,
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          background: 'rgba(0,0,0,0.5)',
+          padding: '3px 6px',
+          borderRadius: 4,
+          lineHeight: 1.6,
+          whiteSpace: 'nowrap',
+        }}>
+          <div>state: {physics.physicsState}</div>
+          <div>dir: {physics.committedDir} | vel: {Math.round(physics.velocity.x)},{Math.round(physics.velocity.y)}</div>
+        </div>
+      )}
       <Creature
         displaySize={displaySize}
         state={wispState}
         physicsState={physics.physicsState}
         velocity={physics.velocity}
         facing={physics.facing}
+        committedDir={physics.committedDir}
+        thinkingText={physics.thinkingText}
         dragSquish={physics.dragSquish}
         coldStart={coldStart}
         opacity={idleOpacity}
