@@ -8,6 +8,7 @@ interface LivePulseProps {
   justUpdated: boolean;
   inferenceActiveSecs: number;
   inferenceLastError: string | null;
+  apiKeyPresent: boolean;
 }
 
 interface CounterPillProps {
@@ -70,6 +71,7 @@ export default function LivePulse({
   justUpdated,
   inferenceActiveSecs,
   inferenceLastError,
+  apiKeyPresent,
 }: LivePulseProps) {
   const barPct = Math.min((secondsUntilSnap / 60) * 100, 100);
 
@@ -188,7 +190,27 @@ export default function LivePulse({
           marginTop: 8,
         }}
       >
-        {inferenceActiveSecs < 300 ? (
+        {!apiKeyPresent ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "rgba(200,160,80,1)",
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 11, color: "rgba(200,160,80,0.85)" }}>
+                no API key
+              </span>
+            </div>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
+              add one in Settings
+            </span>
+          </>
+        ) : inferenceActiveSecs < 300 ? (
           <>
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
               warming up
@@ -210,12 +232,12 @@ export default function LivePulse({
                 }}
               />
               <span style={{ fontSize: 11, color: "rgba(200,160,80,0.85)" }}>
-                insight attempt failed
+                insight error
               </span>
             </div>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
-              {inferenceLastError.length > 30
-                ? inferenceLastError.slice(0, 30) + "…"
+              {inferenceLastError.length > 35
+                ? inferenceLastError.slice(0, 35) + "…"
                 : inferenceLastError}
             </span>
           </>

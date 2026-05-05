@@ -78,7 +78,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
   const [bufferStats, setBufferStats] = useState({ keys: 0, clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null });
-  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0, inference_active_secs: 0, inference_last_error: null as string | null });
+  const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0, inference_active_secs: 0, inference_last_error: null as string | null, api_key_present: false });
   const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
   const [justUpdated, setJustUpdated] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,6 +134,15 @@ export default function Dashboard() {
     let unlisten: (() => void) | undefined;
     listen<{ state: string; cold_start: boolean }>("state_changed", () => {
       invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
+  // Refresh dashboard data immediately when an insight fires (keeps count + history live)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen("insight_ready", () => {
+      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
     }).then(fn => { unlisten = fn; });
     return () => { unlisten?.(); };
   }, []);
@@ -312,6 +321,7 @@ export default function Dashboard() {
               justUpdated={justUpdated}
               inferenceActiveSecs={liveStatus.inference_active_secs}
               inferenceLastError={liveStatus.inference_last_error}
+              apiKeyPresent={liveStatus.api_key_present}
             />
           </div>
 

@@ -17,16 +17,16 @@ pub fn classify_state(z: &SignalZScores, spark_duration_secs: u64) -> WispState 
     if z.typing_speed > 1.5 || (z.typing_speed > 1.0 && z.error_rate > 1.0) {
         return WispState::Spark;
     }
-    // Deep: one window held for a long time, low app switching
-    if z.single_window_hold > 1.0 && z.app_switch_rate < 0.0 && z.typing_speed.abs() < 1.5 {
+    // Deep: one window held for a while, low app switching (threshold lowered: ~3 min in same app)
+    if z.single_window_hold > 0.5 && z.app_switch_rate < 0.0 && z.typing_speed.abs() < 1.5 {
         return WispState::Deep;
     }
     // Fade: slower than normal AND making more errors (cognitive fatigue signal)
     if z.typing_speed < -0.5 && z.error_rate > 0.5 {
         return WispState::Fade;
     }
-    // Calm: generally slow, relaxed
-    if z.typing_speed < -0.5 && z.mouse_speed < 0.0 {
+    // Calm: below-average typing (reading, thinking, light work) — mouse speed not required
+    if z.typing_speed < -0.3 {
         return WispState::Calm;
     }
     WispState::Focus
