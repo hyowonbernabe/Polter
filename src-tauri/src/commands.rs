@@ -926,6 +926,8 @@ pub struct LiveStatus {
     pub last_snapshot_ms: Option<i64>,
     pub input_monitor_alive: bool,
     pub current_longest_focus_mins: i64,
+    pub inference_active_secs: u64,
+    pub inference_last_error: Option<String>,
 }
 
 #[tauri::command]
@@ -934,7 +936,13 @@ pub async fn get_live_status(
     session_id: tauri::State<'_, SessionId>,
     ring: tauri::State<'_, Arc<Mutex<crate::pipeline::ring_buffer::RingBuffer>>>,
     summary_acc: tauri::State<'_, Arc<Mutex<crate::classifier::daily_summary::DailySummaryAccumulator>>>,
+    inference_engine: tauri::State<'_, Arc<Mutex<crate::inference::InferenceEngine>>>,
 ) -> Result<LiveStatus, String> {
+    let (inference_active_secs, inference_last_error) = {
+        let eng = inference_engine.lock().unwrap();
+        (eng.session_active_secs, eng.last_error.clone())
+    };
+
     let sid = *session_id.lock().unwrap();
     let today_ms = today_start_ms();
 
@@ -971,6 +979,8 @@ pub async fn get_live_status(
         last_snapshot_ms: last_snap.map(|r| r.0),
         input_monitor_alive,
         current_longest_focus_mins,
+        inference_active_secs,
+        inference_last_error,
     })
 }
 

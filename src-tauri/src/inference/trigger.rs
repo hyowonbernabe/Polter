@@ -23,6 +23,7 @@ pub struct InferenceEngine {
     pub last_inference_ms: u64,
     pub state_committed_ms: u64,
     pub session_active_secs: u64,
+    pub last_error: Option<String>,
 }
 
 impl InferenceEngine {
@@ -31,6 +32,7 @@ impl InferenceEngine {
             last_inference_ms: 0,
             state_committed_ms: 0,
             session_active_secs: 0,
+            last_error: None,
         }
     }
 
@@ -171,8 +173,10 @@ pub async fn maybe_trigger<R: tauri::Runtime>(
     match openrouter::call_openrouter(&api_key, system, &user).await {
         Err(e) => {
             tracing::warn!("[inference] call failed: {e}");
+            engine.lock().unwrap().last_error = Some(e);
         }
         Ok(insight) => {
+            engine.lock().unwrap().last_error = None;
             // Post-call dedup: anomaly type is never suppressed
             let dedup_count =
                 queries::get_dedup_count_48h(pools.read.as_ref(), &insight.insight_type, now_ms)

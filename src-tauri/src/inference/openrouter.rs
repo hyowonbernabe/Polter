@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-pub const DEFAULT_MODEL: &str = "google/gemini-flash-1.5";
+pub const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite-preview";
 const TIMEOUT_SECS: u64 = 10;
 
 const VALID_STATES: &[&str] = &["focus", "calm", "deep", "spark", "burn", "fade", "rest"];
