@@ -1,5 +1,6 @@
 # Rust
 target/
+target_test/
 Cargo.lock
 
 # Node / React
