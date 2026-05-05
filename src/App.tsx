@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import Creature from "./components/Creature";
 import InsightBubble from "./components/InsightBubble";
+import MutterBubble from "./components/MutterBubble";
 import { getBubblePosition } from "./lib/bubblePosition";
 import { usePreInsightGlow } from "./hooks/usePreInsightGlow";
 import { useInsightQueue } from "./hooks/useInsightQueue";
@@ -25,6 +26,7 @@ interface SleepChangedPayload {
 }
 
 export interface InsightPayload {
+  tier: string;
   state: string;
   insight: string;
   extended: string;
@@ -48,6 +50,7 @@ export default function App() {
   const [creatureScale, setCreatureScale] = useState<number>(1.0);
   const [idleFloor, setIdleFloor] = useState(0.35);
   const [debugMode, setDebugMode] = useState(false);
+  const [activeMutter, setActiveMutter] = useState<string | null>(null);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -138,8 +141,12 @@ export default function App() {
     });
     const unlistenWake = listen("wake_animation", () => setShowWake(true));
     const unlistenInsight = listen<InsightPayload>("insight_ready", (event) => {
-      console.log("[wisp] insight received:", event.payload.type);
-      enqueue({ ...event.payload, receivedAt: Date.now() });
+      if (event.payload.tier === 'mutter') {
+        setActiveMutter(event.payload.insight);
+      } else {
+        console.log("[wisp] insight received:", event.payload.type);
+        enqueue({ ...event.payload, receivedAt: Date.now() });
+      }
     });
     return () => {
       unlistenReady.then((f) => f());
@@ -253,6 +260,18 @@ export default function App() {
         onWakeDone={() => setShowWake(false)}
         onNodDone={() => setShowNod(false)}
       />
+      {activeMutter && (() => {
+        const cp = getCreaturePos();
+        return (
+          <MutterBubble
+            key={activeMutter}
+            text={activeMutter}
+            x={cp.x}
+            y={cp.y - 40}
+            onDismiss={() => setActiveMutter(null)}
+          />
+        );
+      })()}
       {activeInsight && preInsightPhase === 3 && (() => {
         const cp = getCreaturePos();
         const bp = getBubblePosition(

@@ -21,6 +21,11 @@ pub struct InsightResponse {
     pub insight_type: String,
 }
 
+pub enum VoiceResponse {
+    Insight(InsightResponse),
+    Mutter(String),
+}
+
 #[derive(Deserialize)]
 struct ChatResponse {
     choices: Vec<Choice>,
@@ -38,7 +43,6 @@ struct MessageContent {
 
 fn extract_json(content: &str) -> &str {
     let s = content.trim();
-    // Strip ```json ... ``` or ``` ... ``` wrapper
     let inner = if let Some(rest) = s.strip_prefix("```json") {
         rest
     } else if let Some(rest) = s.strip_prefix("```") {
@@ -53,7 +57,7 @@ pub async fn call_openrouter(
     api_key: &str,
     system_prompt: &str,
     user_message: &str,
-) -> Result<InsightResponse, String> {
+) -> Result<VoiceResponse, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
         .build()
@@ -95,19 +99,37 @@ pub async fn call_openrouter(
         .message
         .content;
 
-    let insight: InsightResponse =
+    let raw: serde_json::Value =
         serde_json::from_str(extract_json(&content)).map_err(|e| format!("parse error: {e}"))?;
 
-    // Strict schema should catch these, but defend at runtime too
-    if !VALID_STATES.contains(&insight.state.as_str()) {
-        return Err(format!("unknown state: {}", insight.state));
-    }
-    if !VALID_TYPES.contains(&insight.insight_type.as_str()) {
-        return Err(format!("unknown insight type: {}", insight.insight_type));
-    }
-    if insight.insight.is_empty() || insight.extended.is_empty() {
-        return Err("incomplete insight response".to_string());
-    }
+    let tier = raw
+        .get("tier")
+        .and_then(|t| t.as_str())
+        .ok_or_else(|| "missing tier field".to_string())?;
 
-    Ok(insight)
+    match tier {
+        "mutter" => {
+            let text = raw
+                .get("insight")
+                .and_then(|i| i.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| "mutter missing insight".to_string())?;
+            Ok(VoiceResponse::Mutter(text.to_string()))
+        }
+        "insight" => {
+            let insight: InsightResponse =
+                serde_json::from_value(raw).map_err(|e| format!("insight parse error: {e}"))?;
+            if !VALID_STATES.contains(&insight.state.as_str()) {
+                return Err(format!("unknown state: {}", insight.state));
+            }
+            if !VALID_TYPES.contains(&insight.insight_type.as_str()) {
+                return Err(format!("unknown insight type: {}", insight.insight_type));
+            }
+            if insight.insight.is_empty() || insight.extended.is_empty() {
+                return Err("incomplete insight response".to_string());
+            }
+            Ok(VoiceResponse::Insight(insight))
+        }
+        other => Err(format!("unknown tier: {other}")),
+    }
 }

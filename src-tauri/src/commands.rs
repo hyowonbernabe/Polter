@@ -519,6 +519,7 @@ fn today_date_str() -> String {
 #[tauri::command]
 pub async fn get_dashboard_data(
     pools: tauri::State<'_, DbPools>,
+    summary_acc: tauri::State<'_, Arc<Mutex<DailySummaryAccumulator>>>,
 ) -> Result<DashboardData, String> {
     use crate::storage::queries::{
         get_best_day_this_week_minutes, get_daily_insight_count, get_daily_summary,
@@ -545,7 +546,7 @@ pub async fn get_dashboard_data(
         .await
         .map_err(|e| e.to_string())?;
 
-    let days = get_last_7_daily_summaries(pools.read.as_ref())
+    let mut days: Vec<DashboardDaySummary> = get_last_7_daily_summaries(pools.read.as_ref())
         .await
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -574,6 +575,44 @@ pub async fn get_dashboard_data(
             insight_type: r.insight_type,
         })
         .collect();
+
+    // Inject live today data from the in-memory accumulator into the days array.
+    // daily_summaries is only written on session END, so an ongoing session would be absent.
+    {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let (_, live_focus, live_calm, live_deep, live_spark, live_burn, live_fade, _, _) = {
+            summary_acc.lock().unwrap().peek_params(now_ms)
+        };
+
+        let today_pos = days.iter().position(|d| d.date == today_str);
+        if let Some(i) = today_pos {
+            // Session already ended once today and wrote a DB row — add current session on top.
+            days[i].focus_minutes += live_focus;
+            days[i].calm_minutes  += live_calm;
+            days[i].deep_minutes  += live_deep;
+            days[i].spark_minutes += live_spark;
+            days[i].burn_minutes  += live_burn;
+            days[i].fade_minutes  += live_fade;
+            days[i].total_active_minutes = today_active_minutes;
+        } else {
+            // First session of the day hasn't ended yet — synthesize today's row.
+            days.push(DashboardDaySummary {
+                date:                 today_str.clone(),
+                focus_minutes:        live_focus,
+                calm_minutes:         live_calm,
+                deep_minutes:         live_deep,
+                spark_minutes:        live_spark,
+                burn_minutes:         live_burn,
+                fade_minutes:         live_fade,
+                total_active_minutes: today_active_minutes,
+            });
+            days.sort_by(|a, b| b.date.cmp(&a.date));
+            days.truncate(7);
+        }
+    }
 
     let longest_focus_ever_minutes = get_longest_focus_block_ms(pools.read.as_ref())
         .await
@@ -843,6 +882,7 @@ pub fn complete_onboarding(
         let _ = handle.emit(
             "insight_ready",
             crate::inference::trigger::InsightReadyPayload {
+                tier: "insight".to_string(),
                 state: "rest".to_string(),
                 insight: "give me a few days. i'll tell you something when i know something.".to_string(),
                 extended: "Wisp is quietly learning your patterns. Check back soon.".to_string(),
@@ -928,6 +968,7 @@ pub struct LiveStatus {
     pub current_longest_focus_mins: i64,
     pub inference_active_secs: u64,
     pub inference_last_error: Option<String>,
+    pub api_key_present: bool,
 }
 
 #[tauri::command]
@@ -981,6 +1022,7 @@ pub async fn get_live_status(
         current_longest_focus_mins,
         inference_active_secs,
         inference_last_error,
+        api_key_present: settings::has_api_key(),
     })
 }
 
