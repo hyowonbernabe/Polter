@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Rect {
@@ -16,31 +16,105 @@ pub fn point_in_rect(px: f64, py: f64, r: &Rect) -> bool {
 }
 
 /// Polls cursor position at ~60fps and toggles click-through on the main window.
-/// Captures events when the cursor is inside the creature bounds OR inside the
-/// bubble bounds (when a bubble is showing). Passes through otherwise.
-/// When `drag_active` is set, the window stays fully interactive regardless of
-/// cursor position — this prevents pointer-up from being lost during fast drags.
+/// Also detects fullscreen exclusive windows and emits `wisp://fullscreen-detected`
+/// once per transition (rising edge only, not every frame).
 pub fn start<R: Runtime>(
     app: AppHandle<R>,
     creature_bounds: Arc<Mutex<Rect>>,
     bubble_bounds: Arc<Mutex<Option<Rect>>>,
     drag_active: Arc<AtomicBool>,
 ) {
-    std::thread::spawn(move || loop {
-        let inside = if drag_active.load(Ordering::Relaxed) {
-            true
-        } else {
-            let (cx, cy) = cursor_pos_screen();
-            let cb = creature_bounds.lock().unwrap();
-            let bb = bubble_bounds.lock().unwrap();
-            point_in_rect(cx, cy, &*cb)
-                || bb.as_ref().map_or(false, |r| point_in_rect(cx, cy, r))
-        };
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_ignore_cursor_events(!inside);
+    std::thread::spawn(move || {
+        let mut was_fullscreen = false;
+
+        loop {
+            let inside = if drag_active.load(Ordering::Relaxed) {
+                true
+            } else {
+                let (cx, cy) = cursor_pos_screen();
+                let cb = creature_bounds.lock().unwrap();
+                let bb = bubble_bounds.lock().unwrap();
+                point_in_rect(cx, cy, &*cb)
+                    || bb.as_ref().map_or(false, |r| point_in_rect(cx, cy, r))
+            };
+
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_ignore_cursor_events(!inside);
+            }
+
+            // Detect fullscreen exclusive — emit only on the rising edge
+            let now_fullscreen = is_fullscreen_exclusive();
+            if now_fullscreen && !was_fullscreen {
+                let _ = app.emit("wisp://fullscreen-detected", ());
+            }
+            was_fullscreen = now_fullscreen;
+
+            std::thread::sleep(Duration::from_millis(16));
         }
-        std::thread::sleep(Duration::from_millis(16));
     });
+}
+
+/// Returns true if there is a non-Wisp popup window covering an entire monitor completely.
+/// This is the signature of fullscreen exclusive mode used by games and media players.
+#[cfg(target_os = "windows")]
+fn is_fullscreen_exclusive() -> bool {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Gdi::{
+        GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    };
+    use windows::Win32::System::Threading::GetCurrentProcessId;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GWL_STYLE, WS_CAPTION, WS_POPUP,
+        GetForegroundWindow, GetWindowLongW, GetWindowRect, GetWindowThreadProcessId,
+    };
+
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return false;
+        }
+
+        // Exclude our own process so Wisp never triggers its own flee
+        let mut win_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut win_pid));
+        if win_pid == GetCurrentProcessId() {
+            return false;
+        }
+
+        // Must be a borderless popup (no title bar) — typical for fullscreen games
+        let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+        if (style & WS_POPUP.0) == 0 || (style & WS_CAPTION.0) != 0 {
+            return false;
+        }
+
+        // Get window bounds and compare against full monitor rect (includes taskbar)
+        let mut win_rect = RECT::default();
+        let _ = GetWindowRect(hwnd, &mut win_rect);
+        // If rect is all zeros the call failed — no match possible
+        if win_rect.right == 0 && win_rect.bottom == 0 {
+            return false;
+        }
+
+        let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if !GetMonitorInfoW(hmonitor, &mut info).as_bool() {
+            return false;
+        }
+
+        let mr = info.rcMonitor;
+        win_rect.left == mr.left
+            && win_rect.top == mr.top
+            && win_rect.right == mr.right
+            && win_rect.bottom == mr.bottom
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_fullscreen_exclusive() -> bool {
+    false
 }
 
 #[cfg(target_os = "windows")]

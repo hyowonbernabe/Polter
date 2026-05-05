@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createNoise2D } from 'simplex-noise';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { Store } from '@tauri-apps/plugin-store';
 import {
   PHYSICS, MOOD_MODIFIERS,
@@ -25,6 +26,8 @@ export interface PhysicsOutput {
   workArea: WorkArea;
   monitors: MonitorInfo[];
   spriteSize: number;
+  committedDir: number;
+  thinkingText: string;
   setWispState: (s: WispState) => void;
   setDialogue: (visible: boolean) => void;
   notifyBubbleClick: () => void;
@@ -45,6 +48,8 @@ export function useCreaturePhysics(): PhysicsOutput {
   const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [spriteSize, setSpriteSizeR] = useState<number>(() => spriteDisplaySize());
+  const [committedDir, setCommittedDirR] = useState<number>(0);
+  const [thinkingText, setThinkingTextR] = useState<string>('');
 
   // ── Physics refs — mutated in rAF, never trigger renders ─────────────────────
   const pos = useRef<Vec2>({ x: 200, y: 200 });
@@ -69,6 +74,22 @@ export function useCreaturePhysics(): PhysicsOutput {
   const lockedUntilRef = useRef<number>(0);
   const perchSurfaceRef = useRef<PerchSurface>('bottom');
   const dialogueActiveRef = useRef<boolean>(false);
+
+  // Direction tracking (computed in tick, committed after 120ms of stability)
+  const dirLastIdealRef = useRef<number>(0);
+  const dirHoldMsRef    = useRef<number>(0);
+  const committedDirRef = useRef<number>(0);
+
+  // Goal system
+  const goalTimerRef     = useRef<number>(randBetween(PHYSICS.GOAL_INTERVAL_MIN, PHYSICS.GOAL_INTERVAL_MAX));
+  const goalDestRef      = useRef<Vec2 | null>(null);
+  const goalThinkEndRef  = useRef<number>(0);
+  const goalArriveEndRef = useRef<number>(0);
+
+  // Flee
+  const fleeStartRef   = useRef<number>(0);
+  const fleePhaseRef   = useRef<'startled' | 'fleeing'>('startled');
+  const fleeTargetRef  = useRef<WorkArea | null>(null);
 
   // Cursor
   const cursorPosRef = useRef<Vec2>({ x: 0, y: 0 });
@@ -112,6 +133,10 @@ export function useCreaturePhysics(): PhysicsOutput {
     if (stateRef.current !== next) {
       stateRef.current = next;
       setPhysicsStateR(next);
+      if (next === 'goal_thinking') setThinkingTextR('hmm...');
+      else if (next === 'goal_travel') setThinkingTextR('heading over there...');
+      else if (next === 'goal_interrupted') setThinkingTextR('...forgot what I was doing');
+      else if (next !== 'goal_arrived') setThinkingTextR('');
     }
     // Sync velocity and facing immediately so animation hook sees correct values
     setVelocityR({ ...vel.current });
@@ -127,6 +152,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       setPhysicsStateR(stateRef.current);
       setFacingR(facingRef.current);
       setVelocityR({ ...vel.current });
+      setCommittedDirR(committedDirRef.current);
     }, 80);
   }
 
@@ -215,6 +241,28 @@ export function useCreaturePhysics(): PhysicsOutput {
     })();
     const maxSpeed = PHYSICS.MAX_SPEED * mood.speedMult;
     const noiseFreq = PHYSICS.NOISE_FREQ * mood.freqMult;
+
+    // ── Goal timer — ticks during all calm states ─────────────────────────────
+    // Kept outside the per-state blocks so fly_idle doesn't freeze the timer.
+    const isCalmState = state === 'wander' || state === 'glide' || state === 'burst' || state === 'fly_idle';
+    if (isCalmState) {
+      goalTimerRef.current -= dt * 1000;
+      if (!locked && goalTimerRef.current <= 0) {
+        const margin = PHYSICS.GOAL_EDGE_MARGIN;
+        const safeW = mb.width  - margin * 2 - sz;
+        const safeH = mb.height - margin * 2 - sz;
+        if (safeW > 0 && safeH > 0) {
+          goalDestRef.current = {
+            x: mb.x + margin + Math.random() * safeW,
+            y: mb.y + margin + Math.random() * safeH,
+          };
+          goalThinkEndRef.current = now + randBetween(PHYSICS.GOAL_THINKING_MIN, PHYSICS.GOAL_THINKING_MAX);
+          transitionTo('goal_thinking');
+        } else {
+          goalTimerRef.current = randBetween(PHYSICS.GOAL_INTERVAL_MIN, PHYSICS.GOAL_INTERVAL_MAX);
+        }
+      }
+    }
 
     // ── Per-state logic ───────────────────────────────────────────────────────
 
@@ -464,6 +512,148 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
     }
 
+    else if (state === 'goal_thinking') {
+      v.x *= Math.pow(0.8, dt);
+      v.y *= Math.pow(0.8, dt);
+      if (!locked && now >= goalThinkEndRef.current) {
+        transitionTo('goal_travel');
+      }
+    }
+
+    else if (state === 'goal_travel') {
+      const dest = goalDestRef.current;
+      if (!dest) { transitionTo('wander'); }
+      else {
+        const toDest = { x: dest.x - p.x, y: dest.y - p.y };
+        const distToDest = magnitude(toDest);
+        if (distToDest < PHYSICS.GOAL_ARRIVAL_RADIUS) {
+          goalArriveEndRef.current = now + randBetween(PHYSICS.GOAL_ARRIVE_MIN, PHYSICS.GOAL_ARRIVE_MAX);
+          goalDestRef.current = null;
+          transitionTo('goal_arrived');
+        } else {
+          const travelSpeed = maxSpeed * PHYSICS.GOAL_TRAVEL_SPEED_MULT;
+          const destNorm = normalize(toDest);
+          const steer = clampVec2(
+            { x: destNorm.x * travelSpeed - v.x, y: destNorm.y * travelSpeed - v.y },
+            PHYSICS.MAX_FORCE * PHYSICS.GOAL_TRAVEL_SPEED_MULT,
+          );
+          noiseT.current += dt * 1000;
+          const nx = noise2D.current(noiseT.current * noiseFreq, 0.7);
+          const ny = noise2D.current(0.7, noiseT.current * noiseFreq);
+          const noiseF = {
+            x: nx * PHYSICS.MAX_FORCE * PHYSICS.GOAL_TRAVEL_NOISE_STRENGTH,
+            y: ny * PHYSICS.MAX_FORCE * PHYSICS.GOAL_TRAVEL_NOISE_STRENGTH,
+          };
+          const margin = PHYSICS.EDGE_AVOID_MARGIN;
+          const edgeFx =
+            (isOuterEdge(mb, 'left')  && p.x - mb.x < margin            ? PHYSICS.EDGE_REPULSE * (1 - (p.x - mb.x) / margin) : 0) +
+            (isOuterEdge(mb, 'right') && (mb.x + mb.width) - (p.x + sz) < margin ? -PHYSICS.EDGE_REPULSE * (1 - ((mb.x + mb.width) - (p.x + sz)) / margin) : 0);
+          const edgeFy =
+            (isOuterEdge(mb, 'top')    && p.y - mb.y < margin             ? PHYSICS.EDGE_REPULSE * (1 - (p.y - mb.y) / margin) : 0) +
+            (isOuterEdge(mb, 'bottom') && (mb.y + mb.height) - (p.y + sz) < margin ? -PHYSICS.EDGE_REPULSE * (1 - ((mb.y + mb.height) - (p.y + sz)) / margin) : 0);
+          v.x += (steer.x + noiseF.x + edgeFx) * dt;
+          v.y += (steer.y + noiseF.y + edgeFy) * dt;
+          const clamped = clampVec2(v, travelSpeed);
+          v.x = clamped.x; v.y = clamped.y;
+          if (Math.abs(v.x) > 5) facingRef.current = v.x > 0 ? 'right' : 'left';
+        }
+      }
+    }
+
+    else if (state === 'goal_arrived') {
+      v.x *= Math.pow(0.8, dt);
+      v.y *= Math.pow(0.8, dt);
+      if (!locked && now >= goalArriveEndRef.current) {
+        goalTimerRef.current = randBetween(PHYSICS.GOAL_INTERVAL_MIN, PHYSICS.GOAL_INTERVAL_MAX);
+        transitionTo('wander');
+      }
+    }
+
+    else if (state === 'goal_interrupted') {
+      // Run tether spring so the creature follows the cursor immediately during the bubble delay
+      const target = {
+        x: cursorPosRef.current.x - dragOffsetRef.current.x,
+        y: cursorPosRef.current.y - dragOffsetRef.current.y,
+      };
+      const dx = target.x - p.x;
+      const dy = target.y - p.y;
+      v.x += (PHYSICS.TETHER_STIFFNESS * dx - PHYSICS.TETHER_DAMPING * v.x) * dt;
+      v.y += (PHYSICS.TETHER_STIFFNESS * dy - PHYSICS.TETHER_DAMPING * v.y) * dt;
+      const clampedV = clampVec2(v, PHYSICS.TETHER_MAX_SPEED);
+      v.x = clampedV.x; v.y = clampedV.y;
+      p.x += v.x * dt;
+      p.y += v.y * dt;
+      if (!locked) transitionTo('tether_grab');
+    }
+
+    else if (state === 'flee') {
+      if (fleePhaseRef.current === 'startled') {
+        v.x = 0; v.y = 0;
+        if (now - fleeStartRef.current >= PHYSICS.FLEE_STARTLE_MS) {
+          // Find the nearest adjacent monitor to flee to
+          const adjMon = monitorsRef.current.find(m => {
+            if (m.x === mb.x && m.y === mb.y) return false;
+            const TOL = 8;
+            return (
+              (Math.abs((m.x + m.width) - mb.x) <= TOL && m.y < mb.y + mb.height && m.y + m.height > mb.y) ||
+              (Math.abs(m.x - (mb.x + mb.width)) <= TOL && m.y < mb.y + mb.height && m.y + m.height > mb.y) ||
+              (Math.abs((m.y + m.height) - mb.y) <= TOL && m.x < mb.x + mb.width && m.x + m.width > mb.x) ||
+              (Math.abs(m.y - (mb.y + mb.height)) <= TOL && m.x < mb.x + mb.width && m.x + m.width > mb.x)
+            );
+          });
+          if (adjMon) {
+            const toTarget = normalize({
+              x: adjMon.x + adjMon.width / 2 - (p.x + sz / 2),
+              y: adjMon.y + adjMon.height / 2 - (p.y + sz / 2),
+            });
+            v.x = toTarget.x * PHYSICS.FLEE_SPEED;
+            v.y = toTarget.y * PHYSICS.FLEE_SPEED;
+            fleeTargetRef.current = adjMon;
+          } else {
+            // No adjacent monitor — flee to furthest corner of current monitor
+            const corners = [
+              { x: mb.x, y: mb.y },
+              { x: mb.x + mb.width - sz, y: mb.y },
+              { x: mb.x, y: mb.y + mb.height - sz },
+              { x: mb.x + mb.width - sz, y: mb.y + mb.height - sz },
+            ];
+            let farthest = corners[0];
+            let maxDist = 0;
+            for (const c of corners) {
+              const d = Math.abs(c.x - p.x) + Math.abs(c.y - p.y);
+              if (d > maxDist) { maxDist = d; farthest = c; }
+            }
+            const toCorner = normalize({ x: farthest.x - p.x, y: farthest.y - p.y });
+            v.x = toCorner.x * PHYSICS.FLEE_SPEED;
+            v.y = toCorner.y * PHYSICS.FLEE_SPEED;
+            fleeTargetRef.current = null;
+          }
+          fleePhaseRef.current = 'fleeing';
+        }
+      } else {
+        // Fleeing phase
+        const target = fleeTargetRef.current;
+        if (target) {
+          // Check if we've crossed into the target monitor
+          const inTarget = pcx >= target.x && pcx <= target.x + target.width &&
+                           pcy >= target.y && pcy <= target.y + target.height;
+          if (inTarget) {
+            transitionTo('wander');
+          }
+        } else {
+          // No adjacent monitor — slow down and perch
+          v.x *= Math.pow(0.85, dt);
+          v.y *= Math.pow(0.85, dt);
+          if (magnitude(v) < 10) {
+            perchSurfaceRef.current = 'bottom';
+            snapToSurface('bottom', sz, mb);
+            transitionTo('perching');
+          }
+        }
+        if (Math.abs(v.x) > 5) facingRef.current = v.x > 0 ? 'right' : 'left';
+      }
+    }
+
     else if (state === 'tether_grab') {
       const target = {
         x: cursorPosRef.current.x - dragOffsetRef.current.x,
@@ -484,10 +674,34 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
     }
 
+    // ── Direction tracking — runs every tick with fresh velocity ─────────────
+    // Commits a direction only after it has been stable for DIR_COMMIT_MS,
+    // preventing jitter when the creature briefly changes direction.
+    {
+      const spd = magnitude(v);
+      let ideal = 0;
+      if (spd >= 15) {
+        const ratio = Math.abs(v.x) / spd;
+        if (ratio >= 0.25) {
+          if (v.x > 0) ideal = ratio < 0.65 ? 1 : 2;
+          else          ideal = ratio < 0.65 ? 7 : 6;
+        }
+      }
+      if (ideal === dirLastIdealRef.current) {
+        dirHoldMsRef.current += dt * 1000;
+      } else {
+        dirLastIdealRef.current = ideal;
+        dirHoldMsRef.current = 0;
+      }
+      if (dirHoldMsRef.current >= PHYSICS.DIR_COMMIT_MS) {
+        committedDirRef.current = ideal;
+      }
+    }
+
     // ── Integrate position ────────────────────────────────────────────────────
 
-    // Ballistic and tether states handle their own position integration above
-    if (state !== 'perching' && state !== 'thrown' && state !== 'stunned' && state !== 'recovering' && state !== 'tether_grab') {
+    // Ballistic, tether, and goal_interrupted states handle their own position integration above
+    if (state !== 'perching' && state !== 'thrown' && state !== 'stunned' && state !== 'recovering' && state !== 'tether_grab' && state !== 'goal_interrupted') {
       p.x += v.x * dt;
       p.y += v.y * dt;
     }
@@ -495,7 +709,8 @@ export function useCreaturePhysics(): PhysicsOutput {
     // ── Hard wall collision — only at outer edges (flight states only) ───────────
 
     if (state !== 'perching' && state !== 'approach' &&
-        state !== 'thrown' && state !== 'stunned' && state !== 'recovering' && state !== 'tether_grab') {
+        state !== 'thrown' && state !== 'stunned' && state !== 'recovering' &&
+        state !== 'tether_grab' && state !== 'goal_interrupted' && state !== 'flee') {
       const speed = magnitude(v);
       if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
         p.x = mb.x + mb.width - sz;
@@ -606,6 +821,22 @@ export function useCreaturePhysics(): PhysicsOutput {
       }
     }
 
+    let unlistenFullscreen: (() => void) | null = null;
+    listen('wisp://fullscreen-detected', () => {
+      const cur = stateRef.current;
+      const calmStates: PhysicsState[] = [
+        'wander', 'glide', 'burst', 'fly_idle', 'hover',
+        'goal_thinking', 'goal_travel', 'goal_arrived',
+      ];
+      if (calmStates.includes(cur)) {
+        goalDestRef.current = null;
+        fleeStartRef.current = performance.now();
+        fleePhaseRef.current = 'startled';
+        fleeTargetRef.current = null;
+        transitionTo('flee');
+      }
+    }).then(unlisten => { unlistenFullscreen = unlisten; });
+
     init();
 
     function onPointerMove(e: PointerEvent) {
@@ -648,6 +879,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       window.removeEventListener('pointerup', onWindowPointerUp);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
+      unlistenFullscreen?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -698,12 +930,20 @@ export function useCreaturePhysics(): PhysicsOutput {
   }, []);
 
   const notifyDragStart = useCallback((clientX: number, clientY: number) => {
+    // Set up drag state first so goal_interrupted physics can read cursor position
     isDraggingRef.current = true;
     dragOffsetRef.current = { x: clientX - pos.current.x, y: clientY - pos.current.y };
     pointerHistoryRef.current = [];
-    // Keep window fully interactive for the entire drag so pointerup is never swallowed
     invoke('set_drag_active', { active: true }).catch(() => {});
-    transitionTo('tether_grab');
+
+    // If grabbed during a goal, pass through goal_interrupted briefly so the bubble shows
+    const cur = stateRef.current;
+    if (cur === 'goal_thinking' || cur === 'goal_travel') {
+      goalDestRef.current = null;
+      transitionTo('goal_interrupted', PHYSICS.GOAL_INTERRUPTED_MS);
+    } else {
+      transitionTo('tether_grab');
+    }
     setDragSquishR({ x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y });
     setTimeout(() => setDragSquishR({ x: 1, y: 1 }), 150);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -766,6 +1006,8 @@ export function useCreaturePhysics(): PhysicsOutput {
     workArea,
     monitors,
     spriteSize,
+    committedDir,
+    thinkingText,
     setWispState,
     setDialogue,
     notifyBubbleClick,

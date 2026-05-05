@@ -206,6 +206,8 @@ export default function App() {
         physicsState={physics.physicsState}
         velocity={physics.velocity}
         facing={physics.facing}
+        committedDir={physics.committedDir}
+        thinkingText={physics.thinkingText}
         dragSquish={physics.dragSquish}
         coldStart={coldStart}
         opacity={idleOpacity}

@@ -4,6 +4,7 @@ import { type WispState, STATE_GLOW } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
 import CreatureContextMenu from './CreatureContextMenu';
+import ThinkingBubble from './ThinkingBubble';
 
 interface CreatureProps {
   displaySize: number;
@@ -11,6 +12,8 @@ interface CreatureProps {
   physicsState: PhysicsState;
   velocity: Vec2;
   facing: FacingDirection;
+  committedDir: number;
+  thinkingText: string;
   dragSquish: Vec2;
   coldStart: boolean;
   opacity?: number;
@@ -97,6 +100,8 @@ export default function Creature({
   physicsState,
   velocity,
   facing,
+  committedDir,
+  thinkingText,
   dragSquish,
   coldStart,
   opacity = 1.0,
@@ -124,7 +129,7 @@ export default function Creature({
 }: CreatureProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  const { spritePath, flip } = useCreatureAnimation(state, physicsState, velocity, facing);
+  const { spritePath, flip } = useCreatureAnimation(state, physicsState, velocity, facing, committedDir);
 
   useEffect(() => { ensureKeyframes(); }, []);
 
@@ -221,6 +226,7 @@ export default function Creature({
         onContextMenu={handleContextMenu}
         onClick={handleClick}
       >
+        <ThinkingBubble text={thinkingText} creatureSize={displaySize} />
         {/* Visual / animation layer */}
         <div
           style={{
