@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { FilmGrain } from '@/components/ui/FilmGrain';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export const metadata: Metadata = {
   title: 'Polter',
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <LoadingScreen />
         {children}
         <FilmGrain />
       </body>
