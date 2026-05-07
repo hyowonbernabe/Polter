@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { type WispState, STATE_GLOW } from '../lib/spriteConfig';
+import { type PolterState, STATE_GLOW } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
 import CreatureContextMenu from './CreatureContextMenu';
@@ -22,7 +22,7 @@ export interface ActiveMutter {
 
 interface CreatureProps {
   displaySize: number;
-  state: WispState;
+  state: PolterState;
   physicsState: PhysicsState;
   velocity: Vec2;
   facing: FacingDirection;
@@ -57,9 +57,9 @@ interface CreatureProps {
 }
 
 function ensureKeyframes() {
-  if (document.getElementById('wisp-keyframes')) return;
+  if (document.getElementById('polter-keyframes')) return;
   const style = document.createElement('style');
-  style.id = 'wisp-keyframes';
+  style.id = 'polter-keyframes';
   style.textContent = `
     @keyframes breathe {
       0%, 100% { transform: scale(1.0); }
@@ -344,7 +344,7 @@ export default function Creature({
         <CreatureContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          wispState={state}
+          polterState={state}
           sleeping={sleeping ?? false}
           bubbleVisible={bubbleVisible}
           onClose={closeContextMenu}

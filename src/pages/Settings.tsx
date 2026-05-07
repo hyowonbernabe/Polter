@@ -72,16 +72,16 @@ export default function Settings() {
       pointerEvents: "none",
     }}>
       <style>{`
-        .wisp-scroll::-webkit-scrollbar { width: 4px; }
-        .wisp-scroll::-webkit-scrollbar-track { background: transparent; }
-        .wisp-scroll::-webkit-scrollbar-thumb {
+        .polter-scroll::-webkit-scrollbar { width: 4px; }
+        .polter-scroll::-webkit-scrollbar-track { background: transparent; }
+        .polter-scroll::-webkit-scrollbar-thumb {
           background: rgba(255,255,255,0.12);
           border-radius: 99px;
         }
-        .wisp-scroll::-webkit-scrollbar-thumb:hover {
+        .polter-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.22);
         }
-        .wisp-btn:hover { background: rgba(255,255,255,0.12) !important; }
+        .polter-btn:hover { background: rgba(255,255,255,0.12) !important; }
         input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.12); }
         input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }
       `}</style>
@@ -116,7 +116,7 @@ export default function Settings() {
             <InferenceBadge />
           </div>
           <button
-            className="wisp-btn"
+            className="polter-btn"
             onClick={handleClose}
             title="Close"
             style={{
@@ -143,7 +143,7 @@ export default function Settings() {
 
         {/* Scrollable body */}
         <div
-          className="wisp-scroll"
+          className="polter-scroll"
           style={{ overflowY: "auto", overflowX: "hidden", flex: 1, minHeight: 0 }}
         >
           <SettingsSection title="AI & Inference">
@@ -179,7 +179,7 @@ export default function Settings() {
               <div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.70)" }}>Instant privacy shortcut</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
-                  A configurable global key to pause Wisp instantly
+                  A configurable global key to pause Polter instantly
                 </div>
               </div>
               <div style={{

@@ -8,7 +8,7 @@ import ActivityChart from "../components/dashboard/ActivityChart";
 import StateDistribution from "../components/dashboard/StateDistribution";
 import PersonalBests from "../components/dashboard/PersonalBests";
 import InsightHistory from "../components/dashboard/InsightHistory";
-import WhatWispKnows from "../components/dashboard/WhatWispKnows";
+import WhatPolterKnows from "../components/dashboard/WhatPolterKnows";
 import DashboardDivider from "../components/dashboard/DashboardDivider";
 import LiveMetrics from "../components/dashboard/LiveMetrics";
 import LivePulse from "../components/dashboard/LivePulse";
@@ -226,16 +226,16 @@ export default function Dashboard() {
       }}
     >
       <style>{`
-        .wisp-scroll::-webkit-scrollbar { width: 4px; }
-        .wisp-scroll::-webkit-scrollbar-track { background: transparent; }
-        .wisp-scroll::-webkit-scrollbar-thumb {
+        .polter-scroll::-webkit-scrollbar { width: 4px; }
+        .polter-scroll::-webkit-scrollbar-track { background: transparent; }
+        .polter-scroll::-webkit-scrollbar-thumb {
           background: rgba(255,255,255,0.12);
           border-radius: 99px;
         }
-        .wisp-scroll::-webkit-scrollbar-thumb:hover {
+        .polter-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.22);
         }
-        .wisp-close:hover { background: rgba(255,255,255,0.12) !important; }
+        .polter-close:hover { background: rgba(255,255,255,0.12) !important; }
         @keyframes snap-flash {
           0%   { box-shadow: 0 0 0 0 rgba(100,200,180,0.0); }
           20%  { box-shadow: 0 0 0 6px rgba(100,200,180,0.25); }
@@ -274,7 +274,7 @@ export default function Dashboard() {
             <StateHeader stateInfo={stateInfo} />
           </div>
           <button
-            className="wisp-close"
+            className="polter-close"
             onClick={() => invoke("open_settings").catch(console.error)}
             title="Settings"
             style={{
@@ -299,7 +299,7 @@ export default function Dashboard() {
             ⚙
           </button>
           <button
-            className="wisp-close"
+            className="polter-close"
             onClick={handleClose}
             title="Close"
             style={{
@@ -326,7 +326,7 @@ export default function Dashboard() {
 
         {/* Scrollable body — minHeight:0 lets the flex child honour the parent maxHeight */}
         <div
-          className="wisp-scroll"
+          className="polter-scroll"
           style={{ overflowY: "auto", overflowX: "hidden", flex: 1, minHeight: 0 }}
         >
           <div style={{ padding: "14px 20px" }}>
@@ -389,7 +389,7 @@ export default function Dashboard() {
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <WhatWispKnows data={mergedData} />
+            <WhatPolterKnows data={mergedData} />
           </div>
 
           <DashboardDivider />

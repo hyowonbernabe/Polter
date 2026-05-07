@@ -1,80 +1,175 @@
-# Wisp
+# Polter
 
-A passive desktop companion for Windows. A pixel art creature lives as a transparent overlay on your screen, silently watching how you work — not what you do, only how you do it. Over time it learns your patterns, reflects your current state through its appearance, and occasionally surfaces a quiet observation about your behavior.
+A quiet desktop companion that watches how you work and tells you what it sees.
 
-Everything runs on your machine. No account. No cloud. No content ever captured.
-
----
-
-## What it does
-
-Wisp monitors keyboard timing, mouse behavior, and system signals in the background. It builds a personal baseline of your normal work patterns and classifies your current mental state into one of seven moods — focus, calm, deep, spark, burn, fade, or rest. The creature's appearance reflects that state in real time.
-
-When Wisp has something worth saying — a pattern it has noticed, a signal that something has shifted — it speaks through a small chat bubble. It does this rarely and only when it is confident.
+Windows 10/11 · [BSL 1.1](LICENSE) · Everything stays on your machine
 
 ---
 
-## Status
-
-> Planning and design complete. Implementation has not started.
-
-| Group | Name | Status |
-|---|---|---|
-| 1 | Foundation | Not started |
-| 2 | Data Pipeline | Not started |
-| 3 | Baseline and State Machine | Not started |
-| 4 | Creature Comes Alive | Not started |
-| 5 | Core Controls | Not started |
-| 6 | AI Inference | Not started |
-| 7 | Chat Bubbles | Not started |
-| 8 | Dashboard | Not started |
-| 9 | Settings | Not started |
-| 10 | Onboarding | Not started |
-| 11 | Polish: Creature Interactions | Not started |
-
-See `docs/ROADMAP.md` for the full feature checklist.
+<p align="center">
+  <img src=".github/hero.gif" alt="Polter — a pixel ghost floating on your desktop" width="720" />
+</p>
 
 ---
 
-## Tech stack
+## What is Polter
 
-- **App shell:** Tauri 2 (Rust backend + React/TypeScript frontend)
-- **Input capture:** rdevin (Rust), runs in a separate child process
-- **System signals:** windows-rs
-- **AI inference:** OpenRouter → Ollama (local fallback)
-- **Storage:** SQLite
-- **Platform:** Windows (V1), macOS (V2)
+Polter is a small pixel ghost that lives on your Windows desktop as a transparent overlay. It watches how you work — keystroke rhythm, mouse behavior, focus patterns — and builds a personal model of your normal over time. When it notices something worth saying, it tells you through a chat bubble. One sentence. Maybe two.
 
----
+The ghost's mood mirrors yours. When you're focused, it's calm. When you're rushing, it gets restless. When you're exhausted, it droops. You understand how you're doing by looking at how it's doing.
 
-## Documentation
-
-All design and architecture decisions are documented in `docs/`.
-
-| File | Contents |
-|---|---|
-| `docs/IDEA.md` | What Wisp is and why it exists |
-| `docs/ARCHITECTURE.md` | Every architectural decision — source of truth |
-| `docs/FEATURES.md` | Full feature list with phase markers |
-| `docs/TECHSTACK.md` | Technology choices and rationale |
-| `docs/DATA.md` | Signal definitions and privacy tiers |
-| `docs/ROADMAP.md` | Build order and progress tracker |
-| `docs/OPENQUESTIONS.md` | Unresolved decisions |
+No account. No cloud. No content ever captured.
 
 ---
 
-## Getting started
+## What Polter sees
 
-> Prerequisites and build instructions will be added once the project is scaffolded (Group 1).
+- Keystroke timing and rhythm — not which keys
+- Mouse speed, path, jitter, and idle gaps
+- Which app is active and for how long
+- Window and tab count
+- Save frequency, undo rate, deletion ratio
+- Notification response speed
+- System state: battery, brightness, audio device
+- Session timing, breaks, and work patterns
+
+## What Polter never sees
+
+- ~~The words you type~~
+- ~~Passwords or sensitive input~~
+- ~~Websites you visit or tab contents~~
+- ~~File names, paths, or document contents~~
+- ~~Emails, messages, or conversations~~
+- ~~Anything sent to a server or third party~~
+
+---
+
+## How it works
+
+**1. Install it.** Download Polter. A small ghost appears on your desktop.
+
+**2. Forget about it.** Polter watches your patterns silently. Keystroke timing, mouse rhythm, app switching. Never content.
+
+**3. It notices.** When Polter sees something worth saying, it tells you. A sentence about your focus pattern, a note about your afternoon slump, a comparison to last Tuesday.
+
+---
+
+## Download
+
+Download the latest `-setup.exe` from [GitHub Releases](https://github.com/hyowonbernabe/Polter/releases/latest).
+
+Run it. Standard Windows installer — next, next, done. Polter appears in your system tray and a small ghost shows up on your desktop.
+
+An `.msi` installer is also available on the releases page for IT/enterprise deployment.
+
+---
+
+## AI setup (optional)
+
+Polter needs an AI model to turn your behavioral patterns into written observations. Without one, the ghost still reflects your state — it just won't speak.
+
+**Cloud (recommended for now):**
+1. Get a free API key from [OpenRouter](https://openrouter.ai/keys)
+2. Paste it during onboarding, or later in Settings
+3. Polter sends a short plain-language behavioral description per insight — never raw data, never content
+
+**Local (coming soon):**
+Ollama support is on the roadmap. Fully private, nothing leaves your device.
+
+**No AI at all:**
+Skip the key entirely. The ghost still tracks your state, changes mood, and populates the dashboard. It just won't generate insight bubbles.
+
+---
+
+<details>
+<summary><strong>Building from source</strong></summary>
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (latest stable)
+- [Node.js](https://nodejs.org/) 20+
+- Tauri CLI: `cargo install tauri-cli`
+
+### Development
+
+```bash
+npm install
+npm run tauri dev
+```
+
+### Production build
+
+```bash
+npm run tauri build
+```
+
+This produces both a `-setup.exe` (NSIS) and `.msi` installer in `src-tauri/target/release/bundle/`.
+
+</details>
+
+---
+
+## Uninstall
+
+Remove Polter from **Settings > Apps** (or Add/Remove Programs). To delete all stored data, remove the folder at `%APPDATA%\Polter\`. Your API key is stored in Windows Credential Manager — search "Credential Manager" in Start, look under Generic Credentials for Polter, and remove it.
 
 ---
 
 ## Privacy
 
-Wisp captures keystroke timing and mouse movement patterns only — never which keys were pressed, never any text content. Raw events are aggregated in memory and discarded. Nothing leaves your device unless you provide an OpenRouter API key, in which case only abstract behavioral descriptions are sent (e.g. "typing speed 35% above baseline") — never raw data, never content.
+Polter captures timing and behavioral metadata only. It never records which keys you press, what's on your screen, or the content of anything you do. Raw input events are aggregated in memory every 60 seconds and then thrown away. Only the computed rhythm is stored.
+
+Everything stays in `%APPDATA%\Polter\` on your machine. The one exception: if you set up an OpenRouter API key, Polter sends a short plain-text behavioral description (like "typing speed 35% above your normal pace") to generate insight text. No raw data, no content, no personal identifiers are included.
+
+You can delete all collected data from Settings at any time. For the full breakdown of every signal and how it's handled, see [docs/DATA.md](docs/DATA.md).
+
+---
+
+## Status
+
+Most of the core product is built. Here's where things stand:
+
+| Group | What | Status |
+|---|---|---|
+| Foundation | Window, tray, single instance, click-through | Done |
+| Data pipeline | Sensors, ring buffer, aggregation, SQLite | Done (2 minor sensors deferred) |
+| Baseline and state machine | EMA baseline, 7-state classifier, anomaly detection | Done |
+| Creature | All 7 mood sprites, physics, throw, glow, idle behavior | Done |
+| Controls | Sleep mode, privacy mode, auto-sleep schedule | Done |
+| AI inference | OpenRouter integration, prompt construction, response handling | Done (Ollama deferred) |
+| Chat bubbles | Bubble UI, positioning, all 10 insight types, deduplication | Done |
+| Dashboard | Activity chart, state breakdown, insight history, personal bests | Done |
+| Settings | Full settings panel, API key, creature config, data controls | Done |
+| Onboarding | Welcome, tier disclosures, AI choice, summary | Done |
+| Polish | Drag/throw physics done; hover, click reactions, context menu in progress | In progress |
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full checklist.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| App shell | Tauri 2 (Rust + React/TypeScript) |
+| Input capture | rdevin (Rust), separate child process |
+| System signals | windows-rs |
+| AI inference | OpenRouter (Ollama planned) |
+| Storage | SQLite (WAL mode) |
+| Sprite rendering | HTML canvas, pixelated scaling |
+
+Architecture details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Full tech rationale in [docs/TECHSTACK.md](docs/TECHSTACK.md).
 
 ---
 
 ## License
 
-Business Source License 1.1 — see `LICENSE`. Converts to MIT on 2030-05-04.
+[Business Source License 1.1](LICENSE). Converts to MIT on 2030-05-04.
+
+You can use, modify, and redistribute Polter freely. The one restriction: you can't offer it as a hosted or embedded service that competes with Polter. On the change date, that restriction drops and it becomes MIT.
+
+---
+
+## Credits
+
+Built by [Hyowon Bernabe](https://www.hyowonbernabe.me) and [Krenz Casilen](https://github.com/xPking23).

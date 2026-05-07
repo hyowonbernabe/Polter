@@ -21,7 +21,7 @@ pub struct WorkArea {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct WispReadyPayload {
+pub struct PolterReadyPayload {
     pub version: String,
 }
 
@@ -707,7 +707,7 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
         } else {
             // Recreate if missing
             let dash = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App("index.html".into()))
-                .title("Wisp Dashboard")
+                .title("Polter Dashboard")
                 .inner_size(420.0, 680.0)
                 .position(logical_x, logical_y)
                 .transparent(true)
@@ -728,7 +728,7 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
         let _ = dash.emit("window_show", ());
     } else {
         let dash = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App("index.html".into()))
-            .title("Wisp Dashboard")
+            .title("Polter Dashboard")
             .inner_size(420.0, 680.0)
             .transparent(true)
             .decorations(false)
@@ -768,7 +768,20 @@ pub fn toggle_dashboard(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn quit_app(app_handle: tauri::AppHandle) {
-    app_handle.exit(0);
+    graceful_quit(&app_handle);
+}
+
+/// Destroy all webview windows before exiting to avoid the
+/// Chrome_WidgetWin_0 unregister-class error on Windows.
+pub fn graceful_quit(app: &tauri::AppHandle) {
+    for (_label, window) in app.webview_windows() {
+        let _ = window.destroy();
+    }
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        handle.exit(0);
+    });
 }
 
 // ── Settings window ───────────────────────────────────────────────────────────
@@ -804,7 +817,7 @@ pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
             let _ = win.emit("window_show", ());
         } else {
             let win = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
-                .title("Wisp Settings")
+                .title("Polter Settings")
                 .inner_size(420.0, 680.0)
                 .position(logical_x, logical_y)
                 .transparent(true)
@@ -825,7 +838,7 @@ pub fn do_open_settings(app: &tauri::AppHandle) -> Result<(), String> {
         let _ = win.emit("window_show", ());
     } else {
         let win = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("index.html".into()))
-            .title("Wisp Settings")
+            .title("Polter Settings")
             .inner_size(420.0, 680.0)
             .transparent(true)
             .decorations(false)
@@ -925,7 +938,7 @@ impl Default for Tier2Permissions {
 fn load_tier2_permissions(app_handle: &tauri::AppHandle) -> Tier2Permissions {
     use tauri_plugin_store::StoreExt;
 
-    let store = match app_handle.store("wisp-settings.json") {
+    let store = match app_handle.store("polter-settings.json") {
         Ok(s) => s,
         Err(_) => return Tier2Permissions::default(),
     };
@@ -956,7 +969,7 @@ fn save_tier2_permissions(
 ) -> Result<(), String> {
     use tauri_plugin_store::StoreExt;
 
-    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+    let store = app_handle.store("polter-settings.json").map_err(|e| e.to_string())?;
 
     let provider = store
         .get("inference_provider")
@@ -1006,7 +1019,7 @@ pub fn set_tier2_permissions(
 pub fn is_onboarding_complete(app_handle: tauri::AppHandle) -> bool {
     use tauri_plugin_store::StoreExt;
     app_handle
-        .store("wisp-settings.json")
+        .store("polter-settings.json")
         .ok()
         .and_then(|s| s.get("onboarding_complete"))
         .and_then(|v| v.as_bool())
@@ -1019,7 +1032,7 @@ pub fn complete_onboarding(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     use tauri_plugin_store::StoreExt;
-    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+    let store = app_handle.store("polter-settings.json").map_err(|e| e.to_string())?;
     store.set("onboarding_complete", serde_json::Value::Bool(true));
     store.set(
         "tier2_choices",
@@ -1051,7 +1064,7 @@ pub fn complete_onboarding(
                 tier: "insight".to_string(),
                 state: "rest".to_string(),
                 insight: "give me a few days. i'll tell you something when i know something.".to_string(),
-                extended: "Wisp is quietly learning your patterns. Check back soon.".to_string(),
+                extended: "Polter is quietly learning your patterns. Check back soon.".to_string(),
                 insight_type: "flow_detection".to_string(),
                 is_first_ever: true,
             },
@@ -1085,7 +1098,7 @@ pub fn dismiss_onboarding(app_handle: tauri::AppHandle) {
 #[tauri::command]
 pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_store::StoreExt;
-    let store = app_handle.store("wisp-settings.json").map_err(|e| e.to_string())?;
+    let store = app_handle.store("polter-settings.json").map_err(|e| e.to_string())?;
     store.set("onboarding_complete", serde_json::Value::Bool(false));
     let _ = store.save();
 
@@ -1226,8 +1239,8 @@ mod tests {
     }
 
     #[test]
-    fn wisp_ready_payload_serializes() {
-        let p = WispReadyPayload { version: "0.1.0".into() };
+    fn polter_ready_payload_serializes() {
+        let p = PolterReadyPayload { version: "0.1.0".into() };
         let json = serde_json::to_string(&p).unwrap();
         assert_eq!(json, r#"{"version":"0.1.0"}"#);
     }

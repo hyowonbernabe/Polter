@@ -1,7 +1,7 @@
 use tauri::Runtime;
 use tauri_plugin_store::StoreExt;
 
-const STORE_FILE: &str = "wisp-settings.json";
+const STORE_FILE: &str = "polter-settings.json";
 const API_KEY: &str = "openrouter_api_key";
 
 pub fn get_api_key<R: Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {

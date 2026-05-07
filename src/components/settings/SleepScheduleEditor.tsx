@@ -86,7 +86,7 @@ export default function SleepScheduleEditor() {
         <div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.70)" }}>Auto-sleep schedule</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
-            Wisp pauses automatically during quiet hours
+            Polter pauses automatically during quiet hours
           </div>
         </div>
         <Toggle on={enabled} onClick={toggleEnabled} />

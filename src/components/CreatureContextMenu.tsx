@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { WispState } from '../lib/spriteConfig';
+import type { PolterState } from '../lib/spriteConfig';
 
-const STATE_LABELS: Record<WispState, string> = {
+const STATE_LABELS: Record<PolterState, string> = {
   focus: 'In Focus',
   calm:  'Calm',
   deep:  'Deep Work',
@@ -15,7 +15,7 @@ const STATE_LABELS: Record<WispState, string> = {
 interface Props {
   x: number;
   y: number;
-  wispState: WispState;
+  polterState: PolterState;
   sleeping: boolean;
   bubbleVisible: boolean;
   onClose: () => void;
@@ -23,7 +23,7 @@ interface Props {
 }
 
 export default function CreatureContextMenu({
-  x, y, wispState, sleeping, bubbleVisible, onClose, onDismissBubble,
+  x, y, polterState, sleeping, bubbleVisible, onClose, onDismissBubble,
 }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -102,13 +102,13 @@ export default function CreatureContextMenu({
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         marginBottom: 2,
       }}>
-        {STATE_LABELS[wispState] ?? wispState}
+        {STATE_LABELS[polterState] ?? polterState}
       </div>
 
       {bubbleVisible && item('Dismiss bubble', onDismissBubble)}
       {bubbleVisible && divider()}
       {item('Open Dashboard', () => invoke('toggle_dashboard').catch(() => {}))}
-      {item(sleeping ? 'Wake Wisp' : 'Sleep', () => invoke('toggle_sleep').catch(() => {}))}
+      {item(sleeping ? 'Wake Polter' : 'Sleep', () => invoke('toggle_sleep').catch(() => {}))}
       {divider()}
       {item('Quit', () => invoke('quit_app').catch(() => {}), true)}
     </div>

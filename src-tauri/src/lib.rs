@@ -130,7 +130,7 @@ pub fn run() {
             }
 
             // Initialize SQLite database.
-            let db_path = app.path().app_data_dir()?.join("wisp.db");
+            let db_path = app.path().app_data_dir()?.join("polter.db");
             if let Some(parent) = db_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -277,7 +277,7 @@ pub fn run() {
                 let version = app.package_info().version.to_string();
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
-                    let _ = app_ready.emit("wisp_ready", commands::WispReadyPayload { version });
+                    let _ = app_ready.emit("polter_ready", commands::PolterReadyPayload { version });
                 });
             }
 
@@ -295,7 +295,7 @@ pub fn run() {
                 .checked(false).build(app)?;
             let debug_check = CheckMenuItemBuilder::with_id("debug_toggle", "Debug Mode")
                 .checked(false).build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit Wisp").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit Polter").build(app)?;
 
             let menu = if cfg!(debug_assertions) {
                 let dev_flow      = MenuItemBuilder::with_id("dev_flow",         "Flow Detection").build(app)?;
@@ -330,7 +330,7 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(move |app, event| {
                     match event.id().as_ref() {
-                        "quit" => app.exit(0),
+                        "quit" => commands::graceful_quit(app),
 
                         "open_dashboard" => {
                             let _ = commands::do_open_dashboard(app);
@@ -408,7 +408,7 @@ pub fn run() {
                                 return;
                             }
                             if id == "dev_flee" {
-                                let _ = app.emit("wisp://fullscreen-detected", ());
+                                let _ = app.emit("polter://fullscreen-detected", ());
                                 return;
                             }
                             if id == "dev_mutter" {
@@ -550,5 +550,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running Wisp");
+        .expect("error while running Polter");
 }

@@ -29,7 +29,7 @@ const ITEMS: Item[] = [
   {
     key: "calendar",
     label: "Calendar context",
-    desc: "Reads meeting timing patterns so Wisp can better understand context changes.",
+    desc: "Reads meeting timing patterns so Polter can better understand context changes.",
   },
 ];
 

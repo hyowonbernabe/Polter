@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default capabilities for the Wisp main window",
+  "description": "Default capabilities for the Polter main window",
   "windows": ["main"],
   "permissions": [
     "core:default",

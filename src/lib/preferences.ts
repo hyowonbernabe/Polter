@@ -26,7 +26,7 @@ export const PREF_DEFAULTS: Preferences = {
   privacy_hotkey: null,
 };
 
-const STORE_FILE = "wisp-settings.json";
+const STORE_FILE = "polter-settings.json";
 let _store: Store | null = null;
 
 async function store(): Promise<Store> {

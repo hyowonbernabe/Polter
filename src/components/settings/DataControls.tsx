@@ -88,7 +88,7 @@ export default function DataControls() {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = "wisp-insights.txt";
+      a.download = "polter-insights.txt";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

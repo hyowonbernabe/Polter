@@ -16,7 +16,7 @@ export interface MonitorInfo {
   height: number;
 }
 
-const STORE_FILE = "wisp-settings.json";
+const STORE_FILE = "polter-settings.json";
 const POS_KEY = "creature_position";
 
 const REFERENCE_HEIGHT = 1080;

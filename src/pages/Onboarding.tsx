@@ -14,10 +14,11 @@ import {
   Check,
   X,
 } from "lucide-react";
-import wispPng from "../assets/sprites/wisp.png";
+import ghostFrontPng from "../assets/sprites/ghost/front.png";
 import { onboarding as copy } from "../lib/dialogue";
 
-const STEPS = ["welcome", "tier1", "screen", "clipboard", "calendar", "ai_choice", "ai_provider", "ai_key", "summary"] as const;
+// screen, clipboard, calendar are V2 — skip them in the flow for now.
+const STEPS = ["welcome", "tier1", "ai_choice", "ai_provider", "ai_key", "summary"] as const;
 type Step = typeof STEPS[number];
 
 interface Choices {
@@ -89,13 +90,13 @@ const dragBar: React.CSSProperties = {
 };
 
 const btnPrimary: React.CSSProperties = {
-  background: "rgba(107,163,214,0.18)",
-  border: "1px solid rgba(107,163,214,0.40)",
+  background: "rgba(212,184,122,0.18)",
+  border: "1px solid rgba(212,184,122,0.40)",
   borderRadius: 10,
   padding: "11px 0",
   fontSize: 13,
   fontWeight: 600,
-  color: "rgba(107,163,214,0.95)",
+  color: "rgba(212,184,122,0.95)",
   cursor: "pointer",
   fontFamily: "inherit",
   width: "100%",
@@ -130,7 +131,7 @@ function ProgressDots({ step }: { step: Step }) {
             width: i === idx ? 14 : 5,
             height: 5,
             borderRadius: 3,
-            background: i <= idx ? "rgba(107,163,214,0.70)" : "rgba(255,255,255,0.10)",
+            background: i <= idx ? "rgba(212,184,122,0.70)" : "rgba(255,255,255,0.10)",
             transition: "width 200ms ease, background 200ms ease",
           }}
         />
@@ -179,12 +180,12 @@ function IconBox({
       width: size,
       height: size,
       borderRadius: 9,
-      background: accent ? "rgba(107,163,214,0.10)" : "rgba(107,214,163,0.08)",
-      border: `1px solid ${accent ? "rgba(107,163,214,0.20)" : "rgba(107,214,163,0.16)"}`,
+      background: accent ? "rgba(212,184,122,0.10)" : "rgba(107,214,163,0.08)",
+      border: `1px solid ${accent ? "rgba(212,184,122,0.20)" : "rgba(107,214,163,0.16)"}`,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      color: accent ? "rgba(107,163,214,0.80)" : "rgba(107,214,163,0.75)",
+      color: accent ? "rgba(212,184,122,0.80)" : "rgba(107,214,163,0.75)",
       flexShrink: 0,
     }}>
       {children}
@@ -192,79 +193,6 @@ function IconBox({
   );
 }
 
-// Placeholder slot for a generated illustration.
-function AssetPlaceholder({ label, height = 100 }: { label: string; height?: number }) {
-  return (
-    <div style={{
-      height,
-      borderRadius: 12,
-      border: "1.5px dashed rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.018)",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 5,
-      color: "rgba(255,255,255,0.16)",
-      fontSize: 11,
-      fontStyle: "italic",
-    }}>
-      <div style={{ opacity: 0.5, marginBottom: 2 }}>
-        <Monitor size={18} strokeWidth={1.4} />
-      </div>
-      <div>{label}</div>
-      <div style={{ fontSize: 10, opacity: 0.6 }}>400 × {height}px</div>
-    </div>
-  );
-}
-
-function PermissionOption({
-  chosen,
-  onChoose,
-  yesLabel,
-  noLabel,
-}: {
-  chosen: boolean | null;
-  onChoose: (v: boolean) => void;
-  yesLabel: string;
-  noLabel: string;
-}) {
-  function optStyle(active: boolean, isYes: boolean): React.CSSProperties {
-    return {
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      padding: "10px 0",
-      borderRadius: 10,
-      border: `1px solid ${active
-        ? isYes ? "rgba(107,163,214,0.45)" : "rgba(255,255,255,0.18)"
-        : "rgba(255,255,255,0.07)"}`,
-      background: active
-        ? isYes ? "rgba(107,163,214,0.14)" : "rgba(255,255,255,0.06)"
-        : "rgba(255,255,255,0.02)",
-      color: active
-        ? isYes ? "rgba(107,163,214,0.90)" : "rgba(255,255,255,0.65)"
-        : "rgba(255,255,255,0.30)",
-      fontSize: 12,
-      cursor: "pointer",
-      fontFamily: "inherit",
-      transition: "background 150ms ease, border-color 150ms ease, color 150ms ease",
-    };
-  }
-
-  return (
-    <div style={{ display: "flex", gap: 8 }}>
-      <button onClick={() => onChoose(true)} style={optStyle(chosen === true, true)}>
-        <Check size={13} strokeWidth={2.2} /> {yesLabel}
-      </button>
-      <button onClick={() => onChoose(false)} style={optStyle(chosen === false, false)}>
-        <X size={13} strokeWidth={2.2} /> {noLabel}
-      </button>
-    </div>
-  );
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -364,12 +292,16 @@ export default function Onboarding() {
           {/* ── Welcome ── */}
           {step === "welcome" && (
             <>
-              <AssetPlaceholder label="Wisp welcome illustration" height={110} />
+              <img
+                src={new URL('../assets/welcome_illustration.jpeg', import.meta.url).href}
+                alt="Welcome to Polter"
+                style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 12 }}
+              />
 
               <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                 <img
-                  src={wispPng}
-                  alt="Wisp"
+                  src={ghostFrontPng}
+                  alt="Polter"
                   style={{ width: 46, height: 46, imageRendering: "pixelated", flexShrink: 0, marginTop: 2 }}
                 />
                 <div>
@@ -405,8 +337,11 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              {/* Placeholder: data-flow diagram (sensor event → aggregate → no raw storage) */}
-              <AssetPlaceholder label="Data flow diagram: raw event → pattern summary → stored" height={76} />
+              <img
+                src={new URL('../assets/data_illustration.jpeg', import.meta.url).href}
+                alt="Data privacy"
+                style={{ width: '100%', height: 76, objectFit: 'cover', borderRadius: 12 }}
+              />
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {copy.tier1.sensors.map((sensor) => (
@@ -441,58 +376,15 @@ export default function Onboarding() {
             </>
           )}
 
-          {/* ── Permission screens ── */}
-          {(step === "screen" || step === "clipboard" || step === "calendar") && (() => {
-            const c = copy[step];
-            const chosen = choices[step];
-            return (
-              <>
-                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                  <IconBox accent size={38}>
-                    {PERM_ICONS[step]}
-                  </IconBox>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>
-                    {c.heading}
-                  </div>
-                </div>
-
-                <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
-                    {c.label}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.36)", lineHeight: 1.68 }}>
-                    {c.desc}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 12px", background: "rgba(255,160,60,0.04)", border: "1px solid rgba(255,160,60,0.13)", borderRadius: 9 }}>
-                  <AlertTriangle size={13} strokeWidth={1.8} style={{ color: "rgba(255,160,60,0.55)", marginTop: 1, flexShrink: 0 }} />
-                  <div style={{ fontSize: 11, color: "rgba(255,160,60,0.52)", lineHeight: 1.6 }}>{c.risk}</div>
-                </div>
-
-                <PermissionOption
-                  chosen={chosen}
-                  onChoose={(v) => setChoices((prev) => ({ ...prev, [step]: v }))}
-                  yesLabel={c.yes}
-                  noLabel={c.no}
-                />
-
-                {chosen !== null && (
-                  <button style={btnPrimary} onClick={next}>Next &rarr;</button>
-                )}
-              </>
-            );
-          })()}
-
           {/* ── AI Choice ── */}
           {step === "ai_choice" && (
             <>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 5 }}>
-                  how should wisp think?
+                  how should polter think?
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
-                  Wisp needs an AI to turn your behavioral patterns into insights. Choose how it should work.
+                  Polter needs an AI to turn your behavioral patterns into insights. Choose how it should work.
                 </div>
               </div>
 
@@ -501,8 +393,8 @@ export default function Onboarding() {
                 <button
                   onClick={() => setInferenceChoice("cloud")}
                   style={{
-                    background: inferenceChoice === "cloud" ? "rgba(107,163,214,0.12)" : "rgba(255,255,255,0.025)",
-                    border: `1px solid ${inferenceChoice === "cloud" ? "rgba(107,163,214,0.40)" : "rgba(255,255,255,0.07)"}`,
+                    background: inferenceChoice === "cloud" ? "rgba(212,184,122,0.12)" : "rgba(255,255,255,0.025)",
+                    border: `1px solid ${inferenceChoice === "cloud" ? "rgba(212,184,122,0.40)" : "rgba(255,255,255,0.07)"}`,
                     borderRadius: 12,
                     padding: "14px 16px",
                     textAlign: "left",
@@ -527,12 +419,12 @@ export default function Onboarding() {
                   </div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.6, marginBottom: 8 }}>
                     Fast and powerful. Uses OpenRouter to access frontier models — completely free to set up with your own API key.
-                    Wisp is designed to be lightweight, and local AI consumes too much RAM and CPU for a passive background app.
+                    Polter is designed to be lightweight, and local AI consumes too much RAM and CPU for a passive background app.
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,160,60,0.50)", lineHeight: 1.55, display: "flex", gap: 6, alignItems: "flex-start" }}>
                     <AlertTriangle size={11} strokeWidth={1.8} style={{ flexShrink: 0, marginTop: 1 }} />
                     <span>
-                      This is the only part of Wisp that leaves your device. What's sent is a plain-language behavioral description — no raw input, no content, no personal identifiers.
+                      This is the only part of Polter that leaves your device. What's sent is a plain-language behavioral description — no raw input, no content, no personal identifiers.
                     </span>
                   </div>
                 </button>
@@ -603,7 +495,7 @@ export default function Onboarding() {
                   textUnderlineOffset: 3,
                 }}
               >
-                Skip for now — Wisp will still track your state, just won't generate insights
+                Skip for now — Polter will still track your state, just won't generate insights
               </button>
 
               {/* Continue button — only visible when Cloud is selected */}
@@ -623,15 +515,15 @@ export default function Onboarding() {
                   choose a provider
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
-                  Your API key stays on your device. Wisp sends a short plain-text description — never raw data.
+                  Your API key stays on your device. Polter sends a short plain-text description — never raw data.
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {/* OpenRouter — real option, pre-selected */}
                 <div style={{
-                  background: "rgba(107,163,214,0.12)",
-                  border: "1px solid rgba(107,163,214,0.40)",
+                  background: "rgba(212,184,122,0.12)",
+                  border: "1px solid rgba(212,184,122,0.40)",
                   borderRadius: 12,
                   padding: "14px 16px",
                 }}>
@@ -642,9 +534,9 @@ export default function Onboarding() {
                       fontWeight: 500,
                       padding: "2px 7px",
                       borderRadius: 4,
-                      background: "rgba(107,163,214,0.14)",
-                      border: "1px solid rgba(107,163,214,0.30)",
-                      color: "rgba(107,163,214,0.85)",
+                      background: "rgba(212,184,122,0.14)",
+                      border: "1px solid rgba(212,184,122,0.30)",
+                      color: "rgba(212,184,122,0.85)",
                     }}>
                       selected
                     </div>
@@ -720,7 +612,7 @@ export default function Onboarding() {
                   add your openrouter key
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", lineHeight: 1.65 }}>
-                  Paste your key below. Wisp will start generating insights as soon as it has enough data.
+                  Paste your key below. Polter will start generating insights as soon as it has enough data.
                 </div>
               </div>
 
@@ -762,13 +654,13 @@ export default function Onboarding() {
                       onClick={handleSaveApiKey}
                       disabled={!apiKey.trim() || apiKeySaving}
                       style={{
-                        background: apiKey.trim() ? "rgba(107,163,214,0.18)" : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${apiKey.trim() ? "rgba(107,163,214,0.40)" : "rgba(255,255,255,0.09)"}`,
+                        background: apiKey.trim() ? "rgba(212,184,122,0.18)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${apiKey.trim() ? "rgba(212,184,122,0.40)" : "rgba(255,255,255,0.09)"}`,
                         borderRadius: 8,
                         padding: "9px 14px",
                         fontSize: 12,
                         fontWeight: 600,
-                        color: apiKey.trim() ? "rgba(107,163,214,0.90)" : "rgba(255,255,255,0.25)",
+                        color: apiKey.trim() ? "rgba(212,184,122,0.90)" : "rgba(255,255,255,0.25)",
                         cursor: apiKey.trim() ? "pointer" : "default",
                         fontFamily: "inherit",
                         flexShrink: 0,
@@ -784,12 +676,12 @@ export default function Onboarding() {
               )}
 
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", lineHeight: 1.6 }}>
-                Your key is stored only in Windows Credential Manager on this device. Wisp never transmits it, never logs it, never sees it after you save it.{" "}
+                Your key is stored only in Windows Credential Manager on this device. Polter never transmits it, never logs it, never sees it after you save it.{" "}
                 <a
                   href="https://openrouter.ai/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "rgba(107,163,214,0.55)", textDecoration: "underline", textUnderlineOffset: 2 }}
+                  style={{ color: "rgba(212,184,122,0.55)", textDecoration: "underline", textUnderlineOffset: 2 }}
                 >
                   Get a free API key →
                 </a>
@@ -812,8 +704,8 @@ export default function Onboarding() {
             <>
               <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
                 <img
-                  src={wispPng}
-                  alt="Wisp"
+                  src={ghostFrontPng}
+                  alt="Polter"
                   style={{ width: 44, height: 44, imageRendering: "pixelated", flexShrink: 0 }}
                 />
                 <div>
@@ -833,7 +725,7 @@ export default function Onboarding() {
                 {(["screen", "clipboard", "calendar"] as const).map((key) => (
                   <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 8 }}>
                     <div style={{ display: "flex", gap: 9, alignItems: "center", color: "rgba(255,255,255,0.52)" }}>
-                      <span style={{ color: "rgba(107,163,214,0.60)" }}>{PERM_ICONS[key]}</span>
+                      <span style={{ color: "rgba(212,184,122,0.60)" }}>{PERM_ICONS[key]}</span>
                       {s.choiceLabels[key]}
                     </div>
                     <span style={{

@@ -3,14 +3,14 @@ members = [".", "input-monitor"]
 resolver = "2"
 
 [package]
-name = "wisp"
+name = "polter"
 version = "0.1.0"
-description = "Wisp desktop companion"
+description = "Polter desktop companion"
 authors = []
 edition = "2021"
 
 [lib]
-name = "wisp_lib"
+name = "polter_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

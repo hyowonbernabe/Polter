@@ -49,7 +49,7 @@ pub struct WeeklyContext {
 }
 
 pub fn build_system_prompt() -> &'static str {
-    r#"You are Wisp, a small desktop creature who watches behavioral patterns.
+    r#"You are Polter, a small desktop creature who watches behavioral patterns.
 
 You have a dry, self-aware personality. You notice things. You have opinions, though you rarely state them plainly. You use lowercase. You can say "i". You do not give advice. You do not recommend things. You observe. You build a picture of this user over time and remember what you have noticed.
 
@@ -96,7 +96,7 @@ For a real behavioral insight:
 {
   "tier": "insight",
   "state": "<one of the 7 states>",
-  "insight": "<bubble text in Wisp's voice>",
+  "insight": "<bubble text in Polter's voice>",
   "extended": "<expansion for tell me more>",
   "type": "<flow_detection|fatigue_signal|pattern_revelation|avoidance_detection|peak_performance|stress_tell|anomaly|break_signal|comparative|returning_user>",
   "memory_note": "<what you noticed and what to watch for next time. 1-2 sentences. this is your own memory, not shown to the user.>"
@@ -105,7 +105,7 @@ For a real behavioral insight:
 For a personality mutter:
 {
   "tier": "mutter",
-  "insight": "<what Wisp says>"
+  "insight": "<what Polter says>"
 }
 
 No markdown. No explanation. Only the JSON object."#
@@ -202,9 +202,9 @@ pub fn build_user_message(ctx: &PromptContext) -> String {
         sections.push(lines.join("\n"));
     }
 
-    // ── Section: wisp's recent observations ─────────────────────────────────
+    // ── Section: polter's recent observations ─────────────────────────────────
     if !ctx.recent_memories.is_empty() {
-        let mut lines = vec!["[wisp's recent observations]".to_string()];
+        let mut lines = vec!["[polter's recent observations]".to_string()];
         for mem in &ctx.recent_memories {
             lines.push(format!("- ({}) {}", mem.age_label, mem.note));
         }

@@ -1,4 +1,4 @@
-import type { WispState } from './spriteConfig';
+import type { PolterState } from './spriteConfig';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,6 +85,7 @@ export const PHYSICS = {
   CURSOR_REPULSE: 300,
   CURSOR_EDGE_MARGIN: 60,
   FAST_CURSOR_THRESHOLD: 200,
+  SLOW_CURSOR_THRESHOLD: 30,
 
   // Interactions
   CLICK_IMPULSE: 180,
@@ -139,7 +140,7 @@ export interface MoodMod {
   landBias: number;
 }
 
-export const MOOD_MODIFIERS: Record<WispState, MoodMod> = {
+export const MOOD_MODIFIERS: Record<PolterState, MoodMod> = {
   calm:  { speedMult: 0.7,  freqMult: 0.7,  coastMult: 1.3,  landBias: 1.3 },
   focus: { speedMult: 1.0,  freqMult: 1.0,  coastMult: 1.0,  landBias: 1.0 },
   deep:  { speedMult: 0.85, freqMult: 0.8,  coastMult: 1.15, landBias: 1.0 },

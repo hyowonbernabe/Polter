@@ -1,10 +1,10 @@
-// All hardcoded Wisp dialogue in one place.
+// All hardcoded Polter dialogue in one place.
 // Rust-side text (first-ever insight bubble) lives in src-tauri/src/commands.rs
 // in the complete_onboarding function.
 
 export const onboarding = {
   welcome: {
-    heading: "Hey, I'm Wisp.",
+    heading: "Hey, I'm Polter.",
     body: "I sit quietly in the corner of your screen. I watch how you work, not what you type, just the rhythm of it. Every now and then I'll share something I noticed.",
     footer: "Everything stays on your machine. No account. No cloud.",
     cta: "Let's go",
@@ -46,7 +46,7 @@ export const onboarding = {
   screen: {
     heading: "Screen content",
     label: "Periodic screenshot sampling",
-    desc: "Every few minutes Wisp takes a low-resolution screenshot, pulls out basic visual features like brightness and text density, then throws the image away. Nothing is ever stored.",
+    desc: "Every few minutes Polter takes a low-resolution screenshot, pulls out basic visual features like brightness and text density, then throws the image away. Nothing is ever stored.",
     risk: "Sensitive content on your screen could be briefly sampled.",
     yes: "Yes, opt in",
     no: "No thanks",
@@ -55,7 +55,7 @@ export const onboarding = {
   clipboard: {
     heading: "Clipboard activity",
     label: "Copy and paste detection",
-    desc: "Wisp notices when you copy or paste, not what it was, just the act. This helps it understand context switching. Clipboard content is never read.",
+    desc: "Polter notices when you copy or paste, not what it was, just the act. This helps it understand context switching. Clipboard content is never read.",
     risk: "Clipboard events are tracked even when the content is sensitive.",
     yes: "Yes, opt in",
     no: "No thanks",
@@ -64,7 +64,7 @@ export const onboarding = {
   calendar: {
     heading: "Calendar",
     label: "Meeting detection",
-    desc: "Wisp reads your calendar to know when you're in a meeting. That way it can interpret a burst of fast typing more accurately. Event titles and attendees are never stored.",
+    desc: "Polter reads your calendar to know when you're in a meeting. That way it can interpret a burst of fast typing more accurately. Event titles and attendees are never stored.",
     risk: "Event metadata like title and time is briefly read.",
     yes: "Yes, opt in",
     no: "No thanks",
@@ -72,7 +72,7 @@ export const onboarding = {
 
   summary: {
     heading: "You're all set.",
-    body: "Wisp will show up in the corner and start learning quietly. Give it a few days before expecting anything useful.",
+    body: "Polter will show up in the corner and start learning quietly. Give it a few days before expecting anything useful.",
     choicesLabel: "Your choices",
     choiceLabels: {
       screen: "Screen sampling",
@@ -80,7 +80,7 @@ export const onboarding = {
       calendar: "Calendar",
     },
     settingsNote: "You can change any of this in Settings.",
-    cta: "Start Wisp",
+    cta: "Start Polter",
     ctaLoading: "Starting...",
   },
 } as const;

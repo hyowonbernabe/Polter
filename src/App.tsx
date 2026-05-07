@@ -6,14 +6,14 @@ import { usePreInsightGlow } from "./hooks/usePreInsightGlow";
 import { useInsightQueue } from "./hooks/useInsightQueue";
 import { useCreaturePhysics } from "./hooks/useCreaturePhysics";
 import { useIdleDetection } from "./hooks/useIdleDetection";
-import { type WispState } from "./lib/spriteConfig";
+import { type PolterState } from "./lib/spriteConfig";
 import { loadPreferences } from "./lib/preferences";
 import { PHYSICS } from "./lib/physics";
 
 const BURN_DISTRESS_MS = 90 * 60 * 1_000;
 
 interface StateChangedPayload {
-  state: WispState;
+  state: PolterState;
   cold_start: boolean;
 }
 
@@ -33,7 +33,7 @@ export interface InsightPayload {
 }
 
 export default function App() {
-  const [wispState, setWispStateR] = useState<WispState>("rest");
+  const [polterState, setPolterStateR] = useState<PolterState>("rest");
   const [coldStart, setColdStart] = useState(true);
   const [showReturning, setShowReturning] = useState(false);
   const [showBestSession, setShowBestSession] = useState(false);
@@ -60,8 +60,8 @@ export default function App() {
   const bubbleVisible = activeInsight !== null && preInsightPhase === 3;
 
   useEffect(() => {
-    physics.setWispState(wispState);
-  }, [wispState, physics.setWispState]);
+    physics.setPolterState(polterState);
+  }, [polterState, physics.setPolterState]);
 
   useEffect(() => {
     physics.setDialogue(bubbleVisible);
@@ -72,7 +72,7 @@ export default function App() {
       clearTimeout(burnTimerRef.current);
       burnTimerRef.current = null;
     }
-    if (wispState === "burn") {
+    if (polterState === "burn") {
       burnTimerRef.current = setTimeout(() => setBurnDistress(true), BURN_DISTRESS_MS);
     } else {
       setBurnDistress(false);
@@ -83,7 +83,7 @@ export default function App() {
         burnTimerRef.current = null;
       }
     };
-  }, [wispState]);
+  }, [polterState]);
 
   useEffect(() => {
     if (activeInsight) {
@@ -126,11 +126,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unlistenReady = listen<{ version: string }>("wisp_ready", (event) => {
-      console.log("[wisp] bridge confirmed, version:", event.payload.version);
+    const unlistenReady = listen<{ version: string }>("polter_ready", (event) => {
+      console.log("[polter] bridge confirmed, version:", event.payload.version);
     });
     const unlistenState = listen<StateChangedPayload>("state_changed", (event) => {
-      setWispStateR(event.payload.state);
+      setPolterStateR(event.payload.state);
       setColdStart(event.payload.cold_start);
     });
     const unlistenReturning = listen("returning_user", () => setShowReturning(true));
@@ -144,7 +144,7 @@ export default function App() {
       if (event.payload.tier === 'mutter') {
         setActiveMutterText(event.payload.insight);
       } else {
-        console.log("[wisp] insight received:", event.payload.type);
+        console.log("[polter] insight received:", event.payload.type);
         enqueue({ ...event.payload, receivedAt: Date.now() });
       }
     });
@@ -240,7 +240,7 @@ export default function App() {
       )}
       <Creature
         displaySize={displaySize}
-        state={wispState}
+        state={polterState}
         physicsState={physics.physicsState}
         velocity={physics.velocity}
         facing={physics.facing}

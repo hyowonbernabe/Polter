@@ -16,7 +16,7 @@ pub fn point_in_rect(px: f64, py: f64, r: &Rect) -> bool {
 }
 
 /// Polls cursor position at ~60fps and toggles click-through on the main window.
-/// Also detects fullscreen exclusive windows and emits `wisp://fullscreen-detected`
+/// Also detects fullscreen exclusive windows and emits `polter://fullscreen-detected`
 /// once per transition (rising edge only, not every frame).
 pub fn start<R: Runtime>(
     app: AppHandle<R>,
@@ -45,7 +45,7 @@ pub fn start<R: Runtime>(
             // Detect fullscreen exclusive — emit only on the rising edge
             let now_fullscreen = is_fullscreen_exclusive();
             if now_fullscreen && !was_fullscreen {
-                let _ = app.emit("wisp://fullscreen-detected", ());
+                let _ = app.emit("polter://fullscreen-detected", ());
             }
             was_fullscreen = now_fullscreen;
 
@@ -54,7 +54,7 @@ pub fn start<R: Runtime>(
     });
 }
 
-/// Returns true if there is a non-Wisp popup window covering an entire monitor completely.
+/// Returns true if there is a non-Polter popup window covering an entire monitor completely.
 /// This is the signature of fullscreen exclusive mode used by games and media players.
 #[cfg(target_os = "windows")]
 fn is_fullscreen_exclusive() -> bool {
@@ -74,7 +74,7 @@ fn is_fullscreen_exclusive() -> bool {
             return false;
         }
 
-        // Exclude our own process so Wisp never triggers its own flee
+        // Exclude our own process so Polter never triggers its own flee
         let mut win_pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, Some(&mut win_pid));
         if win_pid == GetCurrentProcessId() {

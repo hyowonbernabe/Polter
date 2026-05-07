@@ -19,7 +19,7 @@ pub struct InsightResponse {
     pub extended: String,
     #[serde(rename = "type")]
     pub insight_type: String,
-    /// Wisp's own observation note — written to wisp_memories, never shown to the user.
+    /// Polter's own observation note — written to wisp_memories, never shown to the user.
     /// Optional so that responses lacking this field parse correctly.
     pub memory_note: Option<String>,
 }
@@ -80,8 +80,8 @@ pub async fn call_openrouter(
         .post(OPENROUTER_URL)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
-        .header("HTTP-Referer", "https://github.com/hyowonbernabe/wisp")
-        .header("X-Title", "Wisp")
+        .header("HTTP-Referer", "https://github.com/hyowonbernabe/polter")
+        .header("X-Title", "Polter")
         .json(&body)
         .send()
         .await

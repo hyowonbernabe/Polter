@@ -8,14 +8,14 @@ import {
   type PhysicsState, type PerchSurface, type FacingDirection, type Vec2, type WorkArea,
   clamp, normalize, magnitude, clampVec2, randBetween, lerp,
 } from '../lib/physics';
-import { type WispState } from '../lib/spriteConfig';
+import { type PolterState } from '../lib/spriteConfig';
 import { loadPreferences } from '../lib/preferences';
 import {
   spriteDisplaySize, clampToMonitors,
   type MonitorInfo,
 } from './useCreaturePosition';
 
-const STORE_FILE = 'wisp-settings.json';
+const STORE_FILE = 'polter-settings.json';
 const POS_KEY = 'creature_position';
 
 export interface PhysicsOutput {
@@ -30,7 +30,7 @@ export interface PhysicsOutput {
   spriteSize: number;
   committedDir: number;
 
-  setWispState: (s: WispState) => void;
+  setPolterState: (s: PolterState) => void;
   setDialogue: (visible: boolean) => void;
   notifyBubbleClick: () => void;
   notifySingleClick: (cx: number, cy: number) => void;
@@ -64,7 +64,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   const facingRef = useRef<FacingDirection>('right');
   const workAreaRef = useRef<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const monitorsRef = useRef<MonitorInfo[]>([]);
-  const wispStateRef = useRef<WispState>('calm');
+  const polterStateRef = useRef<PolterState>('calm');
   const spriteSizeRef = useRef<number>(spriteDisplaySize());
 
   const noiseT = useRef<number>(0);
@@ -187,7 +187,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   }
 
   function getMoodMod() {
-    return MOOD_MODIFIERS[wispStateRef.current] ?? MOOD_MODIFIERS.calm;
+    return MOOD_MODIFIERS[polterStateRef.current] ?? MOOD_MODIFIERS.calm;
   }
 
   function snapToSurface(surface: PerchSurface, sz: number, wa: WorkArea) {
@@ -827,7 +827,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       workAreaRef.current = wa;
       setWorkArea(wa);
 
-      // Fetch monitor layout. The backend emits wisp_ready only after the window
+      // Fetch monitor layout. The backend emits polter_ready only after the window
       // has been repositioned, but we defensively retry once if the result looks
       // stale (every monitor sits at the window's logical origin with a size that
       // matches the full viewport — the symptom of a pre-position fetch).
@@ -882,12 +882,12 @@ export function useCreaturePhysics(): PhysicsOutput {
     }).then(unlisten => { unlistenScale = unlisten; });
 
     let unlistenFullscreen: (() => void) | null = null;
-    listen('wisp://fullscreen-detected', () => {
+    listen('polter://fullscreen-detected', () => {
       // Block only if already fleeing or in a user-interaction state.
       const cur = stateRef.current;
       const blocked: PhysicsState[] = ['flee', 'tether_grab', 'thrown', 'stunned', 'recovering', 'goal_interrupted'];
       if (blocked.includes(cur)) return;
-      console.log('[wisp] fullscreen-detected → triggering flee from state:', cur);
+      console.log('[polter] fullscreen-detected → triggering flee from state:', cur);
       goalDestRef.current = null;
       fleeStartRef.current = performance.now();
       fleePhaseRef.current = 'startled';
@@ -901,7 +901,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       const cur = stateRef.current;
       const blocked: PhysicsState[] = ['tether_grab', 'thrown', 'stunned', 'recovering', 'goal_interrupted', 'goal_thinking', 'goal_travel', 'flee'];
       if (blocked.includes(cur)) return;
-      console.log('[wisp] dev_trigger_goal → triggering goal from state:', cur);
+      console.log('[polter] dev_trigger_goal → triggering goal from state:', cur);
       const mb = monitorsRef.current.find(m => {
         const cx = pos.current.x + spriteSizeRef.current / 2;
         const cy = pos.current.y + spriteSizeRef.current / 2;
@@ -920,19 +920,19 @@ export function useCreaturePhysics(): PhysicsOutput {
       transitionTo('goal_thinking');
     }).then(unlisten => { unlistenDevGoal = unlisten; });
 
-    // Wait for wisp_ready before fetching monitors — by that point the backend
+    // Wait for polter_ready before fetching monitors — by that point the backend
     // has finished repositioning the window and get_monitors() will subtract
     // the correct outer_position() from the physical monitor rects.
     let unlistenReady: (() => void) | null = null;
-    listen<{ version: string }>('wisp_ready', () => {
+    listen<{ version: string }>('polter_ready', () => {
       if (!cancelled) init();
     }).then(unlisten => { unlistenReady = unlisten; });
 
-    // Safety fallback: if wisp_ready never fires (e.g. backend already emitted
+    // Safety fallback: if polter_ready never fires (e.g. backend already emitted
     // it before our listener registered), kick off init after 500ms.
     const fallbackTimer = setTimeout(() => {
       if (!cancelled && monitorsRef.current.length === 0) {
-        console.warn('[wisp] wisp_ready not received within 500ms — running init fallback');
+        console.warn('[polter] polter_ready not received within 500ms — running init fallback');
         init();
       }
     }, 500);
@@ -988,8 +988,8 @@ export function useCreaturePhysics(): PhysicsOutput {
 
   // ── Interaction callbacks ─────────────────────────────────────────────────────
 
-  const setWispState = useCallback((s: WispState) => {
-    wispStateRef.current = s;
+  const setPolterState = useCallback((s: PolterState) => {
+    polterStateRef.current = s;
   }, []);
 
   const setDialogue = useCallback((visible: boolean) => {
@@ -1023,8 +1023,8 @@ export function useCreaturePhysics(): PhysicsOutput {
     const p = pos.current;
     const sz = spriteSizeRef.current;
     const dir = normalize({ x: (p.x + sz / 2) - cx, y: (p.y + sz / 2) - cy });
-    const wispSt = wispStateRef.current;
-    const mult = (wispSt === 'focus' || wispSt === 'deep') ? 0.4 : 1.0;
+    const polterSt = polterStateRef.current;
+    const mult = (polterSt === 'focus' || polterSt === 'deep') ? 0.4 : 1.0;
     vel.current.x += dir.x * PHYSICS.CLICK_IMPULSE * mult;
     vel.current.y += dir.y * PHYSICS.CLICK_IMPULSE * mult;
     transitionTo('click_react', PHYSICS.CLICK_REACT_DURATION_MS);
@@ -1109,7 +1109,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     monitors,
     spriteSize,
     committedDir,
-    setWispState,
+    setPolterState,
     setDialogue,
     notifyBubbleClick,
     notifySingleClick,

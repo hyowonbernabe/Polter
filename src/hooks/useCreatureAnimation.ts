@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { type WispState, MOOD_SPRITE, FUN_SPRITES } from '../lib/spriteConfig';
+import { type PolterState, MOOD_SPRITE, FUN_SPRITES } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { GHOST_URLS } from '../lib/ghostUrls';
 
@@ -62,7 +62,7 @@ function stepToward(cur: number, tgt: number, preferCW: boolean): number {
 }
 
 export function useCreatureAnimation(
-  wispState: WispState,
+  polterState: PolterState,
   physicsState: PhysicsState,
   _velocity: Vec2,
   facing: FacingDirection,
@@ -215,7 +215,7 @@ export function useCreatureAnimation(
     file = 'falling-2.png';
     flip = !throwFlipRef.current;
   } else if (physicsState === 'goal_arrived') {
-    file = goalFunSprite ?? MOOD_SPRITE[wispState];
+    file = goalFunSprite ?? MOOD_SPRITE[polterState];
   } else if (funSprite !== null) {
     file = funSprite;
   } else if (physicsState === 'goal_thinking') {
@@ -224,7 +224,7 @@ export function useCreatureAnimation(
     physicsState === 'perching'    || physicsState === 'land_impact' ||
     physicsState === 'hover'       || physicsState === 'fly_idle'
   ) {
-    file = MOOD_SPRITE[wispState];
+    file = MOOD_SPRITE[polterState];
   } else {
     file = DIR_FILES[displayDir];
   }

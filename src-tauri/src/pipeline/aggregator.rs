@@ -259,7 +259,7 @@ pub fn start<R: tauri::Runtime>(
                     let rgba = crate::tray::tray_icon_rgba(r, g, b);
                     let icon = tauri::image::Image::new_owned(rgba, 32, 32);
                     let _ = tray.set_icon(Some(icon));
-                    let _ = tray.set_tooltip(Some(&format!("Wisp — {state_str}")));
+                    let _ = tray.set_tooltip(Some(&format!("Polter — {state_str}")));
                 }
                 if let Some(block_ms) = completed_block_ms {
                     let prev_best_ms = crate::storage::queries::get_longest_focus_block_ms(

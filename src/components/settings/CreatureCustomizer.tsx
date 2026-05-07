@@ -128,7 +128,7 @@ export default function CreatureCustomizer() {
           </div>
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
-          How faded Wisp becomes when you stop typing or moving
+          How faded Polter becomes when you stop typing or moving
         </div>
         <input
           type="range"

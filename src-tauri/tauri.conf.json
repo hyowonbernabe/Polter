@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Wisp",
+  "productName": "Polter",
   "version": "0.1.0",
-  "identifier": "com.wisp.app",
+  "identifier": "com.polter.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Wisp",
+        "title": "Polter",
         "width": 1920,
         "height": 1080,
         "x": 0,
@@ -29,7 +29,7 @@
       },
       {
         "label": "dashboard",
-        "title": "Wisp Dashboard",
+        "title": "Polter Dashboard",
         "width": 420,
         "height": 680,
         "transparent": true,
@@ -43,7 +43,7 @@
       },
       {
         "label": "settings",
-        "title": "Wisp Settings",
+        "title": "Polter Settings",
         "width": 420,
         "height": 680,
         "transparent": true,
@@ -57,7 +57,7 @@
       },
       {
         "label": "onboarding",
-        "title": "Welcome to Wisp",
+        "title": "Welcome to Polter",
         "width": 580,
         "height": 900,
         "transparent": true,

@@ -67,7 +67,7 @@ export default function InsightHistory({ insights }: { insights: DashboardInsigh
         Recent Insights
       </div>
       {insights.length === 0 ? (
-        <EmptyBlock message="No insights yet. Wisp will share observations as it learns your patterns." />
+        <EmptyBlock message="No insights yet. Polter will share observations as it learns your patterns." />
       ) : (
         insights.map((ins) => <InsightItem key={ins.id} insight={ins} />)
       )}

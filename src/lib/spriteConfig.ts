@@ -1,26 +1,30 @@
-export type WispState = 'focus' | 'calm' | 'deep' | 'spark' | 'burn' | 'fade' | 'rest';
+export type PolterState = 'focus' | 'calm' | 'deep' | 'spark' | 'burn' | 'fade' | 'rest';
 
-export const ALL_STATES: WispState[] = ['focus', 'calm', 'deep', 'spark', 'burn', 'fade', 'rest'];
+export const ALL_STATES: PolterState[] = ['focus', 'calm', 'deep', 'spark', 'burn', 'fade', 'rest'];
 
-export const MOOD_SPRITE: Record<WispState, string> = {
-  focus: 'focused.png',
-  calm:  'calm.png',
-  deep:  'quiet.png',
-  spark: 'excited.png',
-  burn:  'overworked.png',
-  fade:  'tired.png',
-  rest:  'sleeping.png',
+// Mood sprites — these map to emotion-specific ghost sprites.
+// Until final emotion sprites are generated, all fall back to front.png.
+export const MOOD_SPRITE: Record<PolterState, string> = {
+  focus: 'front.png',
+  calm:  'front.png',
+  deep:  'front.png',
+  spark: 'front.png',
+  burn:  'front.png',
+  fade:  'front.png',
+  rest:  'front.png',
 };
 
-export const FUN_SPRITES: string[] = ['reading.png', 'kid.png', 'umbrella.png', 'box.png', 'sleepy.png'];
+// Fun sprites shown during idle — need generation for final design.
+export const FUN_SPRITES: string[] = ['front.png'];
 
-export const STATE_GLOW: Record<WispState | 'cold_start', string> = {
-  focus:      'drop-shadow(0 0 8px #6ba3d6)',
-  calm:       'drop-shadow(0 0 6px #6ba3d6)',
-  deep:       'drop-shadow(0 0 10px #6ba3d6)',
-  spark:      'drop-shadow(0 0 10px #f4a347)',
-  burn:       'drop-shadow(0 0 8px #cc4400)',
+// Glow colors aligned to Polter mood palette.
+export const STATE_GLOW: Record<PolterState | 'cold_start', string> = {
+  focus:      'drop-shadow(0 0 8px #7a9e8b)',
+  calm:       'drop-shadow(0 0 6px #7a9e8b)',
+  deep:       'drop-shadow(0 0 10px #d4b87a)',
+  spark:      'drop-shadow(0 0 10px #d4b87a)',
+  burn:       'drop-shadow(0 0 8px #c08a64)',
   fade:       'drop-shadow(0 0 5px #8e7fa8)',
   rest:       'none',
-  cold_start: 'drop-shadow(0 0 6px #b0b0c8)',
+  cold_start: 'drop-shadow(0 0 6px #4f5a6e)',
 };
