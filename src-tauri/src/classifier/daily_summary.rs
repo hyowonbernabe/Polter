@@ -11,6 +11,8 @@ pub struct DailySummaryAccumulator {
     last_completed_focus_block_ms:   Option<u64>,
     pub session_start_ms:            u64,
     pub snapshots:                   Vec<BehavioralSnapshot>,
+    /// Number of times burn state was entered this session.
+    pub burn_entries:                u32,
 }
 
 impl DailySummaryAccumulator {
@@ -24,6 +26,7 @@ impl DailySummaryAccumulator {
             last_completed_focus_block_ms: None,
             session_start_ms,
             snapshots: Vec::new(),
+            burn_entries: 0,
         }
     }
 
@@ -60,6 +63,10 @@ impl DailySummaryAccumulator {
             self.focus_block_start_ms = Some(now_ms);
         } else if !is_focus {
             self.focus_block_start_ms = None;
+        }
+
+        if matches!(new_state, WispState::Burn) && !matches!(self.last_state, WispState::Burn) {
+            self.burn_entries += 1;
         }
 
         self.last_state = new_state;
@@ -150,6 +157,7 @@ impl DailySummaryAccumulator {
         self.last_completed_focus_block_ms = None;
         self.session_start_ms = session_start_ms;
         self.snapshots.clear();
+        self.burn_entries = 0;
     }
 
     /// Returns session-averaged signal values for use in baseline update.

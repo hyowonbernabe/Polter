@@ -19,6 +19,9 @@ pub struct InsightResponse {
     pub extended: String,
     #[serde(rename = "type")]
     pub insight_type: String,
+    /// Wisp's own observation note — written to wisp_memories, never shown to the user.
+    /// Optional so that responses lacking this field parse correctly.
+    pub memory_note: Option<String>,
 }
 
 pub enum VoiceResponse {
@@ -70,7 +73,7 @@ pub async fn call_openrouter(
             { "role": "user",   "content": user_message  }
         ],
         "response_format": { "type": "json_object" },
-        "max_tokens": 300
+        "max_tokens": 400
     });
 
     let response = client

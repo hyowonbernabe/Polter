@@ -1,9 +1,11 @@
+use crate::classifier::daily_summary::DailySummaryAccumulator;
 use crate::classifier::signals::SignalZScores;
 use crate::classifier::state_machine::StateMachine;
 use crate::inference::{
     openrouter::{self, VoiceResponse},
     pool::PoolState,
-    prompt,
+    prompt::{self, DayContext, MemoryContext, TodayContext, WeeklyContext},
+    research,
 };
 use crate::settings;
 use crate::sleep::SleepState;
@@ -12,6 +14,8 @@ use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 
 const DEDUP_SUPPRESS_AT: i64 = 4;
+/// 7 days in milliseconds
+const MEMORY_WINDOW_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
 
 pub struct InferenceEngine {
     pub last_inference_ms: u64,
@@ -69,6 +73,7 @@ pub async fn tick_voice<R: tauri::Runtime>(
     app_handle: &tauri::AppHandle<R>,
     pool_state: &mut PoolState,
     session_start_ms: u64,
+    summary_acc: Arc<Mutex<DailySummaryAccumulator>>,
 ) {
     // Guard: sleep / privacy mode
     if sleep_state.lock().unwrap().is_paused() {
@@ -125,15 +130,52 @@ pub async fn tick_voice<R: tauri::Runtime>(
         ("app_switch_rate".to_string(), z_scores.app_switch_rate),
     ];
 
+    // ── Fix: query actual prior_occurrences from DB ──────────────────────────
+    let prior_occurrences = queries::get_state_insight_count_48h(
+        pools.read.as_ref(), &current_state, now_ms,
+    ).await.unwrap_or(0);
+
+    // ── RAG: retrieve context for this tick ───────────────────────────────────
+
+    // Today so far (from in-memory accumulator)
+    let today_ctx = build_today_context(&summary_acc, now_ms);
+
+    // Recent daily summaries (last 3 days, excluding today)
+    let recent_days = build_recent_day_contexts(pools, dow as u32).await;
+
+    // Wisp's recent observations (last 7 days)
+    let recent_memories = build_memory_contexts(pools, now_ms).await;
+
+    // Weekly context (last 2 weekly summaries)
+    let weekly_ctx = build_weekly_context(pools).await;
+
+    // Session-time research chunk (included when session > 3h)
+    let session_mins = session_secs / 60;
+    let mut signal_research: Vec<String> = Vec::new();
+    if session_mins > 180 {
+        signal_research.push(research::SESSION_TIME.to_string());
+    }
+    // Per-signal research chunks (when |z| >= 1.5)
+    for (name, z) in &signal_deviations {
+        if let Some(chunk) = research::chunk_for_signal(name, *z) {
+            signal_research.push(chunk.to_string());
+        }
+    }
+
     let ctx = prompt::PromptContext {
         state: current_state.clone(),
         state_duration_mins,
         signal_deviations,
         hour: hour as u32,
         day_of_week: dow as u32,
-        prior_occurrences: 0,
+        prior_occurrences,
         cold_start,
-        session_mins: session_secs / 60,
+        session_mins,
+        today: today_ctx,
+        recent_days,
+        recent_memories,
+        weekly: weekly_ctx,
+        signal_research,
     };
 
     let system = prompt::build_system_prompt();
@@ -142,14 +184,13 @@ pub async fn tick_voice<R: tauri::Runtime>(
     tracing::info!(
         "[voice] calling openrouter -- state: {} session: {}m",
         current_state,
-        session_secs / 60
+        session_mins
     );
 
     match openrouter::call_openrouter(&api_key, system, &user).await {
         Err(e) => {
             tracing::warn!("[voice] call failed: {e}");
             engine.lock().unwrap().last_error = Some(e);
-            // Fallback to pre-written pool on API failure
             let text = pool_state.get_mutter(hour as u32, session_secs);
             emit_mutter(app_handle, &text);
         }
@@ -162,7 +203,7 @@ pub async fn tick_voice<R: tauri::Runtime>(
         Ok(VoiceResponse::Insight(insight)) => {
             engine.lock().unwrap().last_error = None;
 
-            // Dedup: insight types seen 4+ times in 48h are suppressed; mutters never are
+            // Dedup: insight types seen 4+ times in 48h are suppressed
             let dedup_count =
                 queries::get_dedup_count_48h(pools.read.as_ref(), &insight.insight_type, now_ms)
                     .await
@@ -174,7 +215,6 @@ pub async fn tick_voice<R: tauri::Runtime>(
                     insight.insight_type,
                     dedup_count
                 );
-                // Emit a pool mutter rather than going silent
                 let text = pool_state.get_mutter(hour as u32, session_secs);
                 emit_mutter(app_handle, &text);
                 return;
@@ -184,7 +224,7 @@ pub async fn tick_voice<R: tauri::Runtime>(
                 .await
                 .unwrap_or(1) == 0;
 
-            let _ = queries::insert_insight(
+            let insight_id = queries::insert_insight(
                 pools.write.as_ref(),
                 now_ms as i64,
                 None,
@@ -193,7 +233,8 @@ pub async fn tick_voice<R: tauri::Runtime>(
                 &insight.extended,
                 &insight.insight_type,
             )
-            .await;
+            .await
+            .unwrap_or(0);
 
             let _ = queries::upsert_dedup_entry(
                 pools.write.as_ref(),
@@ -201,6 +242,23 @@ pub async fn tick_voice<R: tauri::Runtime>(
                 now_ms as i64,
             )
             .await;
+
+            // ── Step 4: Save memory note ──────────────────────────────────────
+            if let Some(ref note) = insight.memory_note {
+                let trimmed = note.trim();
+                if !trimmed.is_empty() && trimmed.len() <= 300 {
+                    if let Err(e) = queries::insert_wisp_memory(
+                        pools.write.as_ref(),
+                        now_ms as i64,
+                        &insight.state,
+                        &insight.insight_type,
+                        trimmed,
+                        insight_id,
+                    ).await {
+                        tracing::warn!("[voice] memory note write failed: {e}");
+                    }
+                }
+            }
 
             engine.lock().unwrap().last_inference_ms = now_ms;
 
@@ -242,4 +300,155 @@ fn emit_mutter<R: tauri::Runtime>(app: &tauri::AppHandle<R>, text: &str) {
             is_first_ever: false,
         },
     );
+}
+
+// ── RAG context builders ──────────────────────────────────────────────────────
+
+fn build_today_context(
+    summary_acc: &Arc<Mutex<DailySummaryAccumulator>>,
+    now_ms: u64,
+) -> Option<TodayContext> {
+    let (total, focus, calm, deep, spark, burn, fade, rest, longest) = {
+        let acc = summary_acc.lock().unwrap();
+        acc.peek_params(now_ms)
+    };
+    if total == 0 {
+        return None;
+    }
+    let mut states = Vec::new();
+    for (name, mins) in [
+        ("focus", focus), ("calm", calm), ("deep", deep), ("spark", spark),
+        ("burn", burn), ("fade", fade), ("rest", rest),
+    ] {
+        if mins > 0 { states.push((name.to_string(), mins)); }
+    }
+    Some(TodayContext {
+        active_mins: total,
+        session_count: 1, // current session only — completed earlier sessions not counted here
+        states,
+        longest_focus_mins: longest,
+        insight_count: 0, // approximate — full count requires a DB query we skip for perf
+    })
+}
+
+async fn build_recent_day_contexts(
+    pools: &DbPools,
+    current_dow: u32,
+) -> Vec<DayContext> {
+    let rows = queries::get_last_7_daily_summaries(pools.read.as_ref())
+        .await
+        .unwrap_or_default();
+
+    let days_of_week = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+    let mut result = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        // Skip today (i == 0 is most recent, which may be today)
+        if i == 0 {
+            // Check if this row is today
+            let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+            if row.date == today_str { continue; }
+        }
+
+        let label = if i == 0 || (i == 1 && {
+            let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+            rows[0].date == today_str
+        }) {
+            "yesterday".to_string()
+        } else {
+            // Figure out the day name from the date string
+            let date_dow = parse_day_of_week(&row.date);
+            let dow_name = date_dow.map(|d| days_of_week[d % 7].to_string())
+                .unwrap_or_else(|| row.date.clone());
+
+            // If it's the same day of week as today, prefix with "last"
+            if date_dow == Some(current_dow as usize % 7) {
+                format!("last {}", dow_name)
+            } else {
+                dow_name
+            }
+        };
+
+        let mut states = Vec::new();
+        for (name, mins) in [
+            ("focus", row.focus_minutes),
+            ("calm", row.calm_minutes),
+            ("deep", row.deep_minutes),
+            ("spark", row.spark_minutes),
+            ("burn", row.burn_minutes),
+            ("fade", row.fade_minutes),
+            ("rest", row.rest_minutes),
+        ] {
+            if mins > 0 { states.push((name.to_string(), mins)); }
+        }
+
+        result.push(DayContext {
+            label,
+            active_mins: row.total_active_minutes,
+            states,
+            longest_focus_mins: row.longest_focus_block_minutes,
+            burn_episodes: row.burn_minutes / 45, // approximate: burn_minutes / typical episode length
+        });
+
+        if result.len() >= 3 { break; }
+    }
+
+    result
+}
+
+async fn build_memory_contexts(pools: &DbPools, now_ms: u64) -> Vec<MemoryContext> {
+    let since_ms = now_ms.saturating_sub(MEMORY_WINDOW_MS) as i64;
+    let rows = queries::get_recent_wisp_memories(pools.read.as_ref(), since_ms, 5)
+        .await
+        .unwrap_or_default();
+
+    rows.into_iter()
+        .map(|r| MemoryContext {
+            age_label: age_label(now_ms, r.timestamp_ms as u64),
+            note: r.memory_note,
+        })
+        .collect()
+}
+
+async fn build_weekly_context(pools: &DbPools) -> Option<WeeklyContext> {
+    let weeks = queries::get_recent_weekly_summaries(pools.read.as_ref(), 2)
+        .await
+        .unwrap_or_default();
+    if weeks.is_empty() {
+        return None;
+    }
+    let total_mins: i64 = weeks.iter().map(|w| w.total_active_mins).sum();
+    let total_days: f64 = weeks.len() as f64 * 7.0;
+    let avg_per_day = total_mins as f64 / total_days;
+    Some(WeeklyContext {
+        avg_active_mins_per_day: avg_per_day,
+        focus_trend: None,
+        burn_trend: None,
+    })
+}
+
+/// Human-readable age label for a memory note timestamp.
+fn age_label(now_ms: u64, ts_ms: u64) -> String {
+    let diff_ms = now_ms.saturating_sub(ts_ms);
+    let mins = diff_ms / 60_000;
+    let hours = mins / 60;
+    let days = hours / 24;
+    if days >= 2 {
+        format!("{} days ago", days)
+    } else if days == 1 {
+        "yesterday".to_string()
+    } else if hours >= 1 {
+        format!("{}h ago", hours)
+    } else {
+        format!("{}m ago", mins.max(1))
+    }
+}
+
+/// Parse day-of-week (0=Monday) from an ISO date string "YYYY-MM-DD".
+fn parse_day_of_week(date: &str) -> Option<usize> {
+    use chrono::NaiveDate;
+    use chrono::Datelike;
+    NaiveDate::parse_from_str(date, "%Y-%m-%d")
+        .ok()
+        .map(|d| d.weekday().num_days_from_monday() as usize)
 }

@@ -1,5 +1,5 @@
 use crate::classifier::{
-    baseline::update_baseline,
+    baseline::{load_baselines, update_baseline},
     daily_summary::DailySummaryAccumulator,
     local_date_and_time, time_of_day_bucket,
 };
@@ -11,6 +11,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::{interval, Duration};
 
 pub type SessionId = Arc<Mutex<Option<i64>>>;
+
+/// Returns the current session's database ID without clearing it.
+pub fn current_session_id(session_id: &SessionId) -> Option<i64> {
+    *session_id.lock().unwrap()
+}
 
 fn now_ms() -> i64 {
     SystemTime::now()
@@ -48,34 +53,93 @@ pub async fn handle_wake(pools: &DbPools, session_id: &SessionId) -> Result<i64,
     start_new_session(pools, session_id).await
 }
 
-/// Writes the daily summary and (once per day) updates the EMA baseline.
-/// Call after end_current_session.
+/// Writes the session summary, daily summary, and (once per day) updates the EMA baseline.
+/// Call after end_current_session. Pass the session's DB id (save it before calling
+/// end_current_session, which clears the stored id).
 pub async fn finalize_session(
     pools: &DbPools,
     summary_acc: &Arc<Mutex<DailySummaryAccumulator>>,
+    ended_session_id: Option<i64>,
 ) {
     let now = now_ms() as u64;
-    // Single syscall for both the date string and the time-bucket values.
     let (date, hour, dow) = local_date_and_time();
     let tod_bucket = time_of_day_bucket(hour);
 
     // Extract all data while holding the lock, then release before any await.
-    let (write_params, daily_avgs) = {
+    let (write_params, daily_avgs, session_start_ms, burn_entries) = {
         let mut acc = summary_acc.lock().unwrap();
         acc.flush(now);
         let params = acc.write_params();
         let avgs = acc.session_averages(crate::pipeline::aggregator::AGGREGATION_SECS as f64);
-        (params, avgs)
+        let start = acc.session_start_ms;
+        let burns = acc.burn_entries;
+        (params, avgs, start, burns)
     };
 
     let (total, focus, calm, deep, spark, burn, fade, rest, longest) = write_params;
-    if let Err(e) = crate::storage::queries::upsert_daily_summary(
+
+    // ── Session summary ───────────────────────────────────────────────────────
+    if let Some(sid) = ended_session_id {
+        // Compute z-scores from raw session averages against the current baseline.
+        let baselines = load_baselines(pools.read.as_ref(), tod_bucket, dow as i32)
+            .await
+            .unwrap_or_default();
+
+        let z_score = |signal: &str| -> f64 {
+            let val = match daily_avgs.get(signal) { Some(&v) => v, None => return 0.0 };
+            let row = match baselines.get(signal) { Some(r) => r, None => return 0.0 };
+            if row.ema_variance < 1e-9 { return 0.0; }
+            (val - row.ema_mean) / row.ema_variance.sqrt()
+        };
+
+        // Build compact states JSON: {"focus":12,"deep":5,...} — skip zero-minute states.
+        let states_json = {
+            let mut pairs: Vec<String> = Vec::new();
+            for (name, mins) in [
+                ("focus", focus), ("calm", calm), ("deep", deep), ("spark", spark),
+                ("burn", burn), ("fade", fade), ("rest", rest),
+            ] {
+                if mins > 0 { pairs.push(format!("\"{}\":{}", name, mins)); }
+            }
+            format!("{{{}}}", pairs.join(","))
+        };
+
+        // Insight count for this session (best effort — treat errors as 0).
+        let insight_count = queries::get_daily_insight_count(
+            pools.read.as_ref(), session_start_ms as i64,
+        ).await.unwrap_or(0);
+
+        if let Err(e) = queries::insert_session_summary(
+            pools.write.as_ref(),
+            sid,
+            session_start_ms as i64,
+            now as i64,
+            total,
+            &states_json,
+            longest,
+            z_score("typing_speed"),
+            z_score("error_rate"),
+            z_score("mouse_speed"),
+            z_score("mouse_jitter"),
+            z_score("pause_frequency"),
+            z_score("app_switch_rate"),
+            insight_count,
+            burn_entries as i64,
+            now as i64,
+        ).await {
+            tracing::warn!("[session] session summary write failed: {e}");
+        }
+    }
+
+    // ── Daily summary ─────────────────────────────────────────────────────────
+    if let Err(e) = queries::upsert_daily_summary(
         pools.write.as_ref(), &date,
         total, focus, calm, deep, spark, burn, fade, rest, longest, 1,
     ).await {
         tracing::error!("[session] daily summary write failed: {e}");
     }
 
+    // ── Baseline update ───────────────────────────────────────────────────────
     let already = crate::classifier::baseline::already_updated_today(
         pools.read.as_ref(), tod_bucket, dow as i32,
     ).await.unwrap_or(false);
@@ -126,8 +190,9 @@ pub fn start_inactivity_watcher(
             };
 
             if idle_ms >= 600_000 {
+                let sid = current_session_id(&session_id);
                 let _ = end_current_session(&pools, &session_id, "inactivity").await;
-                finalize_session(&pools, &summary_acc).await;
+                finalize_session(&pools, &summary_acc, sid).await;
                 if let Err(e) = start_new_session(&pools, &session_id).await {
                     tracing::error!("[session] failed to restart session after inactivity: {e}");
                 }

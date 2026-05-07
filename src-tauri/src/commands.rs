@@ -410,9 +410,10 @@ pub async fn apply_sleep_change(
     app_handle: tauri::AppHandle,
 ) -> Result<bool, String> {
     if new_sleeping {
+        let sid = crate::session::current_session_id(&session_id);
         crate::session::end_current_session(&pools, &session_id, "sleep")
             .await.map_err(|e| e.to_string())?;
-        crate::session::finalize_session(&pools, &summary_acc).await;
+        crate::session::finalize_session(&pools, &summary_acc, sid).await;
     } else {
         crate::session::start_new_session(&pools, &session_id)
             .await.map_err(|e| e.to_string())?;

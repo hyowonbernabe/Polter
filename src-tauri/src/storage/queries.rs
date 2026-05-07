@@ -594,6 +594,456 @@ pub async fn get_today_session_count(
     Ok(row.0)
 }
 
+// ── Session summaries ─────────────────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+pub async fn insert_session_summary(
+    pool: &DbWritePool,
+    session_id: i64,
+    session_start_ms: i64,
+    session_end_ms: i64,
+    duration_mins: i64,
+    states_json: &str,
+    longest_focus_mins: i64,
+    avg_typing_speed_z: f64,
+    avg_error_rate_z: f64,
+    avg_mouse_speed_z: f64,
+    avg_mouse_jitter_z: f64,
+    avg_pause_frequency_z: f64,
+    avg_app_switch_rate_z: f64,
+    insight_count: i64,
+    burn_episodes: i64,
+    created_at: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO session_summaries
+               (session_id, session_start_ms, session_end_ms, duration_mins, states_json,
+                longest_focus_mins, avg_typing_speed_z, avg_error_rate_z, avg_mouse_speed_z,
+                avg_mouse_jitter_z, avg_pause_frequency_z, avg_app_switch_rate_z,
+                insight_count, burn_episodes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(session_id)
+    .bind(session_start_ms)
+    .bind(session_end_ms)
+    .bind(duration_mins)
+    .bind(states_json)
+    .bind(longest_focus_mins)
+    .bind(avg_typing_speed_z)
+    .bind(avg_error_rate_z)
+    .bind(avg_mouse_speed_z)
+    .bind(avg_mouse_jitter_z)
+    .bind(avg_pause_frequency_z)
+    .bind(avg_app_switch_rate_z)
+    .bind(insight_count)
+    .bind(burn_episodes)
+    .bind(created_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionSummaryRow {
+    pub session_start_ms: i64,
+    pub session_end_ms: i64,
+    pub duration_mins: i64,
+    pub states_json: String,
+    pub longest_focus_mins: i64,
+    pub insight_count: i64,
+    pub burn_episodes: i64,
+}
+
+/// Returns session summaries for a given calendar day (specified by day start/end ms).
+pub async fn get_session_summaries_for_day(
+    pool: &DbReadPool,
+    day_start_ms: i64,
+    day_end_ms: i64,
+) -> Result<Vec<SessionSummaryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT session_start_ms, session_end_ms, duration_mins, states_json,
+                  longest_focus_mins, insight_count, burn_episodes
+           FROM session_summaries
+           WHERE session_start_ms >= ? AND session_start_ms < ?
+           ORDER BY session_start_ms ASC"#,
+    )
+    .bind(day_start_ms)
+    .bind(day_end_ms)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        SessionSummaryRow {
+            session_start_ms:  r.get(0),
+            session_end_ms:    r.get(1),
+            duration_mins:     r.get(2),
+            states_json:       r.get(3),
+            longest_focus_mins: r.get(4),
+            insight_count:     r.get(5),
+            burn_episodes:     r.get(6),
+        }
+    }).collect())
+}
+
+// ── Wisp memories ─────────────────────────────────────────────────────────────
+
+pub async fn insert_wisp_memory(
+    pool: &DbWritePool,
+    timestamp_ms: i64,
+    state: &str,
+    insight_type: &str,
+    memory_note: &str,
+    insight_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO wisp_memories
+               (timestamp_ms, state, insight_type, memory_note, insight_id, consolidated)
+           VALUES (?, ?, ?, ?, ?, 0)"#,
+    )
+    .bind(timestamp_ms)
+    .bind(state)
+    .bind(insight_type)
+    .bind(memory_note)
+    .bind(insight_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct WispMemoryRow {
+    pub id: i64,
+    pub timestamp_ms: i64,
+    pub state: String,
+    pub insight_type: String,
+    pub memory_note: String,
+}
+
+/// Returns the most recent non-consolidated wisp memories (last 7 days), newest first.
+pub async fn get_recent_wisp_memories(
+    pool: &DbReadPool,
+    since_ms: i64,
+    limit: i64,
+) -> Result<Vec<WispMemoryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT id, timestamp_ms, state, insight_type, memory_note
+           FROM wisp_memories
+           WHERE timestamp_ms >= ? AND consolidated = 0
+           ORDER BY timestamp_ms DESC
+           LIMIT ?"#,
+    )
+    .bind(since_ms)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        WispMemoryRow {
+            id:           r.get(0),
+            timestamp_ms: r.get(1),
+            state:        r.get(2),
+            insight_type: r.get(3),
+            memory_note:  r.get(4),
+        }
+    }).collect())
+}
+
+/// Returns memories older than `cutoff_ms` that haven't been consolidated yet.
+pub async fn get_unconsolidated_memories_before(
+    pool: &DbReadPool,
+    cutoff_ms: i64,
+) -> Result<Vec<WispMemoryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT id, timestamp_ms, state, insight_type, memory_note
+           FROM wisp_memories
+           WHERE timestamp_ms < ? AND consolidated = 0
+           ORDER BY timestamp_ms ASC"#,
+    )
+    .bind(cutoff_ms)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        WispMemoryRow {
+            id:           r.get(0),
+            timestamp_ms: r.get(1),
+            state:        r.get(2),
+            insight_type: r.get(3),
+            memory_note:  r.get(4),
+        }
+    }).collect())
+}
+
+pub async fn mark_memories_consolidated(
+    pool: &DbWritePool,
+    ids: &[i64],
+) -> Result<(), sqlx::Error> {
+    for id in ids {
+        sqlx::query("UPDATE wisp_memories SET consolidated = 1 WHERE id = ?")
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+// ── Extended daily summary queries ────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+pub async fn update_daily_summary_extended(
+    pool: &DbWritePool,
+    date: &str,
+    day_of_week: i64,
+    avg_typing_speed_z: f64,
+    avg_error_rate_z: f64,
+    avg_mouse_speed_z: f64,
+    avg_mouse_jitter_z: f64,
+    avg_pause_frequency_z: f64,
+    avg_app_switch_rate_z: f64,
+    insight_count: i64,
+    burn_episodes: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE daily_summaries
+           SET day_of_week        = ?,
+               avg_typing_speed_z = ?,
+               avg_error_rate_z   = ?,
+               avg_mouse_speed_z  = ?,
+               avg_mouse_jitter_z = ?,
+               avg_pause_frequency_z = ?,
+               avg_app_switch_rate_z = ?,
+               insight_count      = ?,
+               burn_episodes      = ?
+           WHERE date = ?"#,
+    )
+    .bind(day_of_week)
+    .bind(avg_typing_speed_z)
+    .bind(avg_error_rate_z)
+    .bind(avg_mouse_speed_z)
+    .bind(avg_mouse_jitter_z)
+    .bind(avg_pause_frequency_z)
+    .bind(avg_app_switch_rate_z)
+    .bind(insight_count)
+    .bind(burn_episodes)
+    .bind(date)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Writes the consolidated memory digest for a date. Replaces any prior value —
+/// callers must only invoke this once per date (guarded by wisp_memories.consolidated flag).
+pub async fn set_daily_memory_digest(
+    pool: &DbWritePool,
+    date: &str,
+    digest: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE daily_summaries SET memory_digest = ? WHERE date = ?")
+        .bind(digest)
+        .bind(date)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// Returns daily summaries for the same day-of-week over the last N weeks.
+pub async fn get_daily_summaries_same_dow(
+    pool: &DbReadPool,
+    day_of_week: i64,
+    limit: i64,
+) -> Result<Vec<DailySummaryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT date, total_active_minutes, focus_minutes, calm_minutes, deep_minutes,
+                  spark_minutes, burn_minutes, fade_minutes, rest_minutes,
+                  longest_focus_block_minutes, session_count
+           FROM daily_summaries
+           WHERE day_of_week = ?
+           ORDER BY date DESC
+           LIMIT ?"#,
+    )
+    .bind(day_of_week)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        DailySummaryRow {
+            date:                        r.get(0),
+            total_active_minutes:        r.get(1),
+            focus_minutes:               r.get(2),
+            calm_minutes:                r.get(3),
+            deep_minutes:                r.get(4),
+            spark_minutes:               r.get(5),
+            burn_minutes:                r.get(6),
+            fade_minutes:                r.get(7),
+            rest_minutes:                r.get(8),
+            longest_focus_block_minutes: r.get(9),
+            session_count:               r.get(10),
+        }
+    }).collect())
+}
+
+/// Returns daily summaries older than `cutoff_date` that haven't been consolidated.
+pub async fn get_unconsolidated_daily_summaries_before(
+    pool: &DbReadPool,
+    cutoff_date: &str,
+) -> Result<Vec<DailySummaryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT date, total_active_minutes, focus_minutes, calm_minutes, deep_minutes,
+                  spark_minutes, burn_minutes, fade_minutes, rest_minutes,
+                  longest_focus_block_minutes, session_count
+           FROM daily_summaries
+           WHERE date < ? AND consolidated = 0
+           ORDER BY date ASC"#,
+    )
+    .bind(cutoff_date)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        DailySummaryRow {
+            date:                        r.get(0),
+            total_active_minutes:        r.get(1),
+            focus_minutes:               r.get(2),
+            calm_minutes:                r.get(3),
+            deep_minutes:                r.get(4),
+            spark_minutes:               r.get(5),
+            burn_minutes:                r.get(6),
+            fade_minutes:                r.get(7),
+            rest_minutes:                r.get(8),
+            longest_focus_block_minutes: r.get(9),
+            session_count:               r.get(10),
+        }
+    }).collect())
+}
+
+pub async fn mark_daily_summary_consolidated(
+    pool: &DbWritePool,
+    date: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE daily_summaries SET consolidated = 1 WHERE date = ?")
+        .bind(date)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+// ── Weekly summaries ──────────────────────────────────────────────────────────
+
+#[allow(clippy::too_many_arguments)]
+pub async fn upsert_weekly_summary(
+    pool: &DbWritePool,
+    week_start_date: &str,
+    week_end_date: &str,
+    total_active_mins: i64,
+    session_count: i64,
+    states_json: &str,
+    longest_focus_mins: i64,
+    insight_count: i64,
+    burn_episodes: i64,
+    memory_digest: Option<&str>,
+    notable_events: Option<&str>,
+    created_at: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO weekly_summaries
+               (week_start_date, week_end_date, total_active_mins, session_count, states_json,
+                longest_focus_mins, insight_count, burn_episodes, memory_digest, notable_events,
+                created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(week_start_date) DO UPDATE SET
+               total_active_mins  = excluded.total_active_mins,
+               session_count      = excluded.session_count,
+               states_json        = excluded.states_json,
+               longest_focus_mins = excluded.longest_focus_mins,
+               insight_count      = excluded.insight_count,
+               burn_episodes      = excluded.burn_episodes,
+               memory_digest      = excluded.memory_digest,
+               notable_events     = excluded.notable_events"#,
+    )
+    .bind(week_start_date)
+    .bind(week_end_date)
+    .bind(total_active_mins)
+    .bind(session_count)
+    .bind(states_json)
+    .bind(longest_focus_mins)
+    .bind(insight_count)
+    .bind(burn_episodes)
+    .bind(memory_digest)
+    .bind(notable_events)
+    .bind(created_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct WeeklySummaryRow {
+    pub week_start_date: String,
+    pub week_end_date: String,
+    pub total_active_mins: i64,
+    pub session_count: i64,
+    pub longest_focus_mins: i64,
+    pub insight_count: i64,
+    pub burn_episodes: i64,
+    pub memory_digest: Option<String>,
+}
+
+pub async fn get_recent_weekly_summaries(
+    pool: &DbReadPool,
+    limit: i64,
+) -> Result<Vec<WeeklySummaryRow>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT week_start_date, week_end_date, total_active_mins, session_count,
+                  longest_focus_mins, insight_count, burn_episodes, memory_digest
+           FROM weekly_summaries
+           ORDER BY week_start_date DESC
+           LIMIT ?"#,
+    )
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|r| {
+        use sqlx::Row;
+        WeeklySummaryRow {
+            week_start_date: r.get(0),
+            week_end_date:   r.get(1),
+            total_active_mins: r.get(2),
+            session_count:   r.get(3),
+            longest_focus_mins: r.get(4),
+            insight_count:   r.get(5),
+            burn_episodes:   r.get(6),
+            memory_digest:   r.get(7),
+        }
+    }).collect())
+}
+
+// ── RAG: prior occurrences fix ────────────────────────────────────────────────
+
+/// Returns the count of insights with the given state in the last 48 hours.
+/// Used to fix the prior_occurrences hardcoded-to-0 bug.
+pub async fn get_state_insight_count_48h(
+    pool: &DbReadPool,
+    state: &str,
+    now_ms: u64,
+) -> Result<i64, sqlx::Error> {
+    let cutoff = now_ms.saturating_sub(48 * 60 * 60 * 1_000) as i64;
+    let row: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM insights WHERE state = ? AND timestamp >= ?",
+    )
+    .bind(state)
+    .bind(cutoff)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.0)
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

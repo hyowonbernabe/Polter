@@ -176,6 +176,14 @@ pub fn run() {
                 s.schedule_end_minute   = schedule.end_minute;
             }
 
+            // Run memory decay consolidation on startup (background, non-blocking).
+            {
+                let pools_cons = pools.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::inference::consolidation::run_consolidation(&pools_cons).await;
+                });
+            }
+
             // Start the first session.
             {
                 let pools_ref = pools.clone();
@@ -228,8 +236,9 @@ pub fn run() {
                         let last_end = crate::storage::queries::get_last_session_end_ms(
                             pools_wake.read.as_ref(),
                         ).await.ok().flatten();
+                        let old_sid = session::current_session_id(&sid_wake);
                         let _ = session::handle_wake(&pools_wake, &sid_wake).await;
-                        session::finalize_session(&pools_wake, &summary_wake).await;
+                        session::finalize_session(&pools_wake, &summary_wake, old_sid).await;
                         inf_wake.lock().unwrap().reset_session();
                         let is_returning = last_end.map_or(false, |end| {
                             now_ms.saturating_sub(end as u64) >= 4 * 60 * 60 * 1_000
@@ -508,12 +517,13 @@ pub fn run() {
             // Start the 5-minute always-on voice ticker.
             // 60-second warmup on startup before the first utterance.
             {
-                let engine_v = inference_engine.clone();
-                let sm_v     = state_machine.clone();
-                let sleep_v  = sleep_state.clone();
-                let pools_v  = pools.clone();
-                let app_v    = app.handle().clone();
-                let start_ms = now_setup_ms;
+                let engine_v  = inference_engine.clone();
+                let sm_v      = state_machine.clone();
+                let sleep_v   = sleep_state.clone();
+                let pools_v   = pools.clone();
+                let app_v     = app.handle().clone();
+                let summary_v = summary_acc.clone();
+                let start_ms  = now_setup_ms;
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
                     let mut pool_state = crate::inference::pool::PoolState::new(start_ms);
@@ -530,6 +540,7 @@ pub fn run() {
                             &app_v,
                             &mut pool_state,
                             start_ms,
+                            summary_v.clone(),
                         )
                         .await;
                     }

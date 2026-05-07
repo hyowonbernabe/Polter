@@ -103,7 +103,7 @@ Insights are things Wisp says. They appear as speech bubbles originating from th
 
 ### Insight Generation Rules
 - `V1` Insights only generate after a minimum of 5 minutes of active behavioral data — never on sparse readings
-- `V1` Maximum 3 bubbles per day, hard cap. Wisp speaks rarely and means it every time.
+- `V1` No daily cap on bubbles. Wisp decides each tick whether to produce an insight or a mutter. Deduplication prevents repetition of the same insight type.
 - `V1` Insights do not appear during sleep mode
 - `V1` Insights queue — if one is generated while a bubble is already showing, it waits. Bubbles never stack.
 - `V1` Insights generated while the user is AFK surface when activity resumes, but only if they are still relevant (recent enough)
@@ -175,7 +175,7 @@ Accessed from the dashboard or from the system tray right-click menu.
 - `V1` **Active sensors indicator** — small list showing every signal currently being collected, in plain language
 
 ### Insights
-- `V1` **Insight frequency** — slider: 1 to 5 bubbles per day maximum
+- `V2` **Insight frequency** — slider: adjust how often Wisp speaks (reserved for future tuning)
 - `V1` **Sound** — toggle: a soft chime plays when a bubble appears (off by default)
 
 ### Creature

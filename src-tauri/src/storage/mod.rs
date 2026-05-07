@@ -43,6 +43,32 @@ pub async fn init(db_path: &str) -> Result<DbPools, sqlx::Error> {
         .execute(&write)
         .await?;
 
+    sqlx::raw_sql(include_str!("../../migrations/004_inference_overhaul.sql"))
+        .execute(&write)
+        .await?;
+
+    // ALTER TABLE ADD COLUMN is not idempotent in SQLite, so we attempt each
+    // column addition individually and ignore "duplicate column" errors.
+    let daily_summary_columns = [
+        "ALTER TABLE daily_summaries ADD COLUMN day_of_week        INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_typing_speed_z REAL    NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_error_rate_z   REAL    NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_mouse_speed_z  REAL    NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_mouse_jitter_z REAL    NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_pause_frequency_z REAL NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN avg_app_switch_rate_z REAL NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN insight_count      INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN burn_episodes      INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE daily_summaries ADD COLUMN notable_events     TEXT",
+        "ALTER TABLE daily_summaries ADD COLUMN memory_digest      TEXT",
+        "ALTER TABLE daily_summaries ADD COLUMN consolidated       INTEGER NOT NULL DEFAULT 0",
+    ];
+    for stmt in &daily_summary_columns {
+        let _ = sqlx::raw_sql(stmt).execute(&write).await;
+        // Errors (e.g., "duplicate column name") are silently ignored —
+        // this means the column already exists, which is the desired state.
+    }
+
     Ok(DbPools {
         write: Arc::new(write),
         read: Arc::new(read),
