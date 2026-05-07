@@ -12,7 +12,7 @@ export function Footer() {
             display:        'flex',
             justifyContent: 'space-between',
             alignItems:     'center',
-            marginBottom:   'var(--sp-5)',
+            marginBottom:   'var(--sp-6)',
             flexWrap:       'wrap',
             gap:            'var(--sp-4)',
           }}
@@ -48,6 +48,29 @@ export function Footer() {
           </nav>
         </div>
 
+        {/* Creators */}
+        <div
+          style={{
+            display:      'flex',
+            gap:          'var(--sp-6)',
+            marginBottom: 'var(--sp-5)',
+            flexWrap:     'wrap',
+          }}
+        >
+          <div>
+            <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 4 }}>Created by</div>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--fg-2)' }}>
+              Creator One
+            </span>
+          </div>
+          <div>
+            <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 4 }}>&nbsp;</div>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--fg-2)' }}>
+              Creator Two
+            </span>
+          </div>
+        </div>
+
         {/* Bottom row */}
         <div
           className="footer-bottom"
@@ -62,7 +85,7 @@ export function Footer() {
             Boo
           </span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' }}>
-            2026 · MIT licensed.
+            2026 &middot; MIT licensed.
           </span>
         </div>
       </div>

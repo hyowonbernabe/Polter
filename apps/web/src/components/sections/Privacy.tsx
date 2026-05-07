@@ -55,17 +55,23 @@ function FlaskIcon({ size = 28, color = 'currentColor' }: { size?: number; color
 /* ── Data ── */
 
 const SEES = [
-  'Keystroke timing, not which key',
-  'Mouse path and idle gaps',
-  'Window switches and focus durations',
-  'Time of day and day of week',
+  'Keystroke timing and rhythm, not which keys',
+  'Mouse speed, path, jitter, and idle gaps',
+  'Which app is active and for how long',
+  'Window and tab count as a mental load proxy',
+  'Save frequency, undo rate, deletion ratio',
+  'Notification response speed',
+  'System state: battery, brightness, audio device',
+  'Session timing, breaks, and work patterns',
 ];
 
 const NEVER_SEES = [
   'The words you type',
-  'The websites you visit',
-  'The contents of your screen',
-  'Anything sent to a server',
+  'Passwords or sensitive input',
+  'The websites you visit or tab contents',
+  'File names, paths, or document contents',
+  'Emails, messages, or conversations',
+  'Anything sent to a server or third party',
 ];
 
 interface TierCard {
@@ -80,21 +86,21 @@ const TIERS: TierCard[] = [
   {
     num:   '01',
     title: 'Automatic',
-    desc:  'Keystroke timing, mouse behavior, app focus, system activity. Runs from install. No content is ever captured, only patterns.',
+    desc:  'Keystroke timing, mouse behavior, app focus, system activity, save frequency, notification response, display settings, and more. Runs from install. Only patterns, never content.',
     icon:  LockIcon,
     color: 'var(--mood-calm)',
   },
   {
     num:   '02',
     title: 'Opt-in',
-    desc:  'Screen content classification, clipboard frequency, calendar proximity. Each one asked separately. Skip any or all of them.',
+    desc:  'Screen content classification, clipboard frequency, calendar proximity. Each one asked separately during setup with a clear explanation. Skip any or all.',
     icon:  ToggleIcon,
     color: 'var(--accent)',
   },
   {
     num:   '03',
     title: 'Future',
-    desc:  'Webcam and microphone signals. Not in the current release. Designed and waiting for when the tech is ready.',
+    desc:  'Webcam signals like heart rate estimation and posture. Microphone signals like ambient noise level. Fully designed, not yet built. Each requires separate explicit permission.',
     icon:  FlaskIcon,
     color: 'var(--fg-3)',
   },

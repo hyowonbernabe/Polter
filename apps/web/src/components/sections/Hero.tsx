@@ -65,8 +65,9 @@ export function Hero() {
             margin:     '0 0 40px',
           }}
         >
-          A small pixel ghost that lives on your screen. It watches how you
-          work, not what you type, and sometimes says what it notices.
+          A pixel ghost that observes the quiet signals in how you work. Keystroke
+          rhythm, mouse behavior, focus patterns. Backed by real research, never
+          invasive. Everything stays on your machine.
         </p>
 
         <div className="flex items-center gap-4 flex-wrap" style={{ marginBottom: 32 }}>

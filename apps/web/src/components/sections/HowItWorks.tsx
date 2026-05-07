@@ -1,5 +1,4 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
-import { GhostSprite } from '@/components/ui/GhostSprite';
 import { CandleScatter } from '@/components/ui/CandleScatter';
 
 function DownloadIcon() {
@@ -34,30 +33,23 @@ const STEPS = [
     num: '01',
     title: 'Install It',
     desc: "Download Polter. A small ghost shows up on your desktop. That's it.",
-    detail: 'One installer. No account. No setup wizard.',
+    detail: 'One installer. No account.',
     Icon: DownloadIcon,
   },
   {
     num: '02',
     title: 'Forget About It',
-    desc: 'It watches your patterns quietly. Keystroke timing, mouse rhythm, app switching. Never what you type.',
+    desc: 'It watches your patterns quietly. Keystroke timing, mouse rhythm, app switching, and more. Never invasive.',
     detail: 'Runs in the background. Uses less than 1% CPU.',
     Icon: EyeIcon,
   },
   {
     num: '03',
     title: 'It Notices',
-    desc: 'When it sees something worth saying, it tells you. One sentence. Maybe two.',
+    desc: 'After observation, it will tell you everything.',
     detail: 'A quiet observation, a chart, or a gentle nudge.',
     Icon: BubbleIcon,
   },
-];
-
-const PROMISES = [
-  'No signup',
-  'No configuration',
-  'No learning curve',
-  'No data leaves your machine',
 ];
 
 export function HowItWorks() {
@@ -212,64 +204,6 @@ export function HowItWorks() {
           ))}
         </div>
 
-        {/* Floating ghost between sections */}
-        <ScrollReveal delay={700}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              margin: 'var(--sp-8) 0 var(--sp-7)',
-              opacity: 0.25,
-              filter: 'drop-shadow(0 0 20px rgba(245,244,239,0.15))',
-            }}
-          >
-            <GhostSprite name="front.png" scale={2} />
-          </div>
-        </ScrollReveal>
-
-        {/* Promise row */}
-        <ScrollReveal delay={800}>
-          <div
-            className="how-promises"
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: 'var(--sp-7)',
-              flexWrap: 'wrap',
-            }}
-          >
-            {PROMISES.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--sp-2)',
-                }}
-              >
-                <div
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    opacity: 0.6,
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: 14,
-                    color: 'var(--fg-2)',
-                  }}
-                >
-                  {item}
-                </span>
-              </div>
-            ))}
-          </div>
-        </ScrollReveal>
       </div>
 
       <style>{`
@@ -278,11 +212,6 @@ export function HowItWorks() {
             grid-template-columns: 1fr !important;
             max-width: 400px !important;
             margin: 0 auto !important;
-          }
-          .how-promises {
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: var(--sp-3) !important;
           }
         }
       `}</style>
