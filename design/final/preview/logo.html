@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Logo</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body { font-family: var(--font-ui); padding: 28px 32px; min-height: 150px; box-sizing: border-box; display: flex; align-items: center; gap: 40px; }
+  .mark { display: flex; align-items: center; gap: 12px; }
+  .mark img { width: 64px; height: 64px; }
+  .word {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--fg-1);
+    font-weight: 400;
+  }
+  .small { display: flex; align-items: center; gap: 8px; }
+  .small img { width: 24px; height: 24px; }
+  .small .word { font-size: 22px; }
+  .tiny img { width: 16px; height: 16px; }
+  .tiny .word { font-size: 14px; }
+  .col { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+</style>
+</head>
+<body class="polter">
+  <div class="mark">
+    <img src="../assets/ghost/front.png" class="pixel-art" alt="">
+    <span class="word">polter</span>
+  </div>
+  <div class="col">
+    <div class="mark small"><img src="../assets/ghost/front.png" class="pixel-art" alt=""><span class="word">polter</span></div>
+    <div class="mark tiny"><img src="../assets/ghost/front.png" class="pixel-art" alt=""><span class="word">polter</span></div>
+  </div>
+</body>
+</html>

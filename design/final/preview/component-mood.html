@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Mood indicator</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 22px 28px;
+    min-height: 200px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px 8px;
+    border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill .name { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--fg-1); }
+  .pill .meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); }
+  .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .now {
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .now img { width: 56px; height: 56px; image-rendering: pixelated; }
+  .now .info { display: flex; flex-direction: column; gap: 4px; }
+  .now .label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+  .now .name { font-family: var(--font-serif); font-style: italic; font-size: 28px; color: var(--fg-1); line-height: 1; }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="pill"><span class="dot" style="background:#7a9e8b"></span><span class="name">calm</span><span class="meta">focused</span></div>
+    <div class="pill"><span class="dot" style="background:#c08a64"></span><span class="name">restless</span><span class="meta">anxious</span></div>
+    <div class="pill"><span class="dot" style="background:#8e7fa8"></span><span class="name">tired</span><span class="meta">exhausted</span></div>
+    <div class="pill"><span class="dot" style="background:#4f5a6e"></span><span class="name">asleep</span><span class="meta">idle 14m</span></div>
+  </div>
+  <div class="now">
+    <img src="../assets/ghost/front.png" alt="">
+    <div class="info">
+      <span class="label">right now</span>
+      <span class="name" style="color:#7a9e8b">calm</span>
+      <span class="label">for 23 minutes</span>
+    </div>
+  </div>
+</body>
+</html>

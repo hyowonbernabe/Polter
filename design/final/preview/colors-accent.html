@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Accents</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 22px;
+    min-height: 160px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .swatch {
+    border-radius: 8px;
+    height: 116px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid var(--border-1);
+  }
+  .swatch .name { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .swatch .label { font-family: var(--font-serif); font-style: italic; font-size: 18px; }
+  .swatch .hex { font-family: var(--font-mono); font-size: 10px; opacity: 0.7; }
+</style>
+</head>
+<body>
+  <div class="swatch" style="background: #d4b87a; color: #2a230f;">
+    <div class="name">accent</div>
+    <div class="label">candlelight</div>
+    <div class="hex">#d4b87a</div>
+  </div>
+  <div class="swatch" style="background: rgba(212,184,122,0.14); color: #d4b87a; border-color: rgba(212,184,122,0.3);">
+    <div class="name">accent-soft</div>
+    <div class="label">tinted bg</div>
+    <div class="hex">14% candlelight</div>
+  </div>
+  <div class="swatch" style="background: #b86a5e; color: #2a1414;">
+    <div class="name">danger</div>
+    <div class="label">warning</div>
+    <div class="hex">#b86a5e</div>
+  </div>
+  <div class="swatch" style="background: #7a9e8b; color: #15251e;">
+    <div class="name">success</div>
+    <div class="label">confirmed</div>
+    <div class="hex">#7a9e8b</div>
+  </div>
+</body>
+</html>

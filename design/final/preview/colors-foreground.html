@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Foreground colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); }
+  body {
+    padding: 24px;
+    min-height: 230px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .panel {
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dark { background: var(--bg-1); border: 1px solid var(--border-1); }
+  .light { background: var(--bg-light); }
+  .row { display: flex; align-items: center; gap: 14px; }
+  .dot { width: 16px; height: 16px; border-radius: 4px; }
+  .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; min-width: 56px; }
+  .text { font-size: 14px; }
+  .hex { font-family: var(--font-mono); font-size: 11px; margin-left: auto; opacity: 0.7; }
+</style>
+</head>
+<body>
+  <div class="panel dark">
+    <div class="row" style="color: #e8e6e1;"><span class="dot" style="background:#e8e6e1"></span><span class="label">fg-1</span><span class="text">primary text</span><span class="hex">#e8e6e1</span></div>
+    <div class="row" style="color: #a9a8a3;"><span class="dot" style="background:#a9a8a3"></span><span class="label">fg-2</span><span class="text">secondary text</span><span class="hex">#a9a8a3</span></div>
+    <div class="row" style="color: #6b6a66;"><span class="dot" style="background:#6b6a66"></span><span class="label">fg-3</span><span class="text">muted / hints</span><span class="hex">#6b6a66</span></div>
+    <div class="row" style="color: #3e3e3b;"><span class="dot" style="background:#3e3e3b"></span><span class="label">fg-4</span><span class="text">disabled / dividers</span><span class="hex">#3e3e3b</span></div>
+  </div>
+  <div class="panel light">
+    <div class="row" style="color: #1a1a18;"><span class="dot" style="background:#1a1a18"></span><span class="label">fg-ink</span><span class="text">primary text</span><span class="hex">#1a1a18</span></div>
+    <div class="row" style="color: #4a4a45;"><span class="dot" style="background:#4a4a45"></span><span class="label">ink-2</span><span class="text">secondary text</span><span class="hex">#4a4a45</span></div>
+    <div class="row" style="color: #8a8980;"><span class="dot" style="background:#8a8980"></span><span class="label">ink-3</span><span class="text">muted / hints</span><span class="hex">#8a8980</span></div>
+    <div class="row" style="color: #d8d4cb;"><span class="dot" style="background:#d8d4cb; outline: 1px solid #c9c4b9"></span><span class="label" style="color:#4a4a45">border</span><span class="text" style="color:#4a4a45">light dividers</span><span class="hex" style="color:#4a4a45">#d8d4cb</span></div>
+  </div>
+</body>
+</html>

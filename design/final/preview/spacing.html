@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Spacing scale</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 24px 28px;
+    min-height: 220px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+  }
+  .row { display: grid; grid-template-columns: 60px 60px 1fr; align-items: center; column-gap: 14px; }
+  .tok { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-3); }
+  .px { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); }
+  .bar { height: 10px; background: #d4b87a; border-radius: 2px; }
+</style>
+</head>
+<body>
+  <div class="row"><div class="tok">sp-1</div><div class="px">4 px</div><div class="bar" style="width:4px"></div></div>
+  <div class="row"><div class="tok">sp-2</div><div class="px">8 px</div><div class="bar" style="width:8px"></div></div>
+  <div class="row"><div class="tok">sp-3</div><div class="px">12 px</div><div class="bar" style="width:12px"></div></div>
+  <div class="row"><div class="tok">sp-4</div><div class="px">16 px</div><div class="bar" style="width:16px"></div></div>
+  <div class="row"><div class="tok">sp-5</div><div class="px">24 px</div><div class="bar" style="width:24px"></div></div>
+  <div class="row"><div class="tok">sp-6</div><div class="px">32 px</div><div class="bar" style="width:32px"></div></div>
+  <div class="row"><div class="tok">sp-7</div><div class="px">48 px</div><div class="bar" style="width:48px"></div></div>
+  <div class="row"><div class="tok">sp-8</div><div class="px">64 px</div><div class="bar" style="width:64px"></div></div>
+  <div class="row"><div class="tok">sp-9</div><div class="px">96 px</div><div class="bar" style="width:96px"></div></div>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Surface colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 24px;
+    min-height: 220px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+  }
+  .swatch {
+    border-radius: 8px;
+    border: 1px solid var(--border-1);
+    padding: 12px;
+    height: 156px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .swatch .name { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-2); }
+  .swatch .hex { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+  .on-light .name, .on-light .hex { color: var(--fg-ink-2); }
+  .on-light .name { color: var(--fg-ink); }
+</style>
+</head>
+<body>
+  <div class="swatch" style="background: #0e0f12;"><div class="name">bg-0</div><div class="hex">#0e0f12</div></div>
+  <div class="swatch" style="background: #15171c;"><div class="name">bg-1</div><div class="hex">#15171c</div></div>
+  <div class="swatch" style="background: #1c1f26;"><div class="name">bg-2</div><div class="hex">#1c1f26</div></div>
+  <div class="swatch" style="background: #242832;"><div class="name">bg-3</div><div class="hex">#242832</div></div>
+  <div class="swatch on-light" style="background: #ebe7df;"><div class="name">bg-paper</div><div class="hex">#ebe7df</div></div>
+  <div class="swatch on-light" style="background: #f3f1ec;"><div class="name">bg-light</div><div class="hex">#f3f1ec</div></div>
+  <div class="swatch on-light" style="background: #f5f4ef; border-color: #e0dcd2;"><div class="name">ghost</div><div class="hex">#f5f4ef</div></div>
+</body>
+</html>

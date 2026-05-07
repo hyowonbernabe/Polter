@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter Design System</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body { font-family: var(--font-ui); padding: 64px 48px 96px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .head { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
+  .head img { width: 56px; height: 56px; image-rendering: pixelated; }
+  h1 { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: 56px; line-height: 1; letter-spacing: -0.025em; margin: 0; text-transform: lowercase; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); }
+  .lead { font-family: var(--font-serif); font-style: italic; font-size: 24px; line-height: 1.4; color: var(--fg-2); margin: 24px 0 64px; max-width: 600px; text-transform: lowercase; letter-spacing: -0.015em; }
+  .links { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  a.tile { display: block; padding: 22px 24px; background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 12px; text-decoration: none; color: var(--fg-1); transition: background 140ms; }
+  a.tile:hover { background: var(--bg-3); }
+  a.tile .name { font-family: var(--font-serif); font-style: italic; font-size: 22px; }
+  a.tile .desc { font-family: var(--font-ui); font-size: 14px; color: var(--fg-3); margin-top: 4px; }
+  .mono { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); letter-spacing: 0.06em; margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--border-1); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <img src="assets/ghost/front.png" alt="">
+      <div>
+        <div class="eyebrow">design system</div>
+        <h1>polter</h1>
+      </div>
+    </div>
+
+    <p class="lead">a silent desktop companion that watches how you work — not what you type — and occasionally tells you something true about yourself.</p>
+
+    <div class="links">
+      <a class="tile" href="ui_kits/desktop/index.html">
+        <div class="name">desktop ui kit</div>
+        <div class="desc">ghost overlay · insight bubbles · dashboard</div>
+      </a>
+      <a class="tile" href="ui_kits/website/index.html">
+        <div class="name">website ui kit</div>
+        <div class="desc">marketing landing page</div>
+      </a>
+      <a class="tile" href="README.md">
+        <div class="name">readme</div>
+        <div class="desc">voice · visual foundations · iconography</div>
+      </a>
+      <a class="tile" href="colors_and_type.css">
+        <div class="name">tokens</div>
+        <div class="desc">colors_and_type.css · all CSS vars</div>
+      </a>
+    </div>
+
+    <div class="mono">— flip on the design system tab to browse cards —</div>
+  </div>
+</body>
+</html>

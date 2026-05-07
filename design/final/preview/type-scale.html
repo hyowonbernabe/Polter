@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Type scale</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 24px 28px;
+    min-height: 320px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    row-gap: 12px;
+    column-gap: 24px;
+    align-items: baseline;
+  }
+  .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+  .s5 { font-family: var(--font-serif); font-style: italic; font-size: 56px; line-height: 1; letter-spacing: -0.025em; }
+  .s4 { font-family: var(--font-serif); font-style: italic; font-size: 38px; line-height: 1.05; letter-spacing: -0.02em; }
+  .s3 { font-family: var(--font-serif); font-size: 28px; line-height: 1.2; letter-spacing: -0.015em; }
+  .s2 { font-family: var(--font-ui); font-size: 22px; line-height: 1.3; font-weight: 500; }
+  .s1 { font-family: var(--font-ui); font-size: 18px; font-weight: 500; }
+  .body { font-family: var(--font-ui); font-size: 15px; line-height: 1.6; color: var(--fg-2); }
+  .small { font-family: var(--font-ui); font-size: 13px; color: var(--fg-3); }
+</style>
+</head>
+<body>
+  <div class="tag">h1 · 56</div><div class="s5">quietly observed</div>
+  <div class="tag">h2 · 38</div><div class="s4">a thoughtful friend</div>
+  <div class="tag">h3 · 28</div><div class="s3">Dashboard heading</div>
+  <div class="tag">h4 · 22</div><div class="s2">Section title</div>
+  <div class="tag">h5 · 18</div><div class="s1">Card label</div>
+  <div class="tag">body · 15</div><div class="body">Polter watches how you work, never what you type. Patterns only.</div>
+  <div class="tag">small · 13</div><div class="small">last observed 4 minutes ago</div>
+</body>
+</html>

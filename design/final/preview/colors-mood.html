@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Mood colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); }
+  body {
+    padding: 22px;
+    min-height: 220px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .mood {
+    border-radius: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 176px;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .mood::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    background: var(--c);
+    opacity: 0.07;
+    pointer-events: none;
+  }
+  .mood img { width: 48px; height: 48px; image-rendering: pixelated; align-self: center; opacity: var(--ghost-op, 1); }
+  .label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c); }
+  .name { font-family: var(--font-serif); font-style: italic; font-size: 18px; color: var(--fg-1); }
+  .hex { font-family: var(--font-mono); font-size: 10px; color: var(--fg-3); margin-top: auto; }
+  .swatch { width: 100%; height: 4px; border-radius: 2px; background: var(--c); }
+</style>
+</head>
+<body>
+  <div class="mood" style="--c:#7a9e8b;">
+    <div class="swatch"></div>
+    <img src="../assets/ghost/front.png" alt="">
+    <div class="name">calm</div>
+    <div class="label">focused</div>
+    <div class="hex">#7a9e8b</div>
+  </div>
+  <div class="mood" style="--c:#c08a64;">
+    <div class="swatch"></div>
+    <img src="../assets/ghost/right.png" alt="">
+    <div class="name">restless</div>
+    <div class="label">anxious</div>
+    <div class="hex">#c08a64</div>
+  </div>
+  <div class="mood" style="--c:#8e7fa8; --ghost-op:0.7;">
+    <div class="swatch"></div>
+    <img src="../assets/ghost/front.png" alt="">
+    <div class="name">tired</div>
+    <div class="label">exhausted</div>
+    <div class="hex">#8e7fa8</div>
+  </div>
+  <div class="mood" style="--c:#4f5a6e; --ghost-op:0.45;">
+    <div class="swatch"></div>
+    <img src="../assets/ghost/front.png" alt="">
+    <div class="name">asleep</div>
+    <div class="label">idle</div>
+    <div class="hex">#4f5a6e</div>
+  </div>
+  <div class="mood" style="--c:#d4b87a;">
+    <div class="swatch"></div>
+    <img src="../assets/ghost/front-right.png" alt="">
+    <div class="name">curious</div>
+    <div class="label">present</div>
+    <div class="hex">#d4b87a</div>
+  </div>
+</body>
+</html>

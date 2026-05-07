@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Insight bubble</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: #0e0f12; }
+  body {
+    /* Faux desktop wallpaper to show how bubble sits over content */
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(212, 184, 122, 0.05), transparent 60%),
+      linear-gradient(135deg, #1a1d24 0%, #14161b 50%, #0e0f12 100%);
+    padding: 28px 36px;
+    min-height: 220px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .ghost { width: 96px; height: 96px; image-rendering: pixelated; flex-shrink: 0; }
+  .bubble {
+    background: rgba(28, 31, 38, 0.92);
+    backdrop-filter: blur(20px) saturate(1.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 18px 22px 16px;
+    max-width: 380px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 12px 40px rgba(0,0,0,0.55),
+      0 2px 6px rgba(0,0,0,0.4);
+    position: relative;
+    color: #e8e6e1;
+  }
+  .bubble::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 26px;
+    width: 14px; height: 14px;
+    background: rgba(28, 31, 38, 0.92);
+    transform: rotate(45deg);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-radius: 2px;
+  }
+  .voice {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: #e8e6e1;
+    text-transform: lowercase;
+  }
+  .voice .dim { color: #a9a8a3; }
+  .meta {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6b6a66;
+  }
+  .meta .dot { width: 4px; height: 4px; border-radius: 50%; background: #7a9e8b; }
+</style>
+</head>
+<body>
+  <img src="../assets/ghost/right.png" class="ghost" alt="">
+  <div class="bubble">
+    <div class="voice">three context switches in the last ten minutes. <span class="dim">your usual is one.</span></div>
+    <div class="meta"><span class="dot"></span>04:21pm · pattern · restless</div>
+  </div>
+</body>
+</html>

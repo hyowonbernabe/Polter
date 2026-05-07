@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Radii</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 24px;
+    min-height: 200px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .box {
+    width: 100px; height: 100px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+  }
+  .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+  .name { font-family: var(--font-mono); font-size: 11px; color: var(--fg-1); }
+</style>
+</head>
+<body>
+  <div class="cell">
+    <div class="box" style="border-radius: 4px;"></div>
+    <div class="name">radius-sm</div><div class="tag">4 px · chips</div>
+  </div>
+  <div class="cell">
+    <div class="box" style="border-radius: 8px;"></div>
+    <div class="name">radius-md</div><div class="tag">8 px · cards</div>
+  </div>
+  <div class="cell">
+    <div class="box" style="border-radius: 14px;"></div>
+    <div class="name">radius-lg</div><div class="tag">14 px · panels</div>
+  </div>
+  <div class="cell">
+    <div class="box" style="border-radius: 18px;"></div>
+    <div class="name">radius-bubble</div><div class="tag">18 px · insight</div>
+  </div>
+</body>
+</html>

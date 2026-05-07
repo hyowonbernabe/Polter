@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Polter — Desktop UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    /* Faux desktop wallpaper — late evening, slightly warm */
+    background:
+      radial-gradient(ellipse at 30% 25%, rgba(212, 184, 122, 0.08), transparent 55%),
+      radial-gradient(ellipse at 70% 80%, rgba(122, 158, 139, 0.06), transparent 60%),
+      linear-gradient(135deg, #1a1d24 0%, #14161b 50%, #0e0f12 100%);
+    font-family: var(--font-ui);
+    color: var(--fg-1);
+    overflow: hidden;
+  }
+  /* Faux desktop "windows" so the ghost has something to be over */
+  .desktop-faux {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .faux-window {
+    position: absolute;
+    background: rgba(20, 22, 27, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .faux-line {
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-bottom: 6px;
+  }
+  .hint {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .hint kbd {
+    background: rgba(28,31,38,0.8);
+    border: 1px solid var(--border-2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--fg-1);
+  }
+</style>
+</head>
+<body>
+  <!-- Faux desktop layer -->
+  <div class="desktop-faux">
+    <div class="faux-window" style="left: 60px; top: 60px; width: 380px; height: 240px;">
+      <div class="faux-line" style="width: 60%;"></div>
+      <div class="faux-line" style="width: 90%;"></div>
+      <div class="faux-line" style="width: 70%;"></div>
+      <div class="faux-line" style="width: 85%;"></div>
+      <div class="faux-line" style="width: 50%;"></div>
+      <div class="faux-line" style="width: 78%;"></div>
+      <div class="faux-line" style="width: 64%;"></div>
+    </div>
+    <div class="faux-window" style="right: 80px; top: 120px; width: 320px; height: 180px;">
+      <div class="faux-line" style="width: 80%;"></div>
+      <div class="faux-line" style="width: 65%;"></div>
+      <div class="faux-line" style="width: 90%;"></div>
+      <div class="faux-line" style="width: 55%;"></div>
+    </div>
+    <div class="faux-window" style="left: 220px; bottom: 80px; width: 420px; height: 160px;">
+      <div class="faux-line" style="width: 75%;"></div>
+      <div class="faux-line" style="width: 50%;"></div>
+      <div class="faux-line" style="width: 88%;"></div>
+    </div>
+  </div>
+
+  <div id="root"></div>
+
+  <div class="hint">click the ghost to summon · press <kbd>D</kbd> for dashboard</div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="Ghost.jsx"></script>
+  <script type="text/babel" src="InsightBubble.jsx"></script>
+  <script type="text/babel" src="Dashboard.jsx"></script>
+
+  <script type="text/babel">
+    const OBSERVATIONS = [
+      { mood: 'restless', kind: 'pattern', text: <>three context switches in the last ten minutes. <span style={{color:'#a9a8a3'}}>your usual is one.</span></> },
+      { mood: 'calm',     kind: 'rhythm',  text: <>your typing has settled. forty-one keystrokes a minute, steady.</> },
+      { mood: 'tired',    kind: 'pattern', text: <>you've come back to this file four times today.</> },
+      { mood: 'curious',  kind: 'baseline',text: <>you've been still for a while. <span style={{color:'#a9a8a3'}}>that's unusual for a tuesday.</span></> },
+    ];
+
+    function App() {
+      const [pos, setPos] = React.useState({ x: window.innerWidth / 2 - 60, y: window.innerHeight / 2 - 60 });
+      const [facing, setFacing] = React.useState('front');
+      const [mood, setMood] = React.useState('calm');
+      const [bubble, setBubble] = React.useState(null);
+      const [bubbleVisible, setBubbleVisible] = React.useState(false);
+      const [showDash, setShowDash] = React.useState(false);
+      const [obIdx, setObIdx] = React.useState(0);
+
+      // Track cursor → ghost faces it
+      React.useEffect(() => {
+        const onMove = (e) => {
+          const cx = pos.x + 48, cy = pos.y + 48;
+          const dx = e.clientX - cx, dy = e.clientY - cy;
+          const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+          let f = 'front';
+          if (ang > -22 && ang <= 22) f = 'right';
+          else if (ang > 22 && ang <= 67) f = 'front-right';
+          else if (ang > 67 && ang <= 112) f = 'front';
+          else if (ang > 112 && ang <= 157) f = 'front-left';
+          else if (ang > 157 || ang <= -157) f = 'left';
+          else if (ang > -157 && ang <= -112) f = 'back-left';
+          else if (ang > -112 && ang <= -67) f = 'back';
+          else if (ang > -67 && ang <= -22) f = 'back-right';
+          setFacing(f);
+        };
+        window.addEventListener('mousemove', onMove);
+        return () => window.removeEventListener('mousemove', onMove);
+      }, [pos]);
+
+      // Auto-summon a bubble every 12s
+      React.useEffect(() => {
+        const t = setTimeout(() => {
+          if (bubble || showDash) return;
+          summon();
+        }, 8000);
+        return () => clearTimeout(t);
+      }, [bubble, showDash, obIdx]);
+
+      // Keyboard
+      React.useEffect(() => {
+        const onKey = (e) => {
+          if (e.key === 'd' || e.key === 'D') setShowDash(s => !s);
+          if (e.key === 'Escape') { setShowDash(false); dismiss(); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, []);
+
+      const summon = () => {
+        const ob = OBSERVATIONS[obIdx % OBSERVATIONS.length];
+        setMood(ob.mood);
+        setBubble(ob);
+        setObIdx(i => i + 1);
+        requestAnimationFrame(() => setBubbleVisible(true));
+      };
+
+      const dismiss = () => {
+        setBubbleVisible(false);
+        setTimeout(() => setBubble(null), 300);
+      };
+
+      // Bubble position: to the right of ghost, vertically aligned
+      const bubbleStyle = {
+        position: 'fixed',
+        left: pos.x + 96 + 14,
+        top: pos.y + 8,
+        zIndex: 20,
+      };
+
+      return (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              left: pos.x, top: pos.y,
+              zIndex: 10,
+              transition: 'left 1.2s cubic-bezier(0.4,0,0.2,1), top 1.2s cubic-bezier(0.4,0,0.2,1)',
+            }}
+          >
+            <Ghost
+              facing={facing}
+              mood={mood}
+              size={96}
+              drift
+              glow={mood === 'curious' || !!bubble}
+              onClick={summon}
+            />
+          </div>
+
+          {bubble && (
+            <div style={bubbleStyle}>
+              <InsightBubble
+                mood={bubble.mood}
+                kind={bubble.kind}
+                time="04:21pm"
+                visible={bubbleVisible}
+                onDismiss={dismiss}
+              >
+                {bubble.text}
+              </InsightBubble>
+            </div>
+          )}
+
+          {showDash && <Dashboard onClose={() => setShowDash(false)} />}
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

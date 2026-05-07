@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Form inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 24px 28px;
+    min-height: 220px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+  .input, .textarea {
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--fg-1);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    outline: none;
+  }
+  .input:focus, .textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,184,122,0.15); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 8px; }
+  .toggle-row + .toggle-row { margin-top: 8px; }
+  .toggle-text { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-text .name { font-size: 14px; color: var(--fg-1); }
+  .toggle-text .desc { font-size: 12px; color: var(--fg-3); }
+  .switch { width: 36px; height: 20px; background: var(--bg-3); border-radius: 999px; position: relative; cursor: pointer; transition: background 140ms; }
+  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--fg-2); transition: all 140ms; }
+  .switch.on { background: rgba(212,184,122,0.3); }
+  .switch.on::after { left: 18px; background: var(--accent); }
+  .placeholder { color: var(--fg-3); }
+</style>
+</head>
+<body>
+  <div class="field">
+    <span class="field-label">name (optional)</span>
+    <input class="input" value="alex" />
+    <span class="field-label" style="margin-top: 6px;">snooze polter</span>
+    <input class="input" value="" placeholder="for two hours" />
+  </div>
+  <div>
+    <div class="toggle-row">
+      <div class="toggle-text">
+        <span class="name">Show insights</span>
+        <span class="desc">at most once an hour</span>
+      </div>
+      <div class="switch on"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-text">
+        <span class="name">Idle when locked</span>
+        <span class="desc">ghost sleeps when screen locks</span>
+      </div>
+      <div class="switch on"></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-text">
+        <span class="name">Sound on appear</span>
+        <span class="desc">a soft chime, never twice</span>
+      </div>
+      <div class="switch"></div>
+    </div>
+  </div>
+</body>
+</html>

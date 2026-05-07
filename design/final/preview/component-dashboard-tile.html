@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Polter — Dashboard tile</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: var(--bg-1); color: var(--fg-1); }
+  body {
+    padding: 22px 28px;
+    min-height: 240px;
+    box-sizing: border-box;
+    font-family: var(--font-ui);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .card {
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+  .figure { font-family: var(--font-serif); font-style: italic; font-size: 38px; line-height: 1; color: var(--fg-1); }
+  .figure .unit { font-family: var(--font-ui); font-style: normal; font-size: 14px; color: var(--fg-3); margin-left: 6px; }
+  .delta { font-family: var(--font-mono); font-size: 11px; color: #7a9e8b; letter-spacing: 0.06em; }
+  .delta.down { color: #c08a64; }
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 36px; margin-top: auto; }
+  .spark span { width: 5px; background: rgba(212, 184, 122, 0.45); border-radius: 1px; }
+  .spark span.now { background: #d4b87a; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="label">today · keystroke rhythm</span>
+    <div class="figure">38<span class="unit">/min · steady</span></div>
+    <span class="delta">— close to your tuesday baseline</span>
+    <div class="spark">
+      <span style="height:10px"></span><span style="height:14px"></span><span style="height:12px"></span><span style="height:18px"></span><span style="height:24px"></span><span style="height:22px"></span><span style="height:20px"></span><span style="height:26px"></span><span style="height:30px"></span><span style="height:28px"></span><span style="height:24px"></span><span class="now" style="height:28px"></span>
+    </div>
+  </div>
+  <div class="card">
+    <span class="label">this week · context switches</span>
+    <div class="figure">2.4<span class="unit">/hour · up 30%</span></div>
+    <span class="delta down">— more restless than last week</span>
+    <div class="spark">
+      <span style="height:14px"></span><span style="height:12px"></span><span style="height:18px"></span><span style="height:14px"></span><span style="height:22px"></span><span style="height:24px"></span><span class="now" style="height:30px"></span>
+    </div>
+  </div>
+</body>
+</html>
