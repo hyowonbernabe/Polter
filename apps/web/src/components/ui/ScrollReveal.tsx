@@ -8,6 +8,7 @@ interface ScrollRevealProps {
   delay?: number;
   variant?: RevealVariant;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const HIDDEN_STYLES: Record<RevealVariant, React.CSSProperties> = {
@@ -33,13 +34,14 @@ export function ScrollReveal({
   delay = 0,
   variant = 'fade-up',
   className = '',
+  style: extraStyle,
 }: ScrollRevealProps) {
   const { ref, isVisible } = useScrollReveal();
   const base = isVisible ? VISIBLE_STYLES[variant] : HIDDEN_STYLES[variant];
 
   return (
     <div
-      ref={ref as React.RefObject<HTMLDivElement>}
+      ref={ref as React.Ref<HTMLDivElement>}
       className={className}
       style={{
         ...base,
@@ -49,6 +51,7 @@ export function ScrollReveal({
           `filter 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
         ].join(', '),
         willChange: 'opacity, transform, filter',
+        ...extraStyle,
       }}
     >
       {children}
