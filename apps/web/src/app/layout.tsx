@@ -3,7 +3,7 @@ import './globals.css';
 import { FilmGrain } from '@/components/ui/FilmGrain';
 
 export const metadata: Metadata = {
-  title: 'Polter — a quiet desktop companion',
+  title: 'Polter',
   description:
     'A small pixel ghost that floats on your desktop. It watches how you work — never what you type — and occasionally tells you something true about yourself.',
   icons: {
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     apple: '/favicon.png',
   },
   openGraph: {
-    title:       'Polter — a quiet desktop companion',
+    title:       'Polter',
     description: 'A pixel ghost that watches how you work and tells you what it sees.',
     url:         'https://github.com/hyowonbernabe/Polter',
     siteName:    'Polter',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card:  'summary',
-    title: 'Polter — a quiet desktop companion',
+    title: 'Polter',
     description: 'A pixel ghost that watches how you work and tells you what it sees.',
   },
 };

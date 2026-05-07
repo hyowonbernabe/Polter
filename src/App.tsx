@@ -246,6 +246,7 @@ export default function App() {
         facing={physics.facing}
         committedDir={physics.committedDir}
         dragSquish={physics.dragSquish}
+        bounceRotation={physics.bounceRotation}
         coldStart={coldStart}
         opacity={idleOpacity}
         showReturning={showReturning}

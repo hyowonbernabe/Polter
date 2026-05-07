@@ -28,6 +28,7 @@ interface CreatureProps {
   facing: FacingDirection;
   committedDir: number;
   dragSquish: Vec2;
+  bounceRotation: number;
   coldStart: boolean;
   opacity?: number;
   showReturning?: boolean;
@@ -117,6 +118,7 @@ export default function Creature({
   facing,
   committedDir,
   dragSquish,
+  bounceRotation,
   coldStart,
   opacity = 1.0,
   showReturning = false,
@@ -292,7 +294,7 @@ export default function Creature({
             transition: 'filter 500ms ease, opacity 2s ease',
             animation: outerAnimation,
             opacity: effectiveOpacity,
-            transform: `scaleX(${dragSquish.x}) scaleY(${dragSquish.y})`,
+            transform: `scaleX(${dragSquish.x}) scaleY(${dragSquish.y}) rotate(${bounceRotation}deg)`,
             transformOrigin: 'center center',
           }}
         >

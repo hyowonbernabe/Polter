@@ -31,9 +31,9 @@ const THROW_FRAME_MS = 500;
 const LOOK_HOLD_MS   = 1_500;
 const LOOK_MIN_MS    = 8  * 60_000;  // ~8 min
 const LOOK_MAX_MS    = 14 * 60_000;  // ~14 min
-const FUN_MIN_MS     = 10 * 60_000;  // ~10 min
-const FUN_MAX_MS     = 16 * 60_000;  // ~16 min
-const FUN_DISPLAY_MS = 4_000;
+const FUN_MIN_MS     = 25_000;   // ~25s
+const FUN_MAX_MS     = 40_000;   // ~40s
+const FUN_DISPLAY_MS = 5_000;    // show for 5s
 
 function randBetween(min: number, max: number) { return min + Math.random() * (max - min); }
 

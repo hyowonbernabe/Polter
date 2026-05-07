@@ -24,6 +24,7 @@ export interface PhysicsOutput {
   facing: FacingDirection;
   velocity: Vec2;
   dragSquish: Vec2;
+  bounceRotation: number;
   workArea: WorkArea;
   monitors: MonitorInfo[];
   spriteSize: number;
@@ -46,6 +47,10 @@ export function useCreaturePhysics(): PhysicsOutput {
   const [facing, setFacingR] = useState<FacingDirection>('right');
   const [velocity, setVelocityR] = useState<Vec2>({ x: 0, y: 0 });
   const [dragSquish, setDragSquishR] = useState<Vec2>({ x: 1, y: 1 });
+  const squishTarget = useRef<Vec2>({ x: 1, y: 1 });
+  const squishCurrent = useRef<Vec2>({ x: 1, y: 1 });
+  const [bounceRotation, setBounceRotationR] = useState(0);
+  const bounceRotRef = useRef(0);
   const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1920, height: 1080 });
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [spriteSize, setSpriteSizeR] = useState<number>(() => spriteDisplaySize());
@@ -151,6 +156,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       setPhysicsStateR(stateRef.current);
       setFacingR(facingRef.current);
       setVelocityR({ ...vel.current });
+      setBounceRotationR(bounceRotRef.current);
     }, 80);
   }
 
@@ -437,6 +443,7 @@ export function useCreaturePhysics(): PhysicsOutput {
 
       // Wall bounce — only at outer edges (no adjacent monitor on that side)
       const BOUNCE = 0.55;
+      const preSpeed = magnitude(v);
       if (p.x < mb.x && isOuterEdge(mb, 'left')) {
         p.x = mb.x;
         v.x = Math.abs(v.x) * BOUNCE;
@@ -457,6 +464,12 @@ export function useCreaturePhysics(): PhysicsOutput {
         v.y = -Math.abs(v.y) * BOUNCE;
         if (Math.abs(v.y) < 60) v.y = 0;
         if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+      // Spin on thrown/stunned bounce
+      const postSpeed = magnitude(v);
+      if (preSpeed - postSpeed > 30) {
+        const spinDir = v.x >= 0 ? 1 : -1;
+        bounceRotRef.current += spinDir * clamp(preSpeed * 1.2, 60, 720);
       }
 
       if (state === 'stunned' && !locked) {
@@ -698,31 +711,56 @@ export function useCreaturePhysics(): PhysicsOutput {
         state !== 'thrown' && state !== 'stunned' && state !== 'recovering' &&
         state !== 'tether_grab' && state !== 'goal_interrupted' && state !== 'flee') {
       const speed = magnitude(v);
+      let bounced = false;
       if (p.x + sz > mb.x + mb.width && isOuterEdge(mb, 'right')) {
         p.x = mb.x + mb.width - sz;
         v.x *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
       if (p.x < mb.x && isOuterEdge(mb, 'left')) {
         p.x = mb.x;
         v.x *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
       if (p.y + sz > mb.y + mb.height && isOuterEdge(mb, 'bottom')) {
         p.y = mb.y + mb.height - sz;
         v.y *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
       if (p.y < mb.y && isOuterEdge(mb, 'top')) {
         p.y = mb.y;
         v.y *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
+      if (bounced && speed > 60) {
+        const spinDir = v.x >= 0 ? 1 : -1;
+        bounceRotRef.current += spinDir * clamp(speed * 0.8, 30, 360);
+      }
     }
+
+    // Decay bounce rotation
+    bounceRotRef.current *= 0.92;
+    if (Math.abs(bounceRotRef.current) < 0.5) bounceRotRef.current = 0;
+
+    // Smooth squish decay
+    if (!isDraggingRef.current) {
+      squishTarget.current = { x: 1, y: 1 };
+    }
+    const sq = squishCurrent.current;
+    const tgt = squishTarget.current;
+    sq.x = lerp(sq.x, tgt.x, 0.15);
+    sq.y = lerp(sq.y, tgt.y, 0.15);
+    if (Math.abs(sq.x - tgt.x) < 0.005) sq.x = tgt.x;
+    if (Math.abs(sq.y - tgt.y) < 0.005) sq.y = tgt.y;
+    setDragSquishR({ x: sq.x, y: sq.y });
 
     // Safety clamp: creature can never escape the combined area of all monitors
     if (monitorsRef.current.length > 0) {
@@ -919,7 +957,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     function onWindowPointerUp(e: PointerEvent) {
       if (e.button !== 0 || !isDraggingRef.current) return;
       isDraggingRef.current = false;
-      setDragSquishR({ x: 1, y: 1 });
+      squishTarget.current = { x: 1, y: 1 };
       pointerHistoryRef.current = [];
       invoke('set_drag_active', { active: false }).catch(() => {});
       vel.current = {
@@ -1008,8 +1046,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     } else {
       transitionTo('tether_grab');
     }
-    setDragSquishR({ x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y });
-    setTimeout(() => setDragSquishR({ x: 1, y: 1 }), 150);
+    squishTarget.current = { x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1032,10 +1069,10 @@ export function useCreaturePhysics(): PhysicsOutput {
       if (dtS > 0) {
         const speed = magnitude({ x: (last.x - first.x) / dtS, y: (last.y - first.y) / dtS });
         const stretch = clamp(speed / 400, 0, 1);
-        setDragSquishR({
+        squishTarget.current = {
           x: lerp(1, PHYSICS.STRETCH_MAX, stretch),
           y: lerp(1, PHYSICS.STRETCH_COMPRESS_MIN, stretch),
-        });
+        };
         if (!dialogueActiveRef.current) {
           facingRef.current = (last.x - first.x) >= 0 ? 'right' : 'left';
         }
@@ -1047,7 +1084,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   const notifyDragEnd = useCallback(() => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
-    setDragSquishR({ x: 1, y: 1 });
+    squishTarget.current = { x: 1, y: 1 };
     pointerHistoryRef.current = [];
     // Restore normal cursor hit-testing now that the drag is over
     invoke('set_drag_active', { active: false }).catch(() => {});
@@ -1067,6 +1104,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     facing,
     velocity,
     dragSquish,
+    bounceRotation,
     workArea,
     monitors,
     spriteSize,

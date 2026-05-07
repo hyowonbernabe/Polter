@@ -21,6 +21,7 @@ export default function CreatureDemo() {
     facing,
     velocity,
     dragSquish,
+    bounceRotation,
     spriteSize,
     committedDir,
     setWispState,
@@ -32,7 +33,6 @@ export default function CreatureDemo() {
     notifyDragEnd,
   } = useCreaturePhysics(platform);
 
-  // Separate React state for wispState so animation hook re-renders on mood change
   const [wispState, setWispStateR] = useState<WispState>('calm');
 
   const { spritePath, flip } = useCreatureAnimation(
@@ -43,7 +43,7 @@ export default function CreatureDemo() {
     committedDir,
   );
 
-  // Wire mood changes into both hooks
+  // Wire mood changes
   useEffect(() => {
     return platform.onMoodChange((mood) => {
       setWispState(mood);
@@ -53,32 +53,30 @@ export default function CreatureDemo() {
 
   // Insight bubble
   const [insight, setInsight] = useState<Insight | null>(null);
-  const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissRef = useRef<() => void>(() => {});
+
+  dismissRef.current = () => {
+    setInsight(null);
+    setDialogue(false);
+    notifyBubbleClick();
+  };
 
   useEffect(() => {
     return platform.onInsightReady((ins) => {
       setInsight(ins);
       setDialogue(true);
-      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-      bubbleTimerRef.current = setTimeout(() => {
-        setInsight(null);
-        setDialogue(false);
-      }, 8_000);
     });
   }, [platform, setDialogue]);
 
   function dismissBubble() {
-    if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-    setInsight(null);
-    setDialogue(false);
-    notifyBubbleClick();
+    dismissRef.current();
   }
 
   const glow = physicsState === 'stunned' || physicsState === 'recovering'
     ? STATE_GLOW['cold_start']
     : STATE_GLOW[wispState];
 
-  // ── Drag/click interaction ────────────────────────────────────────────────────
+  // ── Drag/click interaction ──
   const isDraggingLocal = useRef(false);
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -93,7 +91,7 @@ export default function CreatureDemo() {
     notifyDragMove(e.clientX, e.clientY);
   }
 
-  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+  function onPointerUp() {
     if (!isDraggingLocal.current) return;
     isDraggingLocal.current = false;
     notifyDragEnd();
@@ -134,9 +132,10 @@ export default function CreatureDemo() {
           className="pixel-art"
           style={{
             display: 'block',
-            transform: `scaleX(${(flip ? -1 : 1) * dragSquish.x}) scaleY(${dragSquish.y})`,
+            transform: `scaleX(${(flip ? -1 : 1) * dragSquish.x}) scaleY(${dragSquish.y}) rotate(${bounceRotation}deg)`,
             transformOrigin: 'center center',
             filter: glow,
+            transition: 'filter 0.3s ease',
           }}
         />
         {insight && (

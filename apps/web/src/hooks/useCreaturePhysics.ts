@@ -25,6 +25,7 @@ export interface PhysicsOutput {
   facing: FacingDirection;
   velocity: Vec2;
   dragSquish: Vec2;
+  bounceRotation: number;
   workArea: WorkArea;
   spriteSize: number;
   committedDir: number;
@@ -46,6 +47,10 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
   const [facing, setFacingR] = useState<FacingDirection>('right');
   const [velocity, setVelocityR] = useState<Vec2>({ x: 0, y: 0 });
   const [dragSquish, setDragSquishR] = useState<Vec2>({ x: 1, y: 1 });
+  const squishTarget = useRef<Vec2>({ x: 1, y: 1 });
+  const squishCurrent = useRef<Vec2>({ x: 1, y: 1 });
+  const [bounceRotation, setBounceRotationR] = useState(0);
+  const bounceRotRef = useRef(0);
   const [workArea, setWorkArea] = useState<WorkArea>({ x: 0, y: 0, width: 1280, height: 800 });
   const [committedDir, setCommittedDirR] = useState<number>(0);
 
@@ -124,6 +129,7 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
       setPhysicsStateR(stateRef.current);
       setFacingR(facingRef.current);
       setVelocityR({ ...vel.current });
+      setBounceRotationR(bounceRotRef.current);
     }, 80);
   }
 
@@ -380,6 +386,7 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
       p.y += v.y * dt;
 
       const BOUNCE = 0.55;
+      const preSpeed = magnitude(v);
       if (p.x < mb.x) {
         p.x = mb.x;
         v.x = Math.abs(v.x) * BOUNCE;
@@ -400,6 +407,12 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
         v.y = -Math.abs(v.y) * BOUNCE;
         if (Math.abs(v.y) < 60) v.y = 0;
         if (state === 'thrown') transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
+      }
+      // Spin on thrown/stunned bounce
+      const postSpeed = magnitude(v);
+      if (preSpeed - postSpeed > 30) {
+        const spinDir = v.x >= 0 ? 1 : -1;
+        bounceRotRef.current += spinDir * clamp(preSpeed * 1.2, 60, 720);
       }
 
       if (state === 'stunned' && !locked) {
@@ -598,31 +611,59 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
         state !== 'thrown' && state !== 'stunned' && state !== 'recovering' &&
         state !== 'tether_grab' && state !== 'goal_interrupted' && state !== 'flee') {
       const speed = magnitude(v);
+      let bounced = false;
       if (p.x + sz > mb.x + mb.width) {
         p.x = mb.x + mb.width - sz;
         v.x *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
       if (p.x < mb.x) {
         p.x = mb.x;
         v.x *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.x) < PHYSICS.MIN_BOUNCE_SPEED) v.x = 0;
       }
       if (p.y + sz > mb.y + mb.height) {
         p.y = mb.y + mb.height - sz;
         v.y *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
       if (p.y < mb.y) {
         p.y = mb.y;
         v.y *= -PHYSICS.RESTITUTION;
+        bounced = true;
         if (speed > PHYSICS.STUN_VELOCITY && !locked) transitionTo('stunned', PHYSICS.STUN_DURATION_MS);
         if (Math.abs(v.y) < PHYSICS.MIN_BOUNCE_SPEED) v.y = 0;
       }
+      // Spin on bounce — proportional to impact speed
+      if (bounced && speed > 60) {
+        const spinDir = v.x >= 0 ? 1 : -1;
+        bounceRotRef.current += spinDir * clamp(speed * 0.8, 30, 360);
+      }
     }
+
+    // Decay bounce rotation toward 0
+    bounceRotRef.current *= 0.92;
+    if (Math.abs(bounceRotRef.current) < 0.5) bounceRotRef.current = 0;
+
+    // Always reset squish target to 1 when not dragging — prevents stuck squish
+    if (!isDraggingRef.current) {
+      squishTarget.current = { x: 1, y: 1 };
+    }
+
+    // Smooth squish decay toward target (lerp at ~15% per frame)
+    const sq = squishCurrent.current;
+    const tgt = squishTarget.current;
+    sq.x = lerp(sq.x, tgt.x, 0.15);
+    sq.y = lerp(sq.y, tgt.y, 0.15);
+    if (Math.abs(sq.x - tgt.x) < 0.005) sq.x = tgt.x;
+    if (Math.abs(sq.y - tgt.y) < 0.005) sq.y = tgt.y;
+    setDragSquishR({ x: sq.x, y: sq.y });
 
     // Safety clamp to work area
     p.x = clamp(p.x, mb.x, mb.x + mb.width - sz);
@@ -681,7 +722,7 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
     function onWindowPointerUp(e: PointerEvent) {
       if (e.button !== 0 || !isDraggingRef.current) return;
       isDraggingRef.current = false;
-      setDragSquishR({ x: 1, y: 1 });
+      squishTarget.current = { x: 1, y: 1 };
       pointerHistoryRef.current = [];
       vel.current = {
         x: clamp(vel.current.x, -PHYSICS.THROW_MAX_SPEED, PHYSICS.THROW_MAX_SPEED),
@@ -761,8 +802,7 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
     } else {
       transitionTo('tether_grab');
     }
-    setDragSquishR({ x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y });
-    setTimeout(() => setDragSquishR({ x: 1, y: 1 }), 150);
+    squishTarget.current = { x: PHYSICS.SQUISH_ON_GRAB_X, y: PHYSICS.SQUISH_ON_GRAB_Y };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -783,10 +823,10 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
       if (dtS > 0) {
         const speed = magnitude({ x: (last.x - first.x) / dtS, y: (last.y - first.y) / dtS });
         const stretch = clamp(speed / 400, 0, 1);
-        setDragSquishR({
+        squishTarget.current = {
           x: lerp(1, PHYSICS.STRETCH_MAX, stretch),
           y: lerp(1, PHYSICS.STRETCH_COMPRESS_MIN, stretch),
-        });
+        };
         if (!dialogueActiveRef.current) {
           facingRef.current = (last.x - first.x) >= 0 ? 'right' : 'left';
         }
@@ -814,6 +854,7 @@ export function useCreaturePhysics(platform: CreaturePlatform): PhysicsOutput {
     facing,
     velocity,
     dragSquish,
+    bounceRotation,
     workArea,
     spriteSize,
     committedDir,
