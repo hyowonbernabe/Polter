@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { FilmGrain } from '@/components/ui/FilmGrain';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'Polter',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LoadingScreen />
         {children}
         <FilmGrain />
+        <Analytics />
       </body>
     </html>
   );
