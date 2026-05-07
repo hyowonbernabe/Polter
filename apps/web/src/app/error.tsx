@@ -1,5 +1,6 @@
 'use client';
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 export default function Error({
   reset,
@@ -22,6 +23,8 @@ export default function Error({
         overflow:       'hidden',
       }}
     >
+      <CandleScatter layout="c" />
+
       {/* Vignette */}
       <div
         aria-hidden="true"

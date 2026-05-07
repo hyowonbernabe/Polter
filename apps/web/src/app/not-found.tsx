@@ -1,4 +1,5 @@
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 export default function NotFound() {
   return (
@@ -16,6 +17,8 @@ export default function NotFound() {
         overflow:       'hidden',
       }}
     >
+      <CandleScatter layout="b" />
+
       {/* Vignette */}
       <div
         aria-hidden="true"

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { CandleScatter } from './CandleScatter';
 
 const SPIN_SPRITES = [
   '/sprites/front.png',
@@ -63,6 +64,8 @@ export function LoadingScreen() {
         pointerEvents:  fading ? 'none' : 'auto',
       }}
     >
+      <CandleScatter layout="a" />
+
       {/* Spinner ring + creature */}
       <div style={{ position: 'relative', width: 120, height: 120 }}>
         {/* SVG spinner ring */}
