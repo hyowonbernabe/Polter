@@ -56,3 +56,7 @@ apps/web/.next/
 
 # Superpowers/obra working artifacts (never commit)
 docs/superpowers/
+
+# Agents
+.claude/
+.agent/

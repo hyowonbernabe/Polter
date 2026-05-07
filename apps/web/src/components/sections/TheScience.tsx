@@ -259,14 +259,21 @@ export function TheScience() {
           className="science-grid"
           style={{
             display:             'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap:                 'clamp(12px, 2vw, 16px)',
             width:               '100%',
             maxWidth:            'var(--content-max)',
           }}
         >
           {STUDIES.map((study, i) => (
-            <ScrollReveal key={i} delay={i * 100}>
+            <ScrollReveal
+              key={i}
+              delay={i * 100}
+              style={{
+                gridColumn: study.colSpan ? `span ${study.colSpan}` : undefined,
+                gridRow:    study.rowSpan ? `span ${study.rowSpan}` : undefined,
+              }}
+            >
               <div
                 className={`science-card science-card-${i}`}
                 style={{
@@ -390,6 +397,15 @@ export function TheScience() {
       <style>{`
         .science-grid > * { min-height: 0; }
         .science-card { min-height: 180px; }
+        @media (max-width: 768px) {
+          .science-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .science-grid > * {
+            grid-column: span 1 !important;
+            grid-row: span 1 !important;
+          }
+        }
       `}</style>
     </section>
   );
