@@ -66,6 +66,23 @@ export function LoadingScreen() {
     >
       <CandleScatter layout="a" />
 
+      {/* Film grain inside loading screen (main one is behind us at lower z) */}
+      <div
+        aria-hidden="true"
+        style={{
+          position:         'absolute',
+          top:              0,
+          left:             0,
+          width:            '300%',
+          height:           '300%',
+          pointerEvents:    'none',
+          opacity:          0.08,
+          backgroundImage:  'url(/assets/noise-grain.bmp)',
+          backgroundRepeat: 'repeat',
+          animation:        'grainJitter 1.2s steps(8) infinite',
+        }}
+      />
+
       {/* Spinner ring + creature */}
       <div style={{ position: 'relative', width: 120, height: 120 }}>
         {/* SVG spinner ring */}
