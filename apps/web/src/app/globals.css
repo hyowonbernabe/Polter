@@ -111,7 +111,8 @@
 
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
 body {
   background-color: var(--bg-0);
   color: var(--fg-1);
@@ -136,15 +137,4 @@ body {
   color: var(--fg-3);
 }
 
-/* ── Scroll reveal states ── */
-.reveal-hidden {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.reveal-visible {
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity  var(--dur-slow) var(--ease-quiet),
-    transform var(--dur-slow) var(--ease-quiet);
-}
+/* ScrollReveal transitions handled inline via ScrollReveal component */

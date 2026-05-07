@@ -1,3 +1,4 @@
+import { Navbar }       from '@/components/sections/Navbar';
 import { Hero }         from '@/components/sections/Hero';
 import { WhatItIs }     from '@/components/sections/WhatItIs';
 import { HowItWorks }   from '@/components/sections/HowItWorks';
@@ -14,6 +15,7 @@ export default function Home() {
   return (
     <main>
       <CreatureDemoLoader />
+      <Navbar />
       <Hero />
       <WhatItIs />
       <HowItWorks />

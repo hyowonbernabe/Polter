@@ -16,30 +16,30 @@ const DIR_SPRITES: Record<string, string> = {
 function getCursorDirection(ghostEl: HTMLElement, cx: number, cy: number): string {
   const rect = ghostEl.getBoundingClientRect();
   const gx = rect.left + rect.width / 2;
-  const gy = rect.top  + rect.height / 2;
+  const gy = rect.top + rect.height / 2;
   const angle = Math.atan2(cy - gy, cx - gx) * (180 / Math.PI);
-  const a = ((angle + 360) % 360);
-  if (a >= 337.5 || a < 22.5)  return 'right';
-  if (a < 67.5)                return 'front-right';
-  if (a < 112.5)               return 'front';
-  if (a < 157.5)               return 'front-left';
-  if (a < 202.5)               return 'left';
-  if (a < 247.5)               return 'back-left';
-  if (a < 292.5)               return 'back';
+  const a = (angle + 360) % 360;
+  if (a >= 337.5 || a < 22.5) return 'right';
+  if (a < 67.5) return 'front-right';
+  if (a < 112.5) return 'front';
+  if (a < 157.5) return 'front-left';
+  if (a < 202.5) return 'left';
+  if (a < 247.5) return 'back-left';
+  if (a < 292.5) return 'back';
   return 'back-right';
 }
 
 export function Hero() {
-  const [driftY, setDriftY]   = useState(0);
-  const [sprite, setSprite]   = useState('front.png');
+  const [driftY, setDriftY] = useState(0);
+  const [sprite, setSprite] = useState('front.png');
   const ghostRef = useRef<HTMLDivElement>(null);
-  const rafRef   = useRef<number>(0);
+  const rafRef = useRef<number>(0);
 
   // 4s sine float
   useEffect(() => {
     const start = performance.now();
     const tick = (now: number) => {
-      setDriftY(Math.sin(((now - start) / 1000) * (Math.PI * 2) / 4) * 8);
+      setDriftY(Math.sin(((now - start) / 1000) * (Math.PI * 2) / 4) * 10);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -58,87 +58,78 @@ export function Hero() {
 
   return (
     <section
-      className="relative overflow-hidden min-h-[100dvh]"
-      style={{ background: 'var(--bg-0)' }}
+      className="relative overflow-hidden"
+      style={{
+        width: '100%',
+        height: '100dvh',
+        background: 'var(--bg-0)',
+      }}
     >
-      {/* Warm vignette upper-right */}
+      {/* Warm vignette */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at 72% 28%, rgba(212,184,122,0.06), transparent 55%)' }}
+        style={{
+          background:
+            'radial-gradient(ellipse at 70% 30%, rgba(212,184,122,0.08), transparent 60%)',
+        }}
       />
 
-      {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-8 pt-8 max-w-[1120px] mx-auto">
-        <div className="flex items-center gap-3">
-          <GhostSprite name="front.png" scale={1} />
-          <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: 'var(--fg-1)' }}>
-            polter
-          </span>
-        </div>
-        <div className="flex gap-7">
-          {[
-            { label: 'about',   href: '#about'   },
-            { label: 'privacy', href: '#privacy' },
-            { label: 'github',  href: 'https://github.com/polter-app/polter' },
-          ].map(link => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="eyebrow hover:opacity-70"
-              style={{ color: 'var(--fg-2)', textDecoration: 'none' }}
-              {...(link.href.startsWith('http') ? { target: '_blank', rel: 'noreferrer' } : {})}
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
-      </nav>
-
-      {/* Main grid 60/40 */}
+      {/* Main 50/50 grid */}
       <div
-        className="relative z-10 max-w-[1120px] mx-auto px-8 pt-20 pb-24"
+        className="relative z-10 h-full"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0,3fr) minmax(0,2fr)',
-          gap: 'var(--sp-8)',
+          gridTemplateColumns: '1fr 1fr',
           alignItems: 'center',
+          padding: '0 5vw',
+          gap: 'var(--sp-8)',
         }}
       >
         {/* Left: text */}
         <div>
-          <div className="eyebrow mb-5" style={{ color: 'var(--fg-3)', letterSpacing: '0.18em' }}>
+          <div
+            className="eyebrow"
+            style={{
+              color: 'var(--fg-3)',
+              letterSpacing: '0.18em',
+              marginBottom: 20,
+            }}
+          >
             a quiet desktop companion
           </div>
+
           <h1
             style={{
               fontFamily: 'var(--font-serif)',
               fontStyle: 'italic',
               fontWeight: 400,
-              fontSize: 'clamp(48px, 6.5vw, 80px)',
-              lineHeight: 0.98,
+              fontSize: 'clamp(56px, 8vw, 120px)',
+              lineHeight: 0.95,
               letterSpacing: '-0.03em',
               color: 'var(--ghost)',
               textTransform: 'lowercase',
-              margin: '0 0 24px',
+              margin: '0 0 32px',
             }}
           >
             something is watching you work.
           </h1>
+
           <p
             style={{
               fontFamily: 'var(--font-ui)',
-              fontSize: 18,
+              fontSize: 20,
               lineHeight: 1.6,
               color: 'var(--fg-2)',
-              maxWidth: 520,
-              margin: '0 0 36px',
+              maxWidth: 540,
+              margin: '0 0 40px',
             }}
           >
-            polter is a small pixel ghost that floats on your desktop. it watches how you
-            work — never what you type — and occasionally tells you something true about yourself.
+            a small pixel ghost that lives on your screen. it watches how you
+            work, not what you type, and sometimes says what it notices.
           </p>
-          <div className="flex items-center gap-3 flex-wrap mb-8">
+
+          <div className="flex items-center gap-4 flex-wrap" style={{ marginBottom: 32 }}>
             <a
               href="https://github.com/polter-app/polter"
               target="_blank"
@@ -147,9 +138,9 @@ export function Hero() {
                 background: 'var(--accent)',
                 color: '#1a1612',
                 fontFamily: 'var(--font-ui)',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 500,
-                padding: '12px 24px',
+                padding: '14px 28px',
                 borderRadius: 'var(--radius-md)',
                 textDecoration: 'none',
               }}
@@ -159,22 +150,31 @@ export function Hero() {
             <a
               href="#about"
               className="eyebrow"
-              style={{ color: 'var(--fg-2)', textDecoration: 'none', padding: '12px 16px' }}
+              style={{
+                color: 'var(--fg-2)',
+                textDecoration: 'none',
+                padding: '14px 16px',
+              }}
             >
               read more below →
             </a>
           </div>
-          <div className="eyebrow" style={{ color: 'var(--fg-3)', letterSpacing: '0.06em' }}>
+
+          <div
+            className="eyebrow"
+            style={{ color: 'var(--fg-3)', letterSpacing: '0.06em' }}
+          >
             windows · open source · everything stays on your machine
           </div>
         </div>
 
-        {/* Right: desk scene placeholder + drifting ghost */}
-        <div className="flex items-center justify-center">
+        {/* Right: visual */}
+        <div className="flex items-center justify-center h-full" style={{ padding: '5vh 0' }}>
           <div
             style={{
               width: '100%',
-              aspectRatio: '16/10',
+              height: '100%',
+              maxHeight: '70vh',
               background: 'var(--bg-2)',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-1)',
@@ -182,11 +182,16 @@ export function Hero() {
               overflow: 'hidden',
             }}
           >
-            {/* Placeholder image */}
             <img
-              src="https://placehold.co/800x500"
+              src="https://placehold.co/1200x800"
               alt="desk / screenshot placeholder"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
             />
             <div
               ref={ghostRef}
@@ -195,18 +200,32 @@ export function Hero() {
                 top: '50%',
                 left: '50%',
                 transform: `translate(-50%, calc(-50% + ${driftY}px))`,
-                filter: 'drop-shadow(0 0 20px rgba(245,244,239,0.2))',
+                filter: 'drop-shadow(0 0 28px rgba(245,244,239,0.25))',
               }}
             >
-              <GhostSprite name={sprite} scale={2} />
+              <GhostSprite name={sprite} scale={4} />
             </div>
           </div>
         </div>
       </div>
 
+      {/* Mobile responsive override */}
       <style>{`
         @media (max-width: 768px) {
-          .hero-main-grid { grid-template-columns: 1fr !important; }
+          section > .z-10 {
+            grid-template-columns: 1fr !important;
+            padding: 100px var(--sp-5) var(--sp-7) !important;
+            height: auto !important;
+          }
+          section {
+            height: auto !important;
+            min-height: 100dvh;
+          }
+          section > .z-10 > div:last-child {
+            aspect-ratio: 16 / 10;
+            height: auto !important;
+            max-height: none !important;
+          }
         }
       `}</style>
     </section>
