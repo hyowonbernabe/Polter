@@ -9,6 +9,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "next": "15.5.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
