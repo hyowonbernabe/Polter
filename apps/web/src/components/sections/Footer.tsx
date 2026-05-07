@@ -7,16 +7,9 @@ const PRODUCT_LINKS = [
   { label: 'Privacy',    href: '#privacy' },
 ];
 
-const RESOURCE_LINKS = [
-  { label: 'GitHub',     href: 'https://github.com/hyowonbernabe/Polter' },
-  { label: 'Releases',   href: 'https://github.com/hyowonbernabe/Polter/releases' },
-  { label: 'Issues',     href: 'https://github.com/hyowonbernabe/Polter/issues' },
-  { label: 'License',    href: 'https://github.com/hyowonbernabe/Polter/blob/main/LICENSE' },
-];
-
 const CREATORS = [
-  { name: 'Creator One', link: '#' },
-  { name: 'Creator Two', link: '#' },
+  { name: 'Hyowon Bernabe', link: 'https://www.hyowonbernabe.me' },
+  { name: 'Krenz Casilen',  link: 'https://github.com/xPking23' },
 ];
 
 const linkStyle: React.CSSProperties = {
@@ -39,7 +32,7 @@ export function Footer() {
           className="footer-grid"
           style={{
             display:             'grid',
-            gridTemplateColumns: '2fr 1fr 1fr 1fr',
+            gridTemplateColumns: '2fr 1fr 1fr',
             gap:                 'var(--sp-8)',
             marginBottom:        'var(--sp-8)',
           }}
@@ -84,32 +77,17 @@ export function Footer() {
             ))}
           </div>
 
-          {/* Resources column */}
+          {/* Connect / Creators column */}
           <div>
-            <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 'var(--sp-4)' }}>Resources</div>
-            {RESOURCE_LINKS.map(link => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="footer-link"
-                style={linkStyle}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          {/* Creators column */}
-          <div>
-            <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 'var(--sp-4)' }}>Created by</div>
+            <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 'var(--sp-4)' }}>Connect</div>
             {CREATORS.map(creator => (
               <a
                 key={creator.name}
                 href={creator.link}
                 className="footer-link"
                 style={linkStyle}
+                target="_blank"
+                rel="noreferrer"
               >
                 {creator.name}
               </a>
