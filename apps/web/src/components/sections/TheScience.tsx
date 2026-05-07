@@ -165,7 +165,7 @@ export function TheScience() {
       ref={floatRef}
       style={{
         background:     'var(--bg-0)',
-        padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
+        padding:        'var(--section-py) var(--section-px)',
         minHeight:      '100dvh',
         display:        'flex',
         flexDirection:  'column',
@@ -259,9 +259,10 @@ export function TheScience() {
           className="science-grid"
           style={{
             display:             'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap:                 'var(--sp-4)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap:                 'clamp(12px, 2vw, 16px)',
             width:               '100%',
+            maxWidth:            'var(--content-max)',
           }}
         >
           {STUDIES.map((study, i) => (
@@ -277,8 +278,6 @@ export function TheScience() {
                   flexDirection: 'column',
                   justifyContent:'space-between',
                   height:        '100%',
-                  gridColumn:    study.colSpan ? `span ${study.colSpan}` : undefined,
-                  gridRow:       study.rowSpan ? `span ${study.rowSpan}` : undefined,
                 }}
               >
                 <div>
@@ -391,16 +390,6 @@ export function TheScience() {
       <style>{`
         .science-grid > * { min-height: 0; }
         .science-card { min-height: 180px; }
-
-        @media (max-width: 768px) {
-          .science-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .science-card {
-            grid-column: span 1 !important;
-            grid-row: span 1 !important;
-          }
-        }
       `}</style>
     </section>
   );

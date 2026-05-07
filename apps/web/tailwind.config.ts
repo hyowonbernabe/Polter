@@ -61,6 +61,9 @@ const config: Config = {
         slow:  'var(--dur-slow)',
         drift: 'var(--dur-drift)',
       },
+      screens: {
+        '3xl': '1920px',
+      },
     },
   },
   plugins: [],

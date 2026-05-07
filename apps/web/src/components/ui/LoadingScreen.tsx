@@ -30,7 +30,6 @@ export function LoadingScreen() {
   // Wait for page to finish loading, then fade out
   useEffect(() => {
     function hide() {
-      // Small delay so it doesn't flash
       setTimeout(() => {
         setFading(true);
         setTimeout(() => setVisible(false), 500);
@@ -47,6 +46,10 @@ export function LoadingScreen() {
 
   if (!visible) return null;
 
+  // Fluid ring size
+  const ringSize = 'clamp(80px, 12vw, 120px)';
+  const ghostSize = 'clamp(32px, 5vw, 48px)';
+
   return (
     <div
       style={{
@@ -58,7 +61,7 @@ export function LoadingScreen() {
         flexDirection:  'column',
         alignItems:     'center',
         justifyContent: 'center',
-        gap:            24,
+        gap:            'clamp(16px, 3vw, 24px)',
         opacity:        fading ? 0 : 1,
         transition:     'opacity 0.5s ease',
         pointerEvents:  fading ? 'none' : 'auto',
@@ -66,7 +69,7 @@ export function LoadingScreen() {
     >
       <CandleScatter layout="a" />
 
-      {/* Film grain inside loading screen (main one is behind us at lower z) */}
+      {/* Film grain inside loading screen */}
       <div
         aria-hidden="true"
         style={{
@@ -84,11 +87,10 @@ export function LoadingScreen() {
       />
 
       {/* Spinner ring + creature */}
-      <div style={{ position: 'relative', width: 120, height: 120 }}>
-        {/* SVG spinner ring */}
+      <div style={{ position: 'relative', width: ringSize, height: ringSize }}>
         <svg
-          width={120}
-          height={120}
+          width="100%"
+          height="100%"
           viewBox="0 0 120 120"
           style={{
             position: 'absolute',
@@ -119,8 +121,6 @@ export function LoadingScreen() {
         {/* Ghost sprite cycling in center */}
         <img
           src={SPIN_SPRITES[frame]}
-          width={48}
-          height={48}
           alt=""
           className="pixel-art"
           style={{
@@ -128,6 +128,8 @@ export function LoadingScreen() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
+            width: ghostSize,
+            height: ghostSize,
           }}
         />
       </div>
@@ -135,7 +137,7 @@ export function LoadingScreen() {
       <span
         style={{
           fontFamily:    'var(--font-mono)',
-          fontSize:      11,
+          fontSize:      'clamp(9px, 0.6rem + 0.1vw, 11px)',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           color:         'var(--fg-3)',

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { VHSEffect, VHSHandle } from '@/components/ui/VHSEffect';
+import { useContainerSize } from '@/hooks/useContainerSize';
 
 /* ── Direction mapping ── */
 
@@ -31,28 +32,20 @@ function getCursorDirection(el: HTMLElement, cx: number, cy: number): string {
   return 'back-right';
 }
 
-/* ── ADJUST THESE ── */
+/* ── CONFIG (base values at 1920px reference) ── */
 
 const CONFIG = {
-  container: {
-    left: '50%',
-    top: '0',
-    width: '55vw',
-  },
-  computer: {
-    scale: 2.8,
-    rotation: -30,
-    offsetX: '0px',
-    offsetY: '0px',
-  },
   ghost: {
-    top: 0.42,   // fraction 0-1, vertical position on screen
-    left: 0.50,   // fraction 0-1, horizontal position on screen
+    top: 0.42,
+    left: 0.50,
     scale: 4 as const,
   },
-  // Scene canvas resolution (feeds into shader)
-  sceneW: 800,
-  sceneH: 450,
+  computer: {
+    rotation: -30,
+  },
+  // Base canvas resolution — scaled by container
+  baseW: 800,
+  baseH: 450,
 };
 
 /* ── Component ── */
@@ -66,11 +59,14 @@ export function HeroComputer() {
   const spriteImgCache = useRef<Map<string, HTMLImageElement>>(new Map());
   const spriteRef = useRef('front.png');
   const rafRef = useRef<number>(0);
+  const { ref: containerRef, width: cw } = useContainerSize();
 
-  // Keep spriteRef in sync
+  // Fluid scale: from ~1.2 at 320px to ~2.8 at 1920px
+  const scale = Math.max(2.8, Math.min(2.8, cw / 685));
+
   useEffect(() => { spriteRef.current = sprite; }, [sprite]);
 
-  // Preload all sprite images
+  // Preload sprites
   useEffect(() => {
     Object.values(DIR_SPRITES).forEach(name => {
       if (spriteImgCache.current.has(name)) return;
@@ -87,24 +83,32 @@ export function HeroComputer() {
     img.onload = () => { screenImgRef.current = img; };
   }, []);
 
-  // Cursor tracking (uses hitTargetRef for direction calculation)
+  // Cursor + touch tracking
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (cx: number, cy: number) => {
       if (!hitTargetRef.current) return;
-      setSprite(DIR_SPRITES[getCursorDirection(hitTargetRef.current, e.clientX, e.clientY)]);
+      setSprite(DIR_SPRITES[getCursorDirection(hitTargetRef.current, cx, cy)]);
     };
-    window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
+    const onMouse = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) onMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    window.addEventListener('mousemove', onMouse);
+    window.addEventListener('touchmove', onTouch, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMouse);
+      window.removeEventListener('touchmove', onTouch);
+    };
   }, []);
 
-  // Scene compositing loop: draw screen + ghost onto canvas, feed to VHS shader
+  // Scene compositing loop
   useEffect(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = CONFIG.sceneW;
-    canvas.height = CONFIG.sceneH;
+    canvas.width = CONFIG.baseW;
+    canvas.height = CONFIG.baseH;
     sceneCanvasRef.current = canvas;
     const ctx = canvas.getContext('2d')!;
-    ctx.imageSmoothingEnabled = false; // pixel art
+    ctx.imageSmoothingEnabled = false;
 
     const start = performance.now();
     const spriteSize = CONFIG.ghost.scale * 48;
@@ -113,24 +117,20 @@ export function HeroComputer() {
       const t = (now - start) / 1000;
       const driftY = Math.sin((t * Math.PI * 2) / 4) * 10;
 
-      ctx.clearRect(0, 0, CONFIG.sceneW, CONFIG.sceneH);
+      ctx.clearRect(0, 0, CONFIG.baseW, CONFIG.baseH);
 
-      // Draw screen
       if (screenImgRef.current) {
-        ctx.drawImage(screenImgRef.current, 0, 0, CONFIG.sceneW, CONFIG.sceneH);
+        ctx.drawImage(screenImgRef.current, 0, 0, CONFIG.baseW, CONFIG.baseH);
       }
 
-      // Draw ghost sprite
       const ghostImg = spriteImgCache.current.get(spriteRef.current);
       if (ghostImg && ghostImg.complete) {
-        const gx = CONFIG.ghost.left * CONFIG.sceneW - spriteSize / 2;
-        const gy = CONFIG.ghost.top * CONFIG.sceneH - spriteSize / 2 + driftY;
+        const gx = CONFIG.ghost.left * CONFIG.baseW - spriteSize / 2;
+        const gy = CONFIG.ghost.top * CONFIG.baseH - spriteSize / 2 + driftY;
         ctx.drawImage(ghostImg, gx, gy, spriteSize, spriteSize);
       }
 
-      // Feed to VHS shader
       vhsRef.current?.updateScene(canvas);
-
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -150,12 +150,13 @@ export function HeroComputer() {
 
   return (
     <div
+      ref={containerRef}
       aria-hidden="true"
       style={{
         position: 'absolute',
-        top: CONFIG.container.top,
-        left: CONFIG.container.left,
-        width: CONFIG.container.width,
+        top: 0,
+        left: '50%',
+        width: 'clamp(300px, 55vw, 1100px)',
         height: '100dvh',
         pointerEvents: 'none',
         zIndex: 2,
@@ -164,7 +165,7 @@ export function HeroComputer() {
         justifyContent: 'center',
       }}
     >
-      {/* Invisible hit target for cursor direction (positioned where ghost visually is) */}
+      {/* Invisible hit target for cursor direction */}
       <div
         ref={hitTargetRef}
         style={{
@@ -177,19 +178,17 @@ export function HeroComputer() {
         }}
       />
 
-      {/* Computer wrapper */}
+      {/* Computer wrapper — fluid scale */}
       <div
         style={{
           position: 'relative',
           width: '100%',
           aspectRatio: '1376 / 768',
-          transform: `scale(${CONFIG.computer.scale}) rotate(${CONFIG.computer.rotation}deg) translate(${CONFIG.computer.offsetX}, ${CONFIG.computer.offsetY})`,
+          transform: `scale(${scale}) rotate(${CONFIG.computer.rotation}deg)`,
         }}
       >
-        {/* Screen cover — hides any ghost bleed underneath */}
         <img src="/assets/computer-screen.png" alt="" style={{ ...imgStyle, zIndex: 1 }} />
 
-        {/* VHS layer: ghost distorted by shader */}
         <VHSEffect
           ref={vhsRef}
           style={{
@@ -205,7 +204,6 @@ export function HeroComputer() {
           }}
         />
 
-        {/* Computer body (front, covers edges) */}
         <img src="/assets/computer-body.png" alt="" style={{ ...imgStyle, zIndex: 3 }} />
       </div>
     </div>

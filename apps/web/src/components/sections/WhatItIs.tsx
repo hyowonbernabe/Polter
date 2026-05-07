@@ -51,7 +51,7 @@ export function WhatItIs() {
       <CandleScatter layout="a" />
       <div
         style={{
-          padding: '0 5vw',
+          padding: '0 var(--section-px)',
           width: '100%',
           display: 'flex',
           flexDirection: 'column',

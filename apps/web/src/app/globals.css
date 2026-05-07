@@ -107,6 +107,11 @@
   --dur-soft:   280ms;
   --dur-slow:   600ms;
   --dur-drift:  4000ms;
+
+  /* Fluid layout tokens */
+  --section-px: clamp(1.25rem, 5vw, 5rem);
+  --section-py: clamp(3rem, 8vh, 6rem);
+  --content-max: 1400px;
 }
 
 /* ── Base ── */
@@ -118,6 +123,7 @@ body {
   color: var(--fg-1);
   font-family: var(--font-ui);
   margin: 0;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -197,6 +203,14 @@ body {
 }
 .candle-glow {
   animation: candleGlow 3s ease-in-out infinite;
+}
+
+/* ── Decorative ghost hide on small screens ── */
+.ghost-decor {
+  display: block;
+}
+@media (max-width: 600px) {
+  .ghost-decor { display: none; }
 }
 
 /* ── Candle float drift ── */

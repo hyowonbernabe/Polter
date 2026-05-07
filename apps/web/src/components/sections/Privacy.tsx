@@ -120,12 +120,13 @@ export function Privacy() {
         justifyContent: 'center',
         position:       'relative',
         overflow:       'hidden',
-        padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
+        padding:        'var(--section-py) var(--section-px)',
       }}
     >
       <CandleScatter layout="c" />
       {/* Ghost decoration */}
       <div
+        className="ghost-decor"
         style={{
           position:      'absolute',
           bottom:        '8%',
@@ -178,11 +179,10 @@ export function Privacy() {
 
         {/* Sees / Never sees — two columns */}
         <div
-          className="privacy-sees"
           style={{
             display:             'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap:                 'var(--sp-8)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+            gap:                 'clamp(24px, 4vw, 48px)',
             marginBottom:        'var(--sp-9)',
           }}
         >
@@ -259,11 +259,10 @@ export function Privacy() {
         </ScrollReveal>
 
         <div
-          className="privacy-tiers"
           style={{
             display:             'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap:                 'var(--sp-4)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+            gap:                 'clamp(12px, 2vw, 16px)',
             marginBottom:        'var(--sp-8)',
           }}
         >
@@ -346,12 +345,6 @@ export function Privacy() {
         </ScrollReveal>
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .privacy-sees  { grid-template-columns: 1fr !important; }
-          .privacy-tiers { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </section>
   );
 }

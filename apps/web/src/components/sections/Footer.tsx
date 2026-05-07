@@ -24,16 +24,15 @@ const linkStyle: React.CSSProperties = {
 
 export function Footer() {
   return (
-    <footer style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px) var(--sp-7)' }}>
+    <footer style={{ background: 'var(--bg-0)', padding: 'var(--section-py) var(--section-px) var(--sp-7)' }}>
       <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 'var(--sp-7)' }}>
 
         {/* Main grid */}
         <div
-          className="footer-grid"
           style={{
             display:             'grid',
-            gridTemplateColumns: '2fr 1fr 1fr',
-            gap:                 'var(--sp-8)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+            gap:                 'clamp(24px, 4vw, 48px)',
             marginBottom:        'var(--sp-8)',
           }}
         >
@@ -45,7 +44,7 @@ export function Footer() {
                 style={{
                   fontFamily: 'var(--font-serif)',
                   fontStyle:  'italic',
-                  fontSize:   24,
+                  fontSize:   'clamp(20px, 1.2rem + 0.3vw, 24px)',
                   color:      'var(--fg-1)',
                 }}
               >
@@ -117,16 +116,6 @@ export function Footer() {
 
       <style>{`
         .footer-link:hover { color: var(--fg-1) !important; }
-        @media (max-width: 768px) {
-          .footer-grid {
-            grid-template-columns: 1fr 1fr !important;
-          }
-        }
-        @media (max-width: 480px) {
-          .footer-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
       `}</style>
     </footer>
   );

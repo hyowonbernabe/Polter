@@ -18,15 +18,16 @@ export function Hero() {
         }}
       />
 
-      {/* Text content — left aligned */}
+      {/* Text content — fluid width, stacks on small screens */}
       <div
         className="relative z-10 h-full"
         style={{
-          display:       'flex',
-          flexDirection: 'column',
+          display:        'flex',
+          flexDirection:  'column',
           justifyContent: 'center',
-          padding:       '0 5vw',
-          maxWidth:      '50%',
+          padding:        '0 var(--section-px)',
+          maxWidth:       'min(50%, 700px)',
+          minWidth:       'min(100%, 340px)',
         }}
       >
         <div
@@ -34,7 +35,7 @@ export function Hero() {
           style={{
             color:         'var(--fg-3)',
             letterSpacing: '0.18em',
-            marginBottom:  20,
+            marginBottom:  'clamp(12px, 2vw, 20px)',
           }}
         >
           A quiet desktop companion
@@ -45,11 +46,11 @@ export function Hero() {
             fontFamily:    'var(--font-serif)',
             fontStyle:     'italic',
             fontWeight:    400,
-            fontSize:      'clamp(56px, 8vw, 120px)',
+            fontSize:      'clamp(40px, 7vw, 120px)',
             lineHeight:    0.95,
             letterSpacing: '-0.03em',
             color:         'var(--ghost)',
-            margin:        '0 0 32px',
+            margin:        '0 0 clamp(20px, 3vw, 32px)',
           }}
         >
           Something is watching you work.
@@ -58,11 +59,11 @@ export function Hero() {
         <p
           style={{
             fontFamily: 'var(--font-ui)',
-            fontSize:   20,
+            fontSize:   'clamp(16px, 0.95rem + 0.3vw, 20px)',
             lineHeight: 1.6,
             color:      'var(--fg-2)',
-            maxWidth:   540,
-            margin:     '0 0 40px',
+            maxWidth:   'min(540px, 100%)',
+            margin:     '0 0 clamp(24px, 4vw, 40px)',
           }}
         >
           A pixel ghost that observes the quiet signals in how you work. Keystroke
@@ -70,7 +71,7 @@ export function Hero() {
           invasive. Everything stays on your machine.
         </p>
 
-        <div className="flex items-center gap-4 flex-wrap" style={{ marginBottom: 32 }}>
+        <div className="flex items-center gap-4 flex-wrap" style={{ marginBottom: 'clamp(20px, 3vw, 32px)' }}>
           <a
             href="https://github.com/hyowonbernabe/Polter"
             target="_blank"
@@ -80,9 +81,9 @@ export function Hero() {
               background:     'var(--accent)',
               color:          '#1a1612',
               fontFamily:     'var(--font-ui)',
-              fontSize:       15,
+              fontSize:       'clamp(14px, 0.85rem + 0.15vw, 15px)',
               fontWeight:     500,
-              padding:        '14px 28px',
+              padding:        'clamp(10px, 1.5vw, 14px) clamp(20px, 3vw, 28px)',
               borderRadius:   'var(--radius-md)',
               textDecoration: 'none',
             }}
@@ -95,10 +96,10 @@ export function Hero() {
             style={{
               color:          'var(--fg-2)',
               textDecoration: 'none',
-              padding:        '14px 16px',
+              padding:        'clamp(10px, 1.5vw, 14px) clamp(12px, 2vw, 16px)',
             }}
           >
-            Read more below →
+            Read more below &rarr;
           </a>
         </div>
 
@@ -106,19 +107,9 @@ export function Hero() {
           className="eyebrow"
           style={{ color: 'var(--fg-3)', letterSpacing: '0.06em' }}
         >
-          Windows · Open source · Everything stays on your machine
+          Windows &middot; Open source &middot; Everything stays on your machine
         </div>
       </div>
-
-      {/* Mobile responsive */}
-      <style>{`
-        @media (max-width: 768px) {
-          section > .z-10 {
-            max-width: 100% !important;
-            padding: 100px var(--sp-5) var(--sp-7) !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

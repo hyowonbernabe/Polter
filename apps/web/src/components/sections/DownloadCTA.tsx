@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { GhostSprite }  from '@/components/ui/GhostSprite';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { CandleScatter } from '@/components/ui/CandleScatter';
+import { useContainerSize } from '@/hooks/useContainerSize';
 
 /* ── Direction mapping (same as Hero) ── */
 
@@ -40,6 +41,10 @@ export function DownloadCTA() {
   const [sprite, setSprite] = useState('front.png');
   const ghostRef = useRef<HTMLDivElement>(null);
   const rafRef   = useRef<number>(0);
+  const { ref: sectionRef, width: sw, height: sh } = useContainerSize();
+
+  // Fluid ghost scale: 3 at 320px → 8 at 1200px+
+  const ghostScale = Math.max(3, Math.min(8, Math.floor(Math.min(sw, sh) / 120))) as 1 | 2 | 3 | 4 | 8;
 
   // Sine float
   useEffect(() => {
@@ -52,18 +57,27 @@ export function DownloadCTA() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Cursor tracking
+  // Cursor + touch tracking
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (cx: number, cy: number) => {
       if (!ghostRef.current) return;
-      setSprite(DIR_SPRITES[getCursorDirection(ghostRef.current, e.clientX, e.clientY)]);
+      setSprite(DIR_SPRITES[getCursorDirection(ghostRef.current, cx, cy)]);
     };
-    window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
+    const onMouse = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) onMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    window.addEventListener('mousemove', onMouse);
+    window.addEventListener('touchmove', onTouch, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMouse);
+      window.removeEventListener('touchmove', onTouch);
+    };
   }, []);
 
   return (
     <section
+      ref={sectionRef}
       style={{
         background:     'var(--bg-0)',
         minHeight:      '100dvh',
@@ -74,11 +88,11 @@ export function DownloadCTA() {
         textAlign:      'center',
         position:       'relative',
         overflow:       'hidden',
-        padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
+        padding:        'var(--section-py) var(--section-px)',
       }}
     >
       <CandleScatter layout="d" />
-      {/* Warm vignette — contained within section */}
+      {/* Warm vignette */}
       <div
         aria-hidden="true"
         style={{
@@ -101,7 +115,7 @@ export function DownloadCTA() {
             zIndex:        1,
           }}
         >
-          <GhostSprite name={sprite} scale={8} />
+          <GhostSprite name={sprite} scale={ghostScale} />
         </div>
       </ScrollReveal>
 
@@ -112,7 +126,7 @@ export function DownloadCTA() {
             fontFamily:    'var(--font-serif)',
             fontStyle:     'italic',
             fontWeight:    400,
-            fontSize:      'clamp(40px, 6vw, 80px)',
+            fontSize:      'clamp(32px, 5vw, 80px)',
             lineHeight:    1.05,
             letterSpacing: '-0.03em',
             color:         'var(--fg-1)',
@@ -130,7 +144,7 @@ export function DownloadCTA() {
         <p
           style={{
             fontFamily: 'var(--font-ui)',
-            fontSize:   'clamp(16px, 1.8vw, 20px)',
+            fontSize:   'clamp(14px, 0.85rem + 0.3vw, 20px)',
             lineHeight: 1.6,
             color:      'var(--fg-2)',
             maxWidth:   460,
@@ -144,18 +158,18 @@ export function DownloadCTA() {
         </p>
       </ScrollReveal>
 
-      {/* CTA buttons */}
+      {/* CTA button */}
       <ScrollReveal delay={400}>
         <div
           style={{
-            display:    'flex',
-            alignItems: 'center',
-            gap:        'var(--sp-4)',
-            flexWrap:   'wrap',
+            display:        'flex',
+            alignItems:     'center',
+            gap:            'var(--sp-4)',
+            flexWrap:       'wrap',
             justifyContent: 'center',
-            marginBottom: 'var(--sp-6)',
-            position:   'relative',
-            zIndex:     1,
+            marginBottom:   'var(--sp-6)',
+            position:       'relative',
+            zIndex:         1,
           }}
         >
           <a
@@ -167,13 +181,12 @@ export function DownloadCTA() {
               background:     'var(--accent)',
               color:          '#1a1612',
               fontFamily:     'var(--font-ui)',
-              fontSize:       17,
+              fontSize:       'clamp(15px, 0.9rem + 0.2vw, 17px)',
               fontWeight:     600,
-              padding:        '18px 36px',
+              padding:        'clamp(14px, 2vw, 18px) clamp(24px, 4vw, 36px)',
               borderRadius:   'var(--radius-md)',
               textDecoration: 'none',
               display:        'inline-block',
-              transition:     'transform 0.2s ease, box-shadow 0.2s ease',
             }}
           >
             View on GitHub

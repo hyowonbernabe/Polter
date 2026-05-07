@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { CandleScatter } from '@/components/ui/CandleScatter';
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { useContainerSize } from '@/hooks/useContainerSize';
 
 /* ── Mood cycle data ── */
 
@@ -29,15 +30,17 @@ const ORBIT_SPRITES = [
   'overworked.png', 'sleepy.png', 'thinking.png', 'reading.png',
 ];
 
-const ORBIT_R    = 170;
-const ORBIT_SIZE = 360;
-
 /* ── Component ── */
 
 export function TheCreature() {
   const [activeIdx, setActiveIdx] = useState(0);
   const spriteRefs = useRef<(HTMLDivElement | null)[]>([]);
   const rafRef     = useRef<number>(0);
+  const { ref: sectionRef, width: sw } = useContainerSize();
+
+  // Fluid orbit radius: 80px at 320px screen → 170px at 1200px+
+  const orbitR    = Math.max(80, Math.min(170, sw * 0.14));
+  const orbitSize = orbitR * 2 + 40; // container = diameter + padding for sprites
 
   // Cycle mood every 3s
   useEffect(() => {
@@ -53,25 +56,29 @@ export function TheCreature() {
     const count = ORBIT_SPRITES.length;
     const tick = (now: number) => {
       const elapsed = (now - start) / 1000;
-      const baseAngle = elapsed * 3; // 3 degrees per second
+      const baseAngle = elapsed * 3;
       spriteRefs.current.forEach((el, i) => {
         if (!el) return;
         const angle = baseAngle + (i / count) * 360;
         const rad   = (angle * Math.PI) / 180;
-        const x     = Math.cos(rad) * ORBIT_R;
-        const y     = Math.sin(rad) * ORBIT_R;
+        const x     = Math.cos(rad) * orbitR;
+        const y     = Math.sin(rad) * orbitR;
         el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
       });
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [orbitR]);
 
   const mood = MOODS[activeIdx];
 
+  // Fluid center sprite: scale 2 on small, 4 on large
+  const centerScale = sw > 600 ? 4 : sw > 400 ? 3 : 2;
+
   return (
     <section
+      ref={sectionRef}
       style={{
         background:     'var(--bg-0)',
         minHeight:      '100dvh',
@@ -81,7 +88,7 @@ export function TheCreature() {
         justifyContent: 'center',
         position:       'relative',
         overflow:       'hidden',
-        padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
+        padding:        'var(--section-py) var(--section-px)',
       }}
     >
       <CandleScatter layout="a" />
@@ -94,7 +101,7 @@ export function TheCreature() {
 
       {/* Centre piece: orbit + main sprite */}
       <ScrollReveal delay={100}>
-        <div style={{ position: 'relative', width: ORBIT_SIZE, height: ORBIT_SIZE, margin: '0 auto var(--sp-6)' }}>
+        <div style={{ position: 'relative', width: orbitSize, height: orbitSize, margin: '0 auto var(--sp-6)' }}>
 
           {/* Static ring border */}
           <div
@@ -107,14 +114,13 @@ export function TheCreature() {
             }}
           />
 
-          {/* Orbiting sprites — positioned via JS, never rotated */}
+          {/* Orbiting sprites */}
           {ORBIT_SPRITES.map((name, i) => {
             const isActive = MOODS[activeIdx]?.sprite === name;
-            // Initial position (before JS takes over)
             const initAngle = (i / ORBIT_SPRITES.length) * 360;
             const initRad   = (initAngle * Math.PI) / 180;
-            const ix = Math.cos(initRad) * ORBIT_R;
-            const iy = Math.sin(initRad) * ORBIT_R;
+            const ix = Math.cos(initRad) * orbitR;
+            const iy = Math.sin(initRad) * orbitR;
 
             return (
               <div
@@ -144,7 +150,7 @@ export function TheCreature() {
               transition: 'opacity 0.4s ease',
             }}
           >
-            <GhostSprite name={mood.sprite} scale={4} />
+            <GhostSprite name={mood.sprite} scale={centerScale as 1 | 2 | 3 | 4 | 8} />
           </div>
         </div>
       </ScrollReveal>
@@ -190,7 +196,7 @@ export function TheCreature() {
         style={{
           fontFamily:   'var(--font-serif)',
           fontStyle:    'italic',
-          fontSize:     'clamp(16px, 2vw, 20px)',
+          fontSize:     'clamp(15px, 0.9rem + 0.3vw, 20px)',
           lineHeight:   1.5,
           color:        'var(--fg-2)',
           textAlign:    'center',
@@ -209,7 +215,7 @@ export function TheCreature() {
             fontFamily:    'var(--font-serif)',
             fontStyle:     'italic',
             fontWeight:    400,
-            fontSize:      'clamp(28px, 3.5vw, 44px)',
+            fontSize:      'clamp(24px, 3vw, 44px)',
             lineHeight:    1.15,
             letterSpacing: '-0.02em',
             color:         'var(--fg-1)',
@@ -226,7 +232,7 @@ export function TheCreature() {
         <p
           style={{
             fontFamily: 'var(--font-ui)',
-            fontSize:   16,
+            fontSize:   'clamp(14px, 0.85rem + 0.2vw, 16px)',
             lineHeight: 1.65,
             color:      'var(--fg-2)',
             textAlign:  'center',
@@ -246,9 +252,8 @@ export function TheCreature() {
           style={{
             display:        'flex',
             gap:            'var(--sp-2)',
-            flexWrap:       'nowrap',
+            flexWrap:       'wrap',
             justifyContent: 'center',
-            overflowX:      'auto',
             maxWidth:       '100%',
             paddingBottom:  4,
           }}
@@ -261,7 +266,7 @@ export function TheCreature() {
                 background:   i === activeIdx ? 'var(--bg-2)' : 'transparent',
                 border:       i === activeIdx ? '1px solid var(--border-1)' : '1px solid transparent',
                 borderRadius: 999,
-                padding:      '5px 10px',
+                padding:      'clamp(3px, 0.5vw, 5px) clamp(6px, 1vw, 10px)',
                 display:      'flex',
                 alignItems:   'center',
                 gap:          5,
@@ -274,7 +279,7 @@ export function TheCreature() {
               <span
                 style={{
                   fontFamily:    'var(--font-mono)',
-                  fontSize:      10,
+                  fontSize:      'clamp(9px, 0.55rem + 0.1vw, 10px)',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
                   color:         i === activeIdx ? 'var(--fg-1)' : 'var(--fg-3)',

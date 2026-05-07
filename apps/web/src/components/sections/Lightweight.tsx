@@ -81,12 +81,13 @@ export function Lightweight() {
         justifyContent: 'center',
         position:       'relative',
         overflow:       'hidden',
-        padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
+        padding:        'var(--section-py) var(--section-px)',
       }}
     >
       <CandleScatter layout="b" />
       {/* Floating ghost decoration */}
       <div
+        className="ghost-decor"
         style={{
           position:      'absolute',
           top:           '10%',
@@ -128,7 +129,7 @@ export function Lightweight() {
         <p
           style={{
             fontFamily: 'var(--font-ui)',
-            fontSize:   17,
+            fontSize:   'clamp(15px, 0.9rem + 0.2vw, 17px)',
             lineHeight: 1.6,
             color:      'var(--fg-2)',
             textAlign:  'center',
@@ -142,11 +143,10 @@ export function Lightweight() {
 
       {/* Two massive metric cards */}
       <div
-        className="lightweight-grid"
         style={{
           display:             'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap:                 'var(--sp-5)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+          gap:                 'clamp(16px, 3vw, 24px)',
           width:               '100%',
           maxWidth:            900,
           alignItems:          'stretch',
@@ -233,11 +233,6 @@ export function Lightweight() {
         ))}
       </div>
 
-      <style>{`
-        @media (max-width: 640px) {
-          .lightweight-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </section>
   );
 }

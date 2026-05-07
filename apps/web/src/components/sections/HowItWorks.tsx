@@ -65,11 +65,11 @@ export function HowItWorks() {
         justifyContent: 'center',
         position: 'relative',
         overflow: 'hidden',
-        padding: 'var(--sp-9) 0',
+        padding: 'var(--section-py) 0',
       }}
     >
       <CandleScatter layout="b" />
-      <div style={{ padding: '0 5vw', width: '100%' }}>
+      <div style={{ padding: '0 var(--section-px)', width: '100%', maxWidth: 'var(--content-max)', margin: '0 auto' }}>
         {/* Eyebrow */}
         <ScrollReveal>
           <div
@@ -106,11 +106,10 @@ export function HowItWorks() {
 
         {/* Cards */}
         <div
-          className="how-cards"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 'var(--sp-6)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 'clamp(16px, 3vw, 32px)',
             maxWidth: 1200,
             margin: '0 auto',
           }}
@@ -150,7 +149,7 @@ export function HowItWorks() {
                     top: -10,
                     right: 16,
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 140,
+                    fontSize: 'clamp(80px, 12vw, 140px)',
                     fontWeight: 700,
                     color: 'var(--fg-1)',
                     opacity: 0.04,
@@ -170,7 +169,7 @@ export function HowItWorks() {
                   style={{
                     fontFamily: 'var(--font-ui)',
                     fontWeight: 600,
-                    fontSize: 22,
+                    fontSize: 'clamp(18px, 1.2rem + 0.2vw, 22px)',
                     color: 'var(--fg-1)',
                     margin: '0 0 var(--sp-3)',
                   }}
@@ -206,15 +205,6 @@ export function HowItWorks() {
 
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .how-cards {
-            grid-template-columns: 1fr !important;
-            max-width: 400px !important;
-            margin: 0 auto !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }
