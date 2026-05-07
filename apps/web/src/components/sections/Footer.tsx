@@ -62,7 +62,7 @@ export function Footer() {
               }}
             >
               A quiet desktop companion that watches how you work and tells you what it sees.
-              Open source. Everything local.
+              Source available. Everything local.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export function Footer() {
             Boo
           </span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' }}>
-            2026 &middot; MIT licensed.
+            2026 &middot; BSL 1.1
           </span>
         </div>
       </div>

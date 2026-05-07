@@ -107,7 +107,7 @@ export function Hero() {
           className="eyebrow"
           style={{ color: 'var(--fg-3)', letterSpacing: '0.06em' }}
         >
-          Windows &middot; Open source &middot; Everything stays on your machine
+          Windows &middot; Source available &middot; Everything stays on your machine
         </div>
       </div>
     </section>

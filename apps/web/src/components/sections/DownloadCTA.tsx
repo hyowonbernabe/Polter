@@ -154,7 +154,7 @@ export function DownloadCTA() {
           }}
         >
           A small ghost that watches how you work and tells you what it sees.
-          Free, open source, and everything stays on your machine.
+          Free to use. Source available. Everything stays on your machine.
         </p>
       </ScrollReveal>
 
