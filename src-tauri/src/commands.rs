@@ -698,14 +698,26 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
         let logical_y = logical_bottom - 680.0 - 20.0;
         
         if let Some(dash) = app.get_webview_window("dashboard") {
-            dash.set_position(tauri::LogicalPosition::new(logical_x, logical_y))
-                .map_err(|e| e.to_string())?;
-            dash.show().map_err(|e| e.to_string())?;
+            let is_vis = dash.is_visible().unwrap_or(false);
+            eprintln!("[dashboard] OPEN — window exists, visible={}", is_vis);
+            if let Err(e) = dash.set_position(tauri::LogicalPosition::new(logical_x, logical_y)) {
+                eprintln!("[dashboard] set_position FAILED: {e}");
+            }
+            if let Err(e) = dash.show() {
+                eprintln!("[dashboard] show() FAILED: {e}");
+            }
             let _ = dash.unminimize();
-            dash.set_focus().map_err(|e| e.to_string())?;
+            if let Err(e) = dash.set_focus() {
+                eprintln!("[dashboard] set_focus() FAILED: {e}");
+            }
             let _ = dash.emit("window_show", ());
+            // Direct JS eval — bypasses Tauri event system which may not
+            // deliver to webviews that were hidden (WebView2 throttling).
+            let _ = dash.eval("document.dispatchEvent(new CustomEvent('polter-show'))");
+            let is_vis_after = dash.is_visible().unwrap_or(false);
+            eprintln!("[dashboard] OPEN DONE — visible_after={}", is_vis_after);
         } else {
-            // Recreate if missing
+            eprintln!("[dashboard] OPEN — window MISSING, recreating");
             let dash = WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App("index.html".into()))
                 .title("Polter Dashboard")
                 .inner_size(420.0, 680.0)
@@ -719,6 +731,8 @@ pub fn do_open_dashboard(app: &tauri::AppHandle) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
             let _ = dash.show();
             let _ = dash.set_focus();
+            let _ = dash.emit("window_show", ());
+            eprintln!("[dashboard] recreated and shown");
         }
     }
     #[cfg(not(target_os = "windows"))]
@@ -750,8 +764,15 @@ pub fn open_dashboard(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn close_dashboard(app_handle: tauri::AppHandle) {
+    eprintln!("[dashboard] CLOSE called");
     if let Some(dash) = app_handle.get_webview_window("dashboard") {
+        let is_vis = dash.is_visible().unwrap_or(false);
+        eprintln!("[dashboard] CLOSE — visible_before={}", is_vis);
         let _ = dash.hide();
+        let is_vis_after = dash.is_visible().unwrap_or(false);
+        eprintln!("[dashboard] CLOSE — visible_after={}", is_vis_after);
+    } else {
+        eprintln!("[dashboard] CLOSE — window NOT FOUND");
     }
 }
 

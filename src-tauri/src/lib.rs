@@ -45,6 +45,7 @@ fn virtual_screen_rect() -> (i32, i32, u32, u32) {
 
 pub fn run() {
     tracing_subscriber::fmt::init();
+    eprintln!("[polter] === APP STARTED — if you see this, eprintln works ===");
 
     let bounds: commands::BoundsState = Arc::new(Mutex::new(click_through::Rect::default()));
     let bubble_bounds: commands::BubbleBoundsState = Arc::new(Mutex::new(None));
@@ -333,7 +334,11 @@ pub fn run() {
                         "quit" => commands::graceful_quit(app),
 
                         "open_dashboard" => {
-                            let _ = commands::do_open_dashboard(app);
+                            eprintln!("[tray] Open Dashboard clicked");
+                            match commands::do_open_dashboard(app) {
+                                Ok(_) => eprintln!("[tray] do_open_dashboard returned Ok"),
+                                Err(e) => eprintln!("[tray] do_open_dashboard FAILED: {e}"),
+                            }
                         }
 
                         "open_settings" => {

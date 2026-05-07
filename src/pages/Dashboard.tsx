@@ -83,14 +83,21 @@ export default function Dashboard() {
   const [justUpdated, setJustUpdated] = useState(false);
   const [tier2Permissions, setTier2Permissions] = useState<Tier2Permissions>({ screen: false, clipboard: false, calendar: false });
   const containerRef = useRef<HTMLDivElement>(null);
+  const visibleRef = useRef(false);
+
+  const fetchData = useCallback(() => {
+    invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
+    invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
+    invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
+  }, []);
 
   const handleClose = useCallback(() => {
     setVisible(false);
-    // Hide after CSS animation finishes — single timer, no focus-loss race.
+    visibleRef.current = false;
     setTimeout(() => invoke("close_dashboard").catch(console.error), 240);
   }, []);
 
-  // 500ms polling for live buffer stats and monitor status
+  // 500ms polling — live stats only (no visibility detection here)
   useEffect(() => {
     const id = setInterval(() => {
       invoke<typeof bufferStats>("get_buffer_stats").then(setBufferStats).catch(() => {});
@@ -146,25 +153,18 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
-  // Show handler — fetch fresh data and reveal
+  // Show detection — backend evals JS to fire this DOM event when showing
   useEffect(() => {
-    let unlistenShow: (() => void) | undefined;
-
-    const showHandler = () => {
-      invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
-      invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
-      invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
+    const handler = () => {
+      visibleRef.current = true;
+      fetchData();
       requestAnimationFrame(() => setVisible(true));
     };
-
-    // Backend emits this when tray/command opens the window
-    listen("window_show", showHandler).then(fn => { unlistenShow = fn; });
-
+    document.addEventListener("polter-show", handler);
     // Initial mount
-    showHandler();
-
-    return () => { unlistenShow?.(); };
-  }, []);
+    handler();
+    return () => document.removeEventListener("polter-show", handler);
+  }, [fetchData]);
 
   // Derive countdown from last_snapshot_ms whenever liveStatus changes
   useEffect(() => {
