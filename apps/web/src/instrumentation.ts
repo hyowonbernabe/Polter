@@ -6,30 +6,30 @@
  * is silently ignored but `localStorage` may still be undefined or have no
  * methods. Patch it here so SSR never throws on localStorage access.
  */
+function makeStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    getItem:    (k: string) => store.get(k) ?? null,
+    setItem:    (k: string, v: string) => { store.set(k, String(v)); },
+    removeItem: (k: string) => { store.delete(k); },
+    clear:      () => { store.clear(); },
+    get length() { return store.size; },
+    key:        (i: number) => [...store.keys()][i] ?? null,
+  } as Storage;
+}
+
 export async function register() {
-  if (typeof globalThis.localStorage === 'undefined') {
-    const store = new Map<string, string>();
+  // Next.js 15 + Node.js 22: --localstorage-file may provide a broken Proxy
+  // that exists but whose getItem is not a function. Replace the whole global.
+  const needsPatch =
+    typeof globalThis.localStorage === 'undefined' ||
+    typeof (globalThis.localStorage as unknown as Record<string, unknown>).getItem !== 'function';
+
+  if (needsPatch) {
     Object.defineProperty(globalThis, 'localStorage', {
-      value: {
-        getItem:    (k: string) => store.get(k) ?? null,
-        setItem:    (k: string, v: string) => { store.set(k, String(v)); },
-        removeItem: (k: string) => { store.delete(k); },
-        clear:      () => { store.clear(); },
-        get length() { return store.size; },
-        key:        (i: number) => [...store.keys()][i] ?? null,
-      } as Storage,
+      value:        makeStorage(),
       writable:     true,
       configurable: true,
     });
-  } else {
-    // localStorage exists but may lack getItem (broken --localstorage-file path)
-    const ls = globalThis.localStorage as unknown as Record<string, unknown>;
-    if (typeof ls.getItem !== 'function') {
-      const store = new Map<string, string>();
-      ls.getItem    = (k: string) => store.get(k) ?? null;
-      ls.setItem    = (k: string, v: string) => { store.set(k, String(v)); };
-      ls.removeItem = (k: string) => { store.delete(k); };
-      ls.clear      = () => { store.clear(); };
-    }
   }
 }
