@@ -81,10 +81,18 @@ pub fn start(ring: Arc<Mutex<RingBuffer>>) {
     tauri::async_runtime::spawn(async move {
         let path = monitor_binary_path();
         loop {
-            match Command::new(&path)
-                .stdout(std::process::Stdio::piped())
+            #[allow(unused_mut)]
+            let mut cmd = Command::new(&path);
+            cmd.stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
-                .kill_on_drop(true)
+                .kill_on_drop(true);
+            // Hide the console window on Windows
+            #[cfg(target_os = "windows")]
+            {
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            match cmd
                 .spawn()
             {
                 Err(e) => {
