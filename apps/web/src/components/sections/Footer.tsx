@@ -32,9 +32,8 @@ export function Footer() {
           </div>
           <nav style={{ display: 'flex', gap: 'var(--sp-6)' }}>
             {[
-              { label: 'GitHub',    href: 'https://github.com/polter-app/polter' },
-              { label: 'Changelog', href: '#' },
-              { label: 'Contact',   href: '#' },
+              { label: 'GitHub',  href: 'https://github.com/hyowonbernabe/Polter' },
+              { label: 'Contact', href: '#' },
             ].map(link => (
               <a
                 key={link.label}
@@ -60,7 +59,7 @@ export function Footer() {
           }}
         >
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' }}>
-            Made by people who didn&apos;t want another app to check.
+            Boo
           </span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-3)' }}>
             2026 · MIT licensed.

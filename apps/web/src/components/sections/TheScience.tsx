@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 /* ── Inline SVG icons ── */
 
@@ -173,6 +174,7 @@ export function TheScience() {
         overflow:       'hidden',
       }}
     >
+      <CandleScatter layout="c" />
       {/* Floating ghost decorations */}
       {FLOATERS.map((f, i) => (
         <div

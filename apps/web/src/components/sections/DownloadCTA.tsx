@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GhostSprite }  from '@/components/ui/GhostSprite';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 /* ── Direction mapping (same as Hero) ── */
 
@@ -76,6 +77,7 @@ export function DownloadCTA() {
         padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
       }}
     >
+      <CandleScatter layout="d" />
       {/* Warm vignette — contained within section */}
       <div
         aria-hidden="true"
@@ -157,9 +159,10 @@ export function DownloadCTA() {
           }}
         >
           <a
-            href="https://github.com/polter-app/polter"
+            href="https://github.com/hyowonbernabe/Polter"
             target="_blank"
             rel="noreferrer"
+            className="btn-primary"
             style={{
               background:     'var(--accent)',
               color:          '#1a1612',
@@ -170,62 +173,14 @@ export function DownloadCTA() {
               borderRadius:   'var(--radius-md)',
               textDecoration: 'none',
               display:        'inline-block',
+              transition:     'transform 0.2s ease, box-shadow 0.2s ease',
             }}
           >
             View on GitHub
           </a>
-          <a
-            href="https://github.com/polter-app/polter/releases"
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              background:     'var(--bg-2)',
-              color:          'var(--fg-1)',
-              fontFamily:     'var(--font-ui)',
-              fontSize:       17,
-              fontWeight:     500,
-              padding:        '18px 36px',
-              borderRadius:   'var(--radius-md)',
-              border:         '1px solid var(--border-1)',
-              textDecoration: 'none',
-              display:        'inline-block',
-            }}
-          >
-            Download for Windows
-          </a>
         </div>
       </ScrollReveal>
 
-      {/* Badge row */}
-      <ScrollReveal delay={500}>
-        <div
-          style={{
-            display:    'flex',
-            alignItems: 'center',
-            gap:        'var(--sp-5)',
-            justifyContent: 'center',
-            position:   'relative',
-            zIndex:     1,
-          }}
-        >
-          {['Open source', 'MIT licensed', 'Windows'].map((text, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', opacity: 0.6 }} />
-              <span
-                style={{
-                  fontFamily:    'var(--font-mono)',
-                  fontSize:      11,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  color:         'var(--fg-3)',
-                }}
-              >
-                {text}
-              </span>
-            </div>
-          ))}
-        </div>
-      </ScrollReveal>
     </section>
   );
 }

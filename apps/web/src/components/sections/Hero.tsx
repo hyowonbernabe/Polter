@@ -71,9 +71,10 @@ export function Hero() {
 
         <div className="flex items-center gap-4 flex-wrap" style={{ marginBottom: 32 }}>
           <a
-            href="https://github.com/polter-app/polter"
+            href="https://github.com/hyowonbernabe/Polter"
             target="_blank"
             rel="noreferrer"
+            className="btn-primary"
             style={{
               background:     'var(--accent)',
               color:          '#1a1612',

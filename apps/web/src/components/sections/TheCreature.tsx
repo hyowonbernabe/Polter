@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 import { GhostSprite } from '@/components/ui/GhostSprite';
 
 /* ── Mood cycle data ── */
@@ -83,6 +84,7 @@ export function TheCreature() {
         padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
       }}
     >
+      <CandleScatter layout="a" />
       {/* Eyebrow */}
       <ScrollReveal>
         <div className="eyebrow" style={{ color: 'var(--fg-3)', marginBottom: 'var(--sp-6)', textAlign: 'center' }}>

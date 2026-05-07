@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 import { GhostSprite } from '@/components/ui/GhostSprite';
 
 /* ── SVG Icons ── */
@@ -83,6 +84,7 @@ export function Lightweight() {
         padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
       }}
     >
+      <CandleScatter layout="b" />
       {/* Floating ghost decoration */}
       <div
         style={{

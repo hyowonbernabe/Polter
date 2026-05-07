@@ -1,5 +1,6 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 const TYPO_SIZE = 'clamp(44px, 11vw, 160px)';
 
@@ -47,6 +48,7 @@ export function WhatItIs() {
         overflow: 'hidden',
       }}
     >
+      <CandleScatter layout="a" />
       <div
         style={{
           padding: '0 5vw',
@@ -69,7 +71,7 @@ export function WhatItIs() {
           <div className="flex items-center justify-center" style={{ gap: '0.25em', flexWrap: 'wrap' }}>
             <span style={serif}>A quiet</span>
             <img
-              src="https://placehold.co/480x240"
+              src="/assets/haunted_house.png"
               alt=""
               style={{ ...pillBase, transform: 'rotate(-5deg)' }}
             />
@@ -94,7 +96,7 @@ export function WhatItIs() {
           <div className="flex items-center justify-center" style={{ gap: '0.25em', flexWrap: 'wrap' }}>
             <span style={sans}>you</span>
             <img
-              src="https://placehold.co/480x240"
+              src="/assets/graveyard.png"
               alt=""
               style={{ ...pillBase, transform: 'rotate(4deg)' }}
             />

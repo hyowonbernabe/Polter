@@ -33,7 +33,7 @@ export function Navbar() {
           {[
             { label: 'about', href: '#about' },
             { label: 'privacy', href: '#privacy' },
-            { label: 'github', href: 'https://github.com/polter-app/polter' },
+            { label: 'github', href: 'https://github.com/hyowonbernabe/Polter' },
           ].map((link) => (
             <a
               key={link.label}

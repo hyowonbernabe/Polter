@@ -138,3 +138,63 @@ body {
 }
 
 /* ScrollReveal transitions handled inline via ScrollReveal component */
+
+/* ── Button hover effects ── */
+.btn-primary {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(212,184,122,0.25);
+  filter: brightness(1.1);
+}
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(212,184,122,0.15);
+}
+.btn-secondary {
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  border-color: var(--fg-3);
+  background: var(--bg-3);
+}
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* ── Film grain jitter ── */
+@keyframes grainJitter {
+  0%   { transform: translate(0, 0); }
+  10%  { transform: translate(-6%, -8%); }
+  20%  { transform: translate(-12%, -18%); }
+  30%  { transform: translate(-5%, -12%); }
+  40%  { transform: translate(-15%, -20%); }
+  50%  { transform: translate(-4%, -8%); }
+  60%  { transform: translate(-12%, -20%); }
+  70%  { transform: translate(-6%, -12%); }
+  80%  { transform: translate(-16%, -18%); }
+  90%  { transform: translate(-8%, -10%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ── Candle glow pulse ── */
+@keyframes candleGlow {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  30%      { opacity: 1;   transform: translateX(-50%) scale(1.15); }
+  60%      { opacity: 0.5; transform: translateX(-50%) scale(0.95); }
+  80%      { opacity: 0.9; transform: translateX(-50%) scale(1.08); }
+}
+.candle-glow {
+  animation: candleGlow 3s ease-in-out infinite;
+}
+
+/* ── Candle float drift ── */
+@keyframes candleFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.candle-float {
+  animation: candleFloat 4s ease-in-out infinite;
+}

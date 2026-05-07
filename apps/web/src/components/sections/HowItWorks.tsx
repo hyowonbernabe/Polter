@@ -1,5 +1,6 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { GhostSprite } from '@/components/ui/GhostSprite';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 
 function DownloadIcon() {
   return (
@@ -75,6 +76,7 @@ export function HowItWorks() {
         padding: 'var(--sp-9) 0',
       }}
     >
+      <CandleScatter layout="b" />
       <div style={{ padding: '0 5vw', width: '100%' }}>
         {/* Eyebrow */}
         <ScrollReveal>

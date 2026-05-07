@@ -5,14 +5,14 @@ import { VHSEffect, VHSHandle } from '@/components/ui/VHSEffect';
 /* ── Direction mapping ── */
 
 const DIR_SPRITES: Record<string, string> = {
-  'front':       'front.png',
+  'front': 'front.png',
   'front-right': 'front-right.png',
-  'right':       'right.png',
-  'back-right':  'back-right.png',
-  'back':        'back.png',
-  'back-left':   'back-left.png',
-  'left':        'left.png',
-  'front-left':  'front-left.png',
+  'right': 'right.png',
+  'back-right': 'back-right.png',
+  'back': 'back.png',
+  'back-left': 'back-left.png',
+  'left': 'left.png',
+  'front-left': 'front-left.png',
 };
 
 function getCursorDirection(el: HTMLElement, cx: number, cy: number): string {
@@ -35,19 +35,19 @@ function getCursorDirection(el: HTMLElement, cx: number, cy: number): string {
 
 const CONFIG = {
   container: {
-    left:  '50%',
-    top:   '0',
+    left: '50%',
+    top: '0',
     width: '55vw',
   },
   computer: {
-    scale:    3,
+    scale: 2.8,
     rotation: -30,
-    offsetX:  '0px',
-    offsetY:  '0px',
+    offsetX: '0px',
+    offsetY: '0px',
   },
   ghost: {
-    top:   0.42,   // fraction 0-1, vertical position on screen
-    left:  0.50,   // fraction 0-1, horizontal position on screen
+    top: 0.42,   // fraction 0-1, vertical position on screen
+    left: 0.50,   // fraction 0-1, horizontal position on screen
     scale: 4 as const,
   },
   // Scene canvas resolution (feeds into shader)
@@ -59,13 +59,13 @@ const CONFIG = {
 
 export function HeroComputer() {
   const [sprite, setSprite] = useState('front.png');
-  const vhsRef        = useRef<VHSHandle>(null);
-  const hitTargetRef   = useRef<HTMLDivElement>(null);
+  const vhsRef = useRef<VHSHandle>(null);
+  const hitTargetRef = useRef<HTMLDivElement>(null);
   const sceneCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const screenImgRef   = useRef<HTMLImageElement | null>(null);
+  const screenImgRef = useRef<HTMLImageElement | null>(null);
   const spriteImgCache = useRef<Map<string, HTMLImageElement>>(new Map());
-  const spriteRef      = useRef('front.png');
-  const rafRef         = useRef<number>(0);
+  const spriteRef = useRef('front.png');
+  const rafRef = useRef<number>(0);
 
   // Keep spriteRef in sync
   useEffect(() => { spriteRef.current = sprite; }, [sprite]);
@@ -139,28 +139,28 @@ export function HeroComputer() {
   }, []);
 
   const imgStyle: React.CSSProperties = {
-    position:       'absolute',
-    top:            0,
-    left:           0,
-    width:          '100%',
-    height:         '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
     imageRendering: 'pixelated',
-    display:        'block',
+    display: 'block',
   };
 
   return (
     <div
       aria-hidden="true"
       style={{
-        position:       'absolute',
-        top:            CONFIG.container.top,
-        left:           CONFIG.container.left,
-        width:          CONFIG.container.width,
-        height:         '100dvh',
-        pointerEvents:  'none',
-        zIndex:         2,
-        display:        'flex',
-        alignItems:     'center',
+        position: 'absolute',
+        top: CONFIG.container.top,
+        left: CONFIG.container.left,
+        width: CONFIG.container.width,
+        height: '100dvh',
+        pointerEvents: 'none',
+        zIndex: 2,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
       }}
     >
@@ -168,11 +168,11 @@ export function HeroComputer() {
       <div
         ref={hitTargetRef}
         style={{
-          position:      'absolute',
-          top:           '42%',
-          left:          '50%',
-          width:         1,
-          height:        1,
+          position: 'absolute',
+          top: '42%',
+          left: '50%',
+          width: 1,
+          height: 1,
           pointerEvents: 'auto',
         }}
       />
@@ -180,10 +180,10 @@ export function HeroComputer() {
       {/* Computer wrapper */}
       <div
         style={{
-          position:    'relative',
-          width:       '100%',
+          position: 'relative',
+          width: '100%',
           aspectRatio: '1376 / 768',
-          transform:   `scale(${CONFIG.computer.scale}) rotate(${CONFIG.computer.rotation}deg) translate(${CONFIG.computer.offsetX}, ${CONFIG.computer.offsetY})`,
+          transform: `scale(${CONFIG.computer.scale}) rotate(${CONFIG.computer.rotation}deg) translate(${CONFIG.computer.offsetX}, ${CONFIG.computer.offsetY})`,
         }}
       >
         {/* Screen cover — hides any ghost bleed underneath */}
@@ -194,14 +194,14 @@ export function HeroComputer() {
           ref={vhsRef}
           style={{
             ...imgStyle,
-            zIndex:              2,
-            pointerEvents:       'none',
-            maskImage:           'url(/assets/computer-screen.png)',
-            maskSize:            '100% 100%',
-            maskRepeat:          'no-repeat',
-            WebkitMaskImage:     'url(/assets/computer-screen.png)',
-            WebkitMaskSize:      '100% 100%',
-            WebkitMaskRepeat:    'no-repeat',
+            zIndex: 2,
+            pointerEvents: 'none',
+            maskImage: 'url(/assets/computer-screen.png)',
+            maskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            WebkitMaskImage: 'url(/assets/computer-screen.png)',
+            WebkitMaskSize: '100% 100%',
+            WebkitMaskRepeat: 'no-repeat',
           }}
         />
 

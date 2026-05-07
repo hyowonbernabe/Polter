@@ -1,4 +1,5 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
+import { CandleScatter } from '@/components/ui/CandleScatter';
 import { GhostSprite } from '@/components/ui/GhostSprite';
 
 /* ── Icons ── */
@@ -116,6 +117,7 @@ export function Privacy() {
         padding:        'var(--sp-9) clamp(24px, 6vw, 80px)',
       }}
     >
+      <CandleScatter layout="c" />
       {/* Ghost decoration */}
       <div
         style={{
