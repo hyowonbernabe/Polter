@@ -4,7 +4,21 @@ import { type WispState, STATE_GLOW } from '../lib/spriteConfig';
 import { type PhysicsState, type Vec2, type FacingDirection } from '../lib/physics';
 import { useCreatureAnimation } from '../hooks/useCreatureAnimation';
 import CreatureContextMenu from './CreatureContextMenu';
-import ThinkingBubble from './ThinkingBubble';
+import Bubble, { type BubbleProps } from './Bubble';
+
+export interface ActiveInsight {
+  text: string;
+  extended: string;
+  isFirstEver: boolean;
+  isExpanded: boolean;
+  onDismiss: () => void;
+  onExpand: () => void;
+}
+
+export interface ActiveMutter {
+  text: string;
+  onDismiss: () => void;
+}
 
 interface CreatureProps {
   displaySize: number;
@@ -13,7 +27,6 @@ interface CreatureProps {
   velocity: Vec2;
   facing: FacingDirection;
   committedDir: number;
-  thinkingText: string;
   dragSquish: Vec2;
   coldStart: boolean;
   opacity?: number;
@@ -27,6 +40,8 @@ interface CreatureProps {
   isFirstEverInsight?: boolean;
   showNod?: boolean;
   bubbleVisible?: boolean;
+  activeInsight?: ActiveInsight | null;
+  activeMutter?: ActiveMutter | null;
   elementRef: React.RefObject<HTMLDivElement>;
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -101,7 +116,6 @@ export default function Creature({
   velocity,
   facing,
   committedDir,
-  thinkingText,
   dragSquish,
   coldStart,
   opacity = 1.0,
@@ -115,6 +129,8 @@ export default function Creature({
   isFirstEverInsight = false,
   showNod = false,
   bubbleVisible = false,
+  activeInsight = null,
+  activeMutter = null,
   debugMode = false,
   elementRef,
   onPointerDown,
@@ -156,6 +172,14 @@ export default function Creature({
     const id = setTimeout(() => onNodDone?.(), 420);
     return () => clearTimeout(id);
   }, [showNod, onNodDone]);
+
+  // Determine if bubble should appear below creature (creature is near top of screen)
+  function getPreferBelow(): boolean {
+    const el = elementRef.current;
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.top < window.innerHeight * 0.35;
+  }
 
   const MENU_W = 164;
   const MENU_H = 180;
@@ -214,6 +238,32 @@ export default function Creature({
 
   const effectiveOpacity = sleeping ? Math.min(opacity, 0.45) : opacity;
 
+  const preferBelow = getPreferBelow();
+
+  const insightBubbleProps: BubbleProps | null = activeInsight
+    ? {
+        variant: 'main',
+        text: activeInsight.text,
+        extended: activeInsight.extended,
+        isExpanded: activeInsight.isExpanded,
+        isFirstEver: activeInsight.isFirstEver,
+        preferBelow,
+        spriteSize: displaySize,
+        onDismiss: activeInsight.onDismiss,
+        onExpand: activeInsight.onExpand,
+      }
+    : null;
+
+  const mutterBubbleProps: BubbleProps | null = activeMutter
+    ? {
+        variant: 'secondary',
+        text: activeMutter.text,
+        preferBelow,
+        spriteSize: displaySize,
+        onDismiss: activeMutter.onDismiss,
+      }
+    : null;
+
   return (
     <>
       {/* Physics position wrapper — physics loop writes transform here */}
@@ -226,7 +276,13 @@ export default function Creature({
         onContextMenu={handleContextMenu}
         onClick={handleClick}
       >
-        <ThinkingBubble text={thinkingText} creatureSize={displaySize} />
+        {insightBubbleProps && (
+          <Bubble key={activeInsight!.text} {...insightBubbleProps} />
+        )}
+        {mutterBubbleProps && (
+          <Bubble key={activeMutter!.text} {...mutterBubbleProps} />
+        )}
+
         {/* Visual / animation layer */}
         <div
           style={{

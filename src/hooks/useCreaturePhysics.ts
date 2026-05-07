@@ -28,7 +28,7 @@ export interface PhysicsOutput {
   monitors: MonitorInfo[];
   spriteSize: number;
   committedDir: number;
-  thinkingText: string;
+
   setWispState: (s: WispState) => void;
   setDialogue: (visible: boolean) => void;
   notifyBubbleClick: () => void;
@@ -50,7 +50,7 @@ export function useCreaturePhysics(): PhysicsOutput {
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const [spriteSize, setSpriteSizeR] = useState<number>(() => spriteDisplaySize());
   const [committedDir, setCommittedDirR] = useState<number>(0);
-  const [thinkingText, setThinkingTextR] = useState<string>('');
+
 
   // ── Physics refs — mutated in rAF, never trigger renders ─────────────────────
   const pos = useRef<Vec2>({ x: 200, y: 200 });
@@ -135,10 +135,7 @@ export function useCreaturePhysics(): PhysicsOutput {
     if (stateRef.current !== next) {
       stateRef.current = next;
       setPhysicsStateR(next);
-      if (next === 'goal_thinking') setThinkingTextR('hmm...');
-      else if (next === 'goal_travel') setThinkingTextR('heading over there...');
-      else if (next === 'goal_interrupted') setThinkingTextR('...forgot what I was doing');
-      else if (next !== 'goal_arrived') setThinkingTextR('');
+
     }
     // Sync velocity and facing immediately so animation hook sees correct values
     setVelocityR({ ...vel.current });
@@ -1074,7 +1071,6 @@ export function useCreaturePhysics(): PhysicsOutput {
     monitors,
     spriteSize,
     committedDir,
-    thinkingText,
     setWispState,
     setDialogue,
     notifyBubbleClick,

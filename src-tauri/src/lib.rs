@@ -108,11 +108,25 @@ pub fn run() {
             commands::get_live_status,
         ])
         .setup(move |app| {
-            // Enable Windows startup autolaunch on first run.
-            use tauri_plugin_autostart::ManagerExt;
-            let autostart = app.autolaunch();
-            if !autostart.is_enabled()? {
-                autostart.enable()?;
+            // Autolaunch: release builds only.
+            // Dev builds connect to localhost:5173 (Vite dev server). Autolaunching a dev
+            // binary after reboot fails with a network error because the dev server isn't running.
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let autostart = app.autolaunch();
+                #[cfg(debug_assertions)]
+                {
+                    // Remove any stale autostart entry left by a previous dev-build run.
+                    if autostart.is_enabled()? {
+                        let _ = autostart.disable();
+                    }
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    if !autostart.is_enabled()? {
+                        autostart.enable()?;
+                    }
+                }
             }
 
             // Initialize SQLite database.

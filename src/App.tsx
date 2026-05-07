@@ -2,9 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import Creature from "./components/Creature";
-import InsightBubble from "./components/InsightBubble";
-import MutterBubble from "./components/MutterBubble";
-import { getBubblePosition } from "./lib/bubblePosition";
 import { usePreInsightGlow } from "./hooks/usePreInsightGlow";
 import { useInsightQueue } from "./hooks/useInsightQueue";
 import { useCreaturePhysics } from "./hooks/useCreaturePhysics";
@@ -50,7 +47,7 @@ export default function App() {
   const [creatureScale, setCreatureScale] = useState<number>(1.0);
   const [idleFloor, setIdleFloor] = useState(0.35);
   const [debugMode, setDebugMode] = useState(false);
-  const [activeMutter, setActiveMutter] = useState<string | null>(null);
+  const [activeMutterText, setActiveMutterText] = useState<string | null>(null);
 
   const burnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,18 +59,14 @@ export default function App() {
 
   const bubbleVisible = activeInsight !== null && preInsightPhase === 3;
 
-  // Keep physics hook informed of current WispState (mood modifiers)
   useEffect(() => {
     physics.setWispState(wispState);
   }, [wispState, physics.setWispState]);
 
-
-  // Forward-facing dialogue mode when bubble is showing
   useEffect(() => {
     physics.setDialogue(bubbleVisible);
   }, [bubbleVisible, physics.setDialogue]);
 
-  // Burn distress: arm 90-min timer on burn, cancel on any other state
   useEffect(() => {
     if (burnTimerRef.current !== null) {
       clearTimeout(burnTimerRef.current);
@@ -92,7 +85,6 @@ export default function App() {
     };
   }, [wispState]);
 
-  // Trigger glow sequence when a new insight becomes active
   useEffect(() => {
     if (activeInsight) {
       setBubbleExpanded(false);
@@ -103,7 +95,15 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeInsight?.insight]);
 
-  // Load preferences on mount; re-apply when settings window changes them
+  // Dismiss bubbles when creature is grabbed or thrown
+  useEffect(() => {
+    if (physics.physicsState === 'tether_grab' || physics.physicsState === 'thrown') {
+      invoke("dismiss_insight");
+      dismiss();
+      setActiveMutterText(null);
+    }
+  }, [physics.physicsState, dismiss]);
+
   useEffect(() => {
     loadPreferences().then((p) => {
       setCreatureScale(p.creature_scale);
@@ -142,7 +142,7 @@ export default function App() {
     const unlistenWake = listen("wake_animation", () => setShowWake(true));
     const unlistenInsight = listen<InsightPayload>("insight_ready", (event) => {
       if (event.payload.tier === 'mutter') {
-        setActiveMutter(event.payload.insight);
+        setActiveMutterText(event.payload.insight);
       } else {
         console.log("[wisp] insight received:", event.payload.type);
         enqueue({ ...event.payload, receivedAt: Date.now() });
@@ -165,15 +165,26 @@ export default function App() {
     dismiss();
   }, [dismiss]);
 
-  // Read creature position from physics element at render time (for bubble placement)
-  function getCreaturePos() {
-    const el = physics.elementRef.current;
-    if (!el) return { x: 100, y: 100 };
-    const m = el.style.transform.match(/translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/);
-    return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 100, y: 100 };
-  }
+  const handleMutterDismiss = useCallback(() => {
+    setActiveMutterText(null);
+  }, []);
 
   const displaySize = Math.round(physics.spriteSize * creatureScale);
+
+  const activeInsightProp = activeInsight && preInsightPhase === 3
+    ? {
+        text: activeInsight.insight,
+        extended: activeInsight.extended,
+        isFirstEver,
+        isExpanded: bubbleExpanded,
+        onDismiss: handleDismiss,
+        onExpand: () => setBubbleExpanded(true),
+      }
+    : null;
+
+  const activeMutterProp = activeMutterText
+    ? { text: activeMutterText, onDismiss: handleMutterDismiss }
+    : null;
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "transparent" }}>
@@ -234,7 +245,6 @@ export default function App() {
         velocity={physics.velocity}
         facing={physics.facing}
         committedDir={physics.committedDir}
-        thinkingText={physics.thinkingText}
         dragSquish={physics.dragSquish}
         coldStart={coldStart}
         opacity={idleOpacity}
@@ -248,6 +258,8 @@ export default function App() {
         isFirstEverInsight={isFirstEver}
         showNod={showNod}
         bubbleVisible={bubbleVisible}
+        activeInsight={activeInsightProp}
+        activeMutter={activeMutterProp}
         debugMode={debugMode}
         elementRef={physics.elementRef}
         onPointerDown={(e) => { if (e.button === 0) physics.notifyDragStart(e.clientX, e.clientY); }}
@@ -260,32 +272,6 @@ export default function App() {
         onWakeDone={() => setShowWake(false)}
         onNodDone={() => setShowNod(false)}
       />
-      {activeMutter && (() => {
-        return (
-          <MutterBubble
-            key={activeMutter}
-            text={activeMutter}
-            creatureRef={physics.elementRef}
-            onDismiss={() => setActiveMutter(null)}
-          />
-        );
-      })()}
-      {activeInsight && preInsightPhase === 3 && (() => {
-        return (
-          <InsightBubble
-            key={activeInsight.insight}
-            insight={activeInsight.insight}
-            extended={activeInsight.extended}
-            creatureRef={physics.elementRef}
-            monitors={physics.monitors}
-            spriteSize={physics.spriteSize}
-            onDismiss={handleDismiss}
-            onExpand={() => setBubbleExpanded(true)}
-            isExpanded={bubbleExpanded}
-            isFirstEver={isFirstEver}
-          />
-        );
-      })()}
     </div>
   );
 }
