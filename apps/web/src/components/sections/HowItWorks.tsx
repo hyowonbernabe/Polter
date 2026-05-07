@@ -48,7 +48,7 @@ const STEPS = [
     num: '03',
     title: 'It Notices',
     desc: 'When it sees something worth saying, it tells you. One sentence. Maybe two.',
-    detail: 'No dashboard. No charts. Just a quiet observation.',
+    detail: 'A quiet observation, a chart, or a gentle nudge.',
     Icon: BubbleIcon,
   },
 ];

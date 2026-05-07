@@ -10,6 +10,18 @@ export const metadata: Metadata = {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
+  openGraph: {
+    title:       'Polter — a quiet desktop companion',
+    description: 'A pixel ghost that watches how you work and tells you what it sees.',
+    url:         'https://github.com/hyowonbernabe/Polter',
+    siteName:    'Polter',
+    type:        'website',
+  },
+  twitter: {
+    card:  'summary',
+    title: 'Polter — a quiet desktop companion',
+    description: 'A pixel ghost that watches how you work and tells you what it sees.',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
