@@ -47,5 +47,12 @@ yarn-error.log*
 *.key
 *.pem
 
+# Next.js build output
+.next/
+apps/web/.next/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Superpowers/obra working artifacts (never commit)
 docs/superpowers/
