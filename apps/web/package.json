@@ -12,6 +12,7 @@
     "next": "15.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "shader-doodle": "^1.0.0-alpha.20",
     "simplex-noise": "4.0.3"
   },
   "devDependencies": {
