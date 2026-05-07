@@ -500,6 +500,14 @@ pub struct TodayMetricsRow {
     pub total_app_switches: i64,
     pub top_app: Option<String>,
     pub snapshot_count: i64,
+    // Phase A
+    pub total_undos: i64,
+    pub total_redos: i64,
+    pub total_saves: i64,
+    pub avg_key_hold_ms: f64,
+    pub total_right_clicks: i64,
+    pub total_scroll_depth: i64,
+    pub total_keys_approx: i64,
 }
 
 pub async fn get_today_metrics(
@@ -519,7 +527,14 @@ pub async fn get_today_metrics(
                AVG(cpu_percent),
                AVG(ram_percent),
                SUM(app_switch_count),
-               COUNT(*)
+               COUNT(*),
+               SUM(undo_count),
+               SUM(redo_count),
+               SUM(save_count),
+               AVG(avg_key_hold_ms),
+               SUM(right_click_count),
+               SUM(scroll_depth_y),
+               SUM(CAST(typing_speed * 60 AS INTEGER))
            FROM behavioral_snapshots
            WHERE timestamp >= ?
              AND (typing_speed > 0 OR click_count > 0 OR scroll_count > 0)"#,
@@ -561,6 +576,13 @@ pub async fn get_today_metrics(
         total_app_switches: row.get::<Option<i64>, _>(9).unwrap_or(0),
         top_app,
         snapshot_count,
+        total_undos:       row.get::<Option<i64>, _>(11).unwrap_or(0),
+        total_redos:       row.get::<Option<i64>, _>(12).unwrap_or(0),
+        total_saves:       row.get::<Option<i64>, _>(13).unwrap_or(0),
+        avg_key_hold_ms:   row.get::<Option<f64>, _>(14).unwrap_or(0.0),
+        total_right_clicks: row.get::<Option<i64>, _>(15).unwrap_or(0),
+        total_scroll_depth: row.get::<Option<i64>, _>(16).unwrap_or(0),
+        total_keys_approx:  row.get::<Option<i64>, _>(17).unwrap_or(0),
     })
 }
 
@@ -708,7 +730,7 @@ pub async fn get_session_summaries_for_day(
     }).collect())
 }
 
-// ── Wisp memories ─────────────────────────────────────────────────────────────
+// ── Polter memories ──────────────────────────────────────────────────────────
 
 pub async fn insert_wisp_memory(
     pool: &DbWritePool,
@@ -742,7 +764,7 @@ pub struct WispMemoryRow {
     pub memory_note: String,
 }
 
-/// Returns the most recent non-consolidated wisp memories (last 7 days), newest first.
+/// Returns the most recent non-consolidated polter memories (last 7 days), newest first.
 pub async fn get_recent_wisp_memories(
     pool: &DbReadPool,
     since_ms: i64,

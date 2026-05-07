@@ -17,16 +17,16 @@ pub fn classify_state(z: &SignalZScores, spark_duration_secs: u64) -> WispState 
     if z.typing_speed > 1.5 || (z.typing_speed > 1.0 && z.error_rate > 1.0) {
         return WispState::Spark;
     }
-    // Deep: one window held for a while, low app switching (threshold lowered: ~3 min in same app)
-    if z.single_window_hold > 0.5 && z.app_switch_rate < 0.0 && z.typing_speed.abs() < 1.5 {
+    // Deep: one window held for very long time, zero app switching, moderate typing
+    if z.single_window_hold > 2.0 && z.app_switch_rate < -1.0 && z.typing_speed.abs() < 1.5 {
         return WispState::Deep;
     }
-    // Fade: slower than normal AND making more errors (cognitive fatigue signal)
-    if z.typing_speed < -0.5 && z.error_rate > 0.5 {
+    // Fade: notably slower than normal AND making more errors (cognitive fatigue signal)
+    if z.typing_speed < -0.8 && z.error_rate > 0.8 {
         return WispState::Fade;
     }
-    // Calm: below-average typing (reading, thinking, light work) — mouse speed not required
-    if z.typing_speed < -0.3 {
+    // Calm: well below average typing (reading, thinking, very light work)
+    if z.typing_speed < -0.8 {
         return WispState::Calm;
     }
     WispState::Focus
@@ -35,8 +35,8 @@ pub fn classify_state(z: &SignalZScores, spark_duration_secs: u64) -> WispState 
 // ── State machine with 3-minute debounce ─────────────────────────────────────
 
 /// Number of consecutive snapshots in the same state required before committing.
-/// At 60s per snapshot: 3 × 60s = 3 minutes.
-const DEBOUNCE_SNAPSHOTS: u32 = 3;
+/// At 60s per snapshot: 2 × 60s = 2 minutes.
+const DEBOUNCE_SNAPSHOTS: u32 = 2;
 
 pub struct StateMachine {
     pub current_state: WispState,
@@ -66,6 +66,11 @@ impl StateMachine {
             .unwrap_or(0);
 
         let candidate = classify_state(z, spark_secs);
+
+        eprintln!(
+            "[state_machine] candidate={:?} count={} current={:?}",
+            candidate, self.candidate_count + 1, self.current_state,
+        );
 
         // Debounce
         if candidate == self.candidate_state {
@@ -126,7 +131,7 @@ mod tests {
 
     #[test]
     fn deep_on_long_window_hold_with_low_switching() {
-        assert_eq!(classify_state(&z(0.0, 0.0, -1.0, 0.0, 1.5, 1.5), 0), WispState::Deep);
+        assert_eq!(classify_state(&z(0.0, 0.0, -1.5, 0.0, 2.5, 1.5), 0), WispState::Deep);
     }
 
     #[test]
@@ -140,17 +145,22 @@ mod tests {
     }
 
     #[test]
+    fn focus_at_slightly_below_average_typing() {
+        // z.typing_speed = -0.5 is below average but not calm-level (-0.8)
+        assert_eq!(classify_state(&z(-0.5, 0.0, 0.0, 0.0, 0.0, 1.2), 0), WispState::Focus);
+    }
+
+    #[test]
     fn focus_is_default() {
         assert_eq!(classify_state(&z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5), 0), WispState::Focus);
     }
 
     #[test]
-    fn debounce_requires_three_consecutive_snapshots() {
+    fn debounce_requires_two_consecutive_snapshots() {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         assert!(sm.update(&spark, 1_000).is_none());
-        assert!(sm.update(&spark, 2_000).is_none());
-        let result = sm.update(&spark, 3_000);
+        let result = sm.update(&spark, 2_000);
         assert_eq!(result, Some(WispState::Spark));
         assert_eq!(sm.current_state, WispState::Spark);
     }
@@ -160,12 +170,10 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
-        sm.update(&spark, 1_000);
-        sm.update(&spark, 2_000); // 2 consecutive
-        sm.update(&focus, 3_000); // drift — resets count
-        sm.update(&spark, 4_000);
-        sm.update(&spark, 5_000); // only 2 since reset
-        assert_eq!(sm.current_state, WispState::Rest); // not committed
+        sm.update(&spark, 1_000); // 1 consecutive
+        sm.update(&focus, 2_000); // drift — resets count
+        sm.update(&spark, 3_000); // 1 since reset
+        assert_eq!(sm.current_state, WispState::Rest); // not committed (only 1, need 2)
     }
 
     #[test]
@@ -173,9 +181,8 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         sm.update(&spark, 1_000);
-        sm.update(&spark, 2_000);
         assert!(sm.spark_started_ms.is_none(), "timer must not start before commit");
-        sm.update(&spark, 3_000); // third snapshot commits
+        sm.update(&spark, 2_000); // second snapshot commits (debounce=2)
         assert!(sm.spark_started_ms.is_some(), "timer must start on commit");
     }
 
@@ -184,10 +191,9 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
-        // Two spark candidates followed by drift — should not start timer
+        // One spark candidate followed by drift — should not start timer
         sm.update(&spark, 1_000);
-        sm.update(&spark, 2_000);
-        sm.update(&focus, 3_000);
+        sm.update(&focus, 2_000); // drift before debounce reached
         assert!(sm.spark_started_ms.is_none(), "timer must not start after flicker");
     }
 
@@ -196,11 +202,11 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
-        // Commit spark
-        for i in 0..3 { sm.update(&spark, i * 1_000); }
+        // Commit spark (debounce=2)
+        for i in 0..2 { sm.update(&spark, i * 1_000); }
         assert!(sm.spark_started_ms.is_some());
-        // Leave spark
-        for i in 3..6 { sm.update(&focus, i * 1_000); }
+        // Leave spark (debounce=2)
+        for i in 2..4 { sm.update(&focus, i * 1_000); }
         assert!(sm.spark_started_ms.is_none());
     }
 
@@ -209,10 +215,9 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         sm.update(&spark, 1_000);
-        sm.update(&spark, 2_000);
         assert!(sm.state_entered_ms.is_none(), "should not be set before commit");
-        sm.update(&spark, 3_000);
-        assert_eq!(sm.state_entered_ms, Some(3_000), "should record commit time");
+        sm.update(&spark, 2_000); // debounce=2, commits here
+        assert_eq!(sm.state_entered_ms, Some(2_000), "should record commit time");
     }
 
     #[test]
@@ -220,9 +225,9 @@ mod tests {
         let mut sm = StateMachine::new();
         let spark = z(2.0, 0.0, 0.0, 0.5, 0.0, 4.0);
         let focus = z(0.0, 0.0, 0.0, 0.0, 0.0, 1.5);
-        for i in 0..3u64 { sm.update(&spark, i * 1_000); }
-        assert_eq!(sm.state_entered_ms, Some(2_000));
-        for i in 3..6u64 { sm.update(&focus, i * 1_000); }
-        assert_eq!(sm.state_entered_ms, Some(5_000));
+        for i in 0..2u64 { sm.update(&spark, i * 1_000); }
+        assert_eq!(sm.state_entered_ms, Some(1_000));
+        for i in 2..4u64 { sm.update(&focus, i * 1_000); }
+        assert_eq!(sm.state_entered_ms, Some(3_000));
     }
 }

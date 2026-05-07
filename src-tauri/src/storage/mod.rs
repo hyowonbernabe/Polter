@@ -1,4 +1,5 @@
 pub mod queries;
+pub mod seed;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{Pool, Sqlite};

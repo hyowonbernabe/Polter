@@ -107,6 +107,7 @@ pub fn run() {
             commands::reset_onboarding,
             commands::get_buffer_stats,
             commands::get_live_status,
+            commands::seed_demo_data,
         ])
         .setup(move |app| {
             // Autolaunch: release builds only.
@@ -308,8 +309,9 @@ pub fn run() {
                 let dev_onboarding = MenuItemBuilder::with_id("dev_onboarding",  "Reset Onboarding").build(app)?;
                 let dev_goal       = MenuItemBuilder::with_id("dev_goal",        "Trigger Goal").build(app)?;
                 let dev_flee       = MenuItemBuilder::with_id("dev_flee",        "Trigger Flee").build(app)?;
+                let dev_seed       = MenuItemBuilder::with_id("dev_seed",        "Seed Demo Data").build(app)?;
                 let dev_sub = SubmenuBuilder::with_id(app, "dev_menu", "Developer")
-                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_mutter, &dev_onboarding, &dev_goal, &dev_flee])
+                    .items(&[&dev_flow, &dev_fatigue, &dev_break, &dev_anomaly, &dev_first, &dev_mutter, &dev_onboarding, &dev_goal, &dev_flee, &dev_seed])
                     .build()?;
                 MenuBuilder::new(app).items(&[&dashboard_item, &settings_item, &sleep_check, &privacy_check, &dev_sub, &debug_check, &quit]).build()?
             } else {
@@ -414,6 +416,22 @@ pub fn run() {
                             }
                             if id == "dev_flee" {
                                 let _ = app.emit("polter://fullscreen-detected", ());
+                                return;
+                            }
+                            if id == "dev_seed" {
+                                let pools = app.state::<storage::DbPools>().inner().clone();
+                                let handle = app.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    eprintln!("[dev] seeding demo data...");
+                                    match crate::storage::seed::seed_demo(&pools).await {
+                                        Ok(msg) => {
+                                            eprintln!("[dev] seed complete: {}", msg);
+                                            // Trigger dashboard refresh
+                                            let _ = handle.emit("activity_pulse", ());
+                                        }
+                                        Err(e) => eprintln!("[dev] seed FAILED: {}", e),
+                                    }
+                                });
                                 return;
                             }
                             if id == "dev_mutter" {

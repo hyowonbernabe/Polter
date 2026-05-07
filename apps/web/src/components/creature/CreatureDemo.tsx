@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createWebPlatform } from '@/lib/webPlatform';
 import { useCreaturePhysics } from '@/hooks/useCreaturePhysics';
 import { useCreatureAnimation } from '@/hooks/useCreatureAnimation';
@@ -63,14 +63,17 @@ export default function CreatureDemo() {
 
   useEffect(() => {
     return platform.onInsightReady((ins) => {
+      // Dismiss current bubble before showing new one
+      if (dismissRef.current) dismissRef.current();
       setInsight(ins);
       setDialogue(true);
     });
   }, [platform, setDialogue]);
 
-  function dismissBubble() {
+  // Stable callback ref — never changes, so BubbleDemo's 5s timer won't reset on re-render
+  const dismissBubble = useCallback(() => {
     dismissRef.current();
-  }
+  }, []);
 
   const glow = physicsState === 'stunned' || physicsState === 'recovering'
     ? STATE_GLOW['cold_start']

@@ -44,9 +44,14 @@ impl RawInputEvent {
 #[derive(Debug, Clone, Copy)]
 pub struct BufferCounts {
     pub keys: usize,
-    pub clicks: usize,
+    pub left_clicks: usize,
+    pub right_clicks: usize,
     pub scrolls: usize,
     pub moves: usize,
+    pub deletions: usize,
+    pub undos: usize,
+    pub redos: usize,
+    pub saves: usize,
 }
 
 pub struct RingBuffer {
@@ -89,11 +94,24 @@ impl RingBuffer {
     }
 
     pub fn pending_counts(&self) -> BufferCounts {
-        let mut counts = BufferCounts { keys: 0, clicks: 0, scrolls: 0, moves: 0 };
+        let mut counts = BufferCounts {
+            keys: 0, left_clicks: 0, right_clicks: 0, scrolls: 0, moves: 0,
+            deletions: 0, undos: 0, redos: 0, saves: 0,
+        };
         for event in &self.events {
             match event {
-                RawInputEvent::KeyDown { .. } => counts.keys += 1,
-                RawInputEvent::MouseClick { .. } => counts.clicks += 1,
+                RawInputEvent::KeyDown { is_deletion, is_undo, is_redo, is_save, .. } => {
+                    counts.keys += 1;
+                    if *is_deletion { counts.deletions += 1; }
+                    if *is_undo { counts.undos += 1; }
+                    if *is_redo { counts.redos += 1; }
+                    if *is_save { counts.saves += 1; }
+                }
+                RawInputEvent::MouseClick { button, .. } => match button {
+                    MouseButton::Left => counts.left_clicks += 1,
+                    MouseButton::Right => counts.right_clicks += 1,
+                    _ => counts.left_clicks += 1, // middle/other count as left
+                },
                 RawInputEvent::Scroll { .. } => counts.scrolls += 1,
                 RawInputEvent::MouseMove { .. } => counts.moves += 1,
                 RawInputEvent::KeyHold { .. } | RawInputEvent::KeyUp { .. } => {}
@@ -189,10 +207,25 @@ mod tests {
         buf.push(RawInputEvent::MouseMove { x: 10.0, y: 20.0, ts_ms: 7 });
         let counts = buf.pending_counts();
         assert_eq!(counts.keys, 3);
-        assert_eq!(counts.clicks, 2);
+        assert_eq!(counts.left_clicks, 1);
+        assert_eq!(counts.right_clicks, 1);
         assert_eq!(counts.scrolls, 1);
         assert_eq!(counts.moves, 1);
+        assert_eq!(counts.deletions, 1);
         // buffer must not have been drained
         assert_eq!(buf.len(), 7);
+    }
+
+    #[test]
+    fn pending_counts_tracks_undo_redo_save() {
+        let mut buf = RingBuffer::new(20);
+        buf.push(RawInputEvent::KeyDown { ts_ms: 1, is_deletion: false, is_undo: true, is_redo: false, is_save: false });
+        buf.push(RawInputEvent::KeyDown { ts_ms: 2, is_deletion: false, is_undo: false, is_redo: true, is_save: false });
+        buf.push(RawInputEvent::KeyDown { ts_ms: 3, is_deletion: false, is_undo: false, is_redo: false, is_save: true });
+        let counts = buf.pending_counts();
+        assert_eq!(counts.undos, 1);
+        assert_eq!(counts.redos, 1);
+        assert_eq!(counts.saves, 1);
+        assert_eq!(counts.keys, 3);
     }
 }

@@ -294,6 +294,13 @@ pub fn start<R: tauri::Runtime>(
 
             let z = compute_z_scores(&snap, AGGREGATION_SECS as f64, &baselines);
 
+            eprintln!(
+                "[classifier] z-scores: typing_speed={:.2} (raw={:.2}), error_rate={:.2}, mouse_speed={:.2}, \
+                 app_switch={:.2}, single_window_hold={:.2} | baselines={} entries",
+                z.typing_speed, z.typing_speed_raw, z.error_rate, z.mouse_speed,
+                z.app_switch_rate, z.single_window_hold, baselines.len(),
+            );
+
             let state_opt = state_machine.lock().unwrap().update(&z, window_end_ms);
             if let Some(state) = state_opt {
                 tracing::info!("[classifier] state committed: {:?}", state);

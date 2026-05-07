@@ -1,7 +1,12 @@
 interface LivePulseProps {
   bufferKeys: number;
-  bufferClicks: number;
+  bufferLeftClicks: number;
+  bufferRightClicks: number;
   bufferScrolls: number;
+  bufferDeletions: number;
+  bufferUndos: number;
+  bufferRedos: number;
+  bufferSaves: number;
   snapshotsToday: number;
   inputMonitorAlive: boolean;
   secondsUntilSnap: number;
@@ -63,8 +68,13 @@ function CounterPill({ label, value }: CounterPillProps) {
 
 export default function LivePulse({
   bufferKeys,
-  bufferClicks,
+  bufferLeftClicks,
+  bufferRightClicks,
   bufferScrolls,
+  bufferDeletions,
+  bufferUndos,
+  bufferRedos,
+  bufferSaves,
   snapshotsToday,
   inputMonitorAlive,
   secondsUntilSnap,
@@ -138,11 +148,20 @@ export default function LivePulse({
         </span>
       </div>
 
-      {/* Counter pills */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      {/* Counter pills — primary */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
         <CounterPill label="Keys" value={bufferKeys} />
-        <CounterPill label="Clicks" value={bufferClicks} />
+        <CounterPill label="L-Click" value={bufferLeftClicks} />
+        <CounterPill label="R-Click" value={bufferRightClicks} />
         <CounterPill label="Scrolls" value={bufferScrolls} />
+      </div>
+
+      {/* Counter pills — editing signals */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <CounterPill label="Deletes" value={bufferDeletions} />
+        <CounterPill label="Undos" value={bufferUndos} />
+        <CounterPill label="Redos" value={bufferRedos} />
+        <CounterPill label="Saves" value={bufferSaves} />
       </div>
 
       {/* System health row */}

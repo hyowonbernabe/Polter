@@ -57,19 +57,18 @@ export function createWebPlatform(): PlatformInstance {
     return INSIGHT_POOL[idx];
   }
 
-  // First insight after 8-15s, then every 25-45s
+  // Random talk every ~30s, bubble auto-dismisses after 5s
   let insightTimer: ReturnType<typeof setTimeout>;
 
-  function scheduleInsight(minMs = 25_000, maxMs = 45_000) {
-    const delay = minMs + Math.random() * (maxMs - minMs);
+  function scheduleInsight(ms = 30_000) {
     insightTimer = setTimeout(() => {
       insightCallbacks.forEach(cb => cb({ text: pickInsight() }));
       scheduleInsight();
-    }, delay);
+    }, ms);
   }
 
-  // First one comes sooner
-  scheduleInsight(8_000, 15_000);
+  // First one after 10s so the page has time to settle
+  scheduleInsight(10_000);
 
   return {
     getWorkArea(): WorkArea {

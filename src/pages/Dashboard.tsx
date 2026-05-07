@@ -3,16 +3,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import StateHeader from "../components/dashboard/StateHeader";
 import TodayGlance from "../components/dashboard/TodayGlance";
-import ActivityChart from "../components/dashboard/ActivityChart";
-import StateDistribution from "../components/dashboard/StateDistribution";
-import PersonalBests from "../components/dashboard/PersonalBests";
 import InsightHistory from "../components/dashboard/InsightHistory";
 import WhatPolterKnows from "../components/dashboard/WhatPolterKnows";
 import DashboardDivider from "../components/dashboard/DashboardDivider";
 import LiveMetrics from "../components/dashboard/LiveMetrics";
 import LivePulse from "../components/dashboard/LivePulse";
 import ActivityTimeline from "../components/dashboard/ActivityTimeline";
-import PermissionStatus, { Tier2Permissions } from "../components/dashboard/PermissionStatus";
 
 export interface DashboardDaySummary {
   date: string;
@@ -46,6 +42,14 @@ export interface TodayMetrics {
   avg_ram: number;
   total_app_switches: number;
   top_app: string | null;
+  // Phase A
+  total_undos: number;
+  total_redos: number;
+  total_saves: number;
+  avg_key_hold_ms: number;
+  total_right_clicks: number;
+  total_scroll_depth: number;
+  total_keys_approx: number;
 }
 
 export interface HourlyPoint {
@@ -77,18 +81,16 @@ export default function Dashboard() {
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [stateInfo, setStateInfo] = useState<CurrentStateInfo>({ state: "rest", state_entered_ms: null });
-  const [bufferStats, setBufferStats] = useState({ keys: 0, clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null });
+  const [bufferStats, setBufferStats] = useState({ keys: 0, left_clicks: 0, right_clicks: 0, scrolls: 0, moves: 0, last_event_ms: null as number | null, deletions: 0, undos: 0, redos: 0, saves: 0 });
   const [liveStatus, setLiveStatus] = useState({ session_id: null as number | null, snapshots_today: 0, last_snapshot_ms: null as number | null, input_monitor_alive: false, current_longest_focus_mins: 0, inference_active_secs: 0, inference_last_error: null as string | null, api_key_present: false });
   const [secondsUntilSnap, setSecondsUntilSnap] = useState(60);
   const [justUpdated, setJustUpdated] = useState(false);
-  const [tier2Permissions, setTier2Permissions] = useState<Tier2Permissions>({ screen: false, clipboard: false, calendar: false });
   const containerRef = useRef<HTMLDivElement>(null);
   const visibleRef = useRef(false);
 
   const fetchData = useCallback(() => {
     invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
     invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
-    invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -144,14 +146,6 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
-  // Listen for permission changes from Settings
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<Tier2Permissions>("tier2_permissions_changed", (event) => {
-      setTier2Permissions(event.payload);
-    }).then(fn => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, []);
 
   // Show detection — backend evals JS to fire this DOM event when showing
   useEffect(() => {
@@ -307,8 +301,13 @@ export default function Dashboard() {
           <div style={{ padding: "14px 20px" }}>
             <LivePulse
               bufferKeys={bufferStats.keys}
-              bufferClicks={bufferStats.clicks}
+              bufferLeftClicks={bufferStats.left_clicks}
+              bufferRightClicks={bufferStats.right_clicks}
               bufferScrolls={bufferStats.scrolls}
+              bufferDeletions={bufferStats.deletions}
+              bufferUndos={bufferStats.undos}
+              bufferRedos={bufferStats.redos}
+              bufferSaves={bufferStats.saves}
               snapshotsToday={liveStatus.snapshots_today}
               inputMonitorAlive={liveStatus.input_monitor_alive}
               secondsUntilSnap={secondsUntilSnap}
@@ -340,24 +339,6 @@ export default function Dashboard() {
           <DashboardDivider />
 
           <div style={{ padding: "14px 20px" }}>
-            <ActivityChart days={mergedData?.days ?? []} />
-          </div>
-
-          <DashboardDivider />
-
-          <div style={{ padding: "14px 20px" }}>
-            <StateDistribution days={mergedData?.days ?? []} />
-          </div>
-
-          <DashboardDivider />
-
-          <div style={{ padding: "14px 20px" }}>
-            <PersonalBests data={mergedData} />
-          </div>
-
-          <DashboardDivider />
-
-          <div style={{ padding: "14px 20px" }}>
             <InsightHistory insights={mergedData?.recent_insights ?? []} />
           </div>
 
@@ -367,11 +348,6 @@ export default function Dashboard() {
             <WhatPolterKnows data={mergedData} />
           </div>
 
-          <DashboardDivider />
-
-          <div style={{ padding: "14px 20px 18px" }}>
-            <PermissionStatus permissions={tier2Permissions} />
-          </div>
         </div>
       </div>
     </div>

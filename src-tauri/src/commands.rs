@@ -473,6 +473,14 @@ pub struct TodayMetrics {
     pub avg_ram: f64,
     pub total_app_switches: i64,
     pub top_app: Option<String>,
+    // Phase A metrics
+    pub total_undos: i64,
+    pub total_redos: i64,
+    pub total_saves: i64,
+    pub avg_key_hold_ms: f64,
+    pub total_right_clicks: i64,
+    pub total_scroll_depth: i64,
+    pub total_keys_approx: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -547,9 +555,18 @@ pub async fn get_dashboard_data(
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut days: Vec<DashboardDaySummary> = get_last_7_daily_summaries(pools.read.as_ref())
+    let raw_summaries = get_last_7_daily_summaries(pools.read.as_ref())
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    eprintln!("[dashboard] daily_summaries from DB: {} rows", raw_summaries.len());
+    for r in &raw_summaries {
+        eprintln!(
+            "[dashboard]   {} — active={}m focus={}m calm={}m deep={}m spark={}m burn={}m fade={}m",
+            r.date, r.total_active_minutes, r.focus_minutes, r.calm_minutes,
+            r.deep_minutes, r.spark_minutes, r.burn_minutes, r.fade_minutes,
+        );
+    }
+    let mut days: Vec<DashboardDaySummary> = raw_summaries
         .into_iter()
         .map(|r| DashboardDaySummary {
             date: r.date,
@@ -637,6 +654,13 @@ pub async fn get_dashboard_data(
         avg_ram:            m.avg_ram,
         total_app_switches: m.total_app_switches,
         top_app:            m.top_app,
+        total_undos:        m.total_undos,
+        total_redos:        m.total_redos,
+        total_saves:        m.total_saves,
+        avg_key_hold_ms:    m.avg_key_hold_ms,
+        total_right_clicks: m.total_right_clicks,
+        total_scroll_depth: m.total_scroll_depth,
+        total_keys_approx:  m.total_keys_approx,
     };
 
     let hourly_raw = get_today_hourly(pools.read.as_ref(), today_ms)
@@ -1138,10 +1162,15 @@ pub fn reset_onboarding(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[derive(Debug, Clone, Serialize)]
 pub struct BufferStats {
     pub keys: usize,
-    pub clicks: usize,
+    pub left_clicks: usize,
+    pub right_clicks: usize,
     pub scrolls: usize,
     pub moves: usize,
     pub last_event_ms: Option<u64>,
+    pub deletions: usize,
+    pub undos: usize,
+    pub redos: usize,
+    pub saves: usize,
 }
 
 #[tauri::command]
@@ -1152,10 +1181,15 @@ pub fn get_buffer_stats(
     let counts = guard.pending_counts();
     BufferStats {
         keys: counts.keys,
-        clicks: counts.clicks,
+        left_clicks: counts.left_clicks,
+        right_clicks: counts.right_clicks,
         scrolls: counts.scrolls,
         moves: counts.moves,
         last_event_ms: guard.last_event_ts(),
+        deletions: counts.deletions,
+        undos: counts.undos,
+        redos: counts.redos,
+        saves: counts.saves,
     }
 }
 
@@ -1225,6 +1259,13 @@ pub async fn get_live_status(
         inference_last_error,
         api_key_present: settings::has_api_key(&app_handle),
     })
+}
+
+// ── Demo seed ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn seed_demo_data(pools: tauri::State<'_, DbPools>) -> Result<String, String> {
+    crate::storage::seed::seed_demo(&pools).await
 }
 
 #[cfg(test)]

@@ -84,6 +84,7 @@ export default function LiveMetrics({ metrics, flash }: { metrics: TodayMetrics 
                 label="Errors"
                 value={m!.avg_error_rate > 0 ? pct(m!.avg_error_rate * 100) : "—"}
               />
+              <Row label="Keys pressed" value={num(m!.total_keys_approx)} />
               <Row label="Pauses" value={num(m!.total_pauses)} sub=">2s" />
             </MetricCard>
 
@@ -98,6 +99,21 @@ export default function LiveMetrics({ metrics, flash }: { metrics: TodayMetrics 
               <Row label="Steadiness" value={jitterLabel(m!.avg_mouse_jitter)} />
               <Row label="Clicks" value={num(m!.total_clicks)} />
               <Row label="Scrolls" value={num(m!.total_scrolls)} />
+            </MetricCard>
+          </div>
+
+          {/* Editing — undo, redo, saves, key hold */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <MetricCard title="Editing">
+              <Row label="Saves" value={num(m!.total_saves)} sub="Ctrl+S" />
+              <Row label="Undos" value={num(m!.total_undos)} />
+              <Row label="Redos" value={num(m!.total_redos)} />
+              <Row label="Key hold" value={m!.avg_key_hold_ms > 0 ? `${Math.round(m!.avg_key_hold_ms)}ms` : "—"} />
+            </MetricCard>
+
+            <MetricCard title="Navigation">
+              <Row label="Right clicks" value={num(m!.total_right_clicks)} />
+              <Row label="Scroll depth" value={m!.total_scroll_depth > 0 ? `${num(m!.total_scroll_depth)}px` : "—"} />
             </MetricCard>
           </div>
 

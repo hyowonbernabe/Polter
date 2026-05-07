@@ -9,6 +9,8 @@ interface ChartRow {
   deep: number;
   spark: number;
   burn: number;
+  calm: number;
+  fade: number;
 }
 
 function toChartRows(days: DashboardDaySummary[]): ChartRow[] {
@@ -19,6 +21,8 @@ function toChartRows(days: DashboardDaySummary[]): ChartRow[] {
     deep:  d.deep_minutes,
     spark: d.spark_minutes,
     burn:  d.burn_minutes,
+    calm:  d.calm_minutes,
+    fade:  d.fade_minutes,
   }));
 }
 
@@ -54,7 +58,7 @@ function CustomTooltip({ active, payload, label }: {
 
 export default function ActivityChart({ days }: { days: DashboardDaySummary[] }) {
   const rows = toChartRows(days);
-  const hasData = rows.some((r) => r.focus + r.deep + r.spark + r.burn > 0);
+  const hasData = rows.some((r) => r.focus + r.deep + r.spark + r.burn + r.calm + r.fade > 0);
 
   return (
     <div>
@@ -77,9 +81,11 @@ export default function ActivityChart({ days }: { days: DashboardDaySummary[] })
               tickLine={false}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+            <Bar dataKey="calm"  name="calm"  stackId="a" fill="#7ec8c8" radius={[0, 0, 0, 0]} />
             <Bar dataKey="focus" name="focus" stackId="a" fill="#6ba3d6" radius={[0, 0, 0, 0]} />
             <Bar dataKey="deep"  name="deep"  stackId="a" fill="#4a7ab5" radius={[0, 0, 0, 0]} />
             <Bar dataKey="spark" name="spark" stackId="a" fill="#f4a347" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="fade"  name="fade"  stackId="a" fill="#8e7fa8" radius={[0, 0, 0, 0]} />
             <Bar dataKey="burn"  name="burn"  stackId="a" fill="#cc4400" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

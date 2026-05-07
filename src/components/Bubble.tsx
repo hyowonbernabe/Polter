@@ -44,9 +44,9 @@ export default function Bubble(props: BubbleProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // 5s auto-dismiss — uses ref so prop identity doesn't affect the timer
+  // 30s auto-dismiss — users can hit "ok" to dismiss instantly
   useEffect(() => {
-    const id = setTimeout(() => onDismissRef.current(), 5_000);
+    const id = setTimeout(() => onDismissRef.current(), 30_000);
     return () => clearTimeout(id);
   }, []);
 
@@ -155,6 +155,8 @@ export default function Bubble(props: BubbleProps) {
       {isMain && (
         <div
           ref={buttonsRef}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           style={{
             display: 'flex',
             gap: 6,
