@@ -36,8 +36,11 @@ pub async fn insert_snapshot(
             (session_id, timestamp, typing_speed, error_rate, pause_count,
              mouse_speed, mouse_jitter, click_count, scroll_count,
              cpu_percent, ram_percent, battery_percent, on_battery,
-             window_count, foreground_app, app_switch_count, single_window_hold_ms)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+             window_count, foreground_app, app_switch_count, single_window_hold_ms,
+             undo_count, redo_count, save_count, avg_key_hold_ms,
+             right_click_count, scroll_depth_y,
+             display_brightness, night_light_enabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(snap.session_id)
     .bind(snap.timestamp_ms)
@@ -56,6 +59,14 @@ pub async fn insert_snapshot(
     .bind(&snap.foreground_app)
     .bind(snap.app_switch_count)
     .bind(snap.single_window_hold_ms)
+    .bind(snap.undo_count)
+    .bind(snap.redo_count)
+    .bind(snap.save_count)
+    .bind(snap.avg_key_hold_ms)
+    .bind(snap.right_click_count)
+    .bind(snap.scroll_depth_y)
+    .bind(snap.display_brightness)
+    .bind(snap.night_light_enabled as i32)
     .execute(pool)
     .await?;
     Ok(())
@@ -69,7 +80,10 @@ pub async fn latest_snapshot_for_session(
         r#"SELECT session_id, timestamp, typing_speed, error_rate, pause_count,
                   mouse_speed, mouse_jitter, click_count, scroll_count,
                   cpu_percent, ram_percent, battery_percent, on_battery,
-                  window_count, foreground_app, app_switch_count, single_window_hold_ms
+                  window_count, foreground_app, app_switch_count, single_window_hold_ms,
+                  undo_count, redo_count, save_count, avg_key_hold_ms,
+                  right_click_count, scroll_depth_y,
+                  display_brightness, night_light_enabled
            FROM behavioral_snapshots
            WHERE session_id = ?
            ORDER BY timestamp DESC
@@ -97,6 +111,14 @@ pub async fn latest_snapshot_for_session(
         foreground_app:        r.get::<String, _>(14),
         app_switch_count:      r.get::<i64, _>(15) as i32,
         single_window_hold_ms: r.get::<i64, _>(16),
+        undo_count:            r.get::<i64, _>(17) as i32,
+        redo_count:            r.get::<i64, _>(18) as i32,
+        save_count:            r.get::<i64, _>(19) as i32,
+        avg_key_hold_ms:       r.get::<i64, _>(20),
+        right_click_count:     r.get::<i64, _>(21) as i32,
+        scroll_depth_y:        r.get::<i64, _>(22),
+        display_brightness:    r.get::<i64, _>(23) as i32,
+        night_light_enabled:   r.get::<i64, _>(24) != 0,
     }))
 }
 
@@ -1078,6 +1100,14 @@ mod tests {
             foreground_app: "code.exe".to_string(),
             app_switch_count: 4,
             single_window_hold_ms: 12_000,
+            undo_count: 0,
+            redo_count: 0,
+            save_count: 0,
+            avg_key_hold_ms: 0,
+            right_click_count: 0,
+            scroll_depth_y: 0,
+            display_brightness: -1,
+            night_light_enabled: false,
         }
     }
 

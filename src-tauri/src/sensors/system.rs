@@ -18,6 +18,10 @@ pub struct SystemSnapshot {
     pub app_switch_count: i32,
     /// How long (ms) the current foreground app has been continuously in focus.
     pub single_window_hold_ms: i64,
+    /// 0–100; -1 = unsupported / unable to read
+    pub display_brightness: i32,
+    /// Whether Windows Night Light (blue light filter) is currently enabled.
+    pub night_light_enabled: bool,
 }
 
 impl Default for SystemSnapshot {
@@ -32,6 +36,8 @@ impl Default for SystemSnapshot {
             foreground_app: String::new(),
             app_switch_count: 0,
             single_window_hold_ms: 0,
+            display_brightness: -1,
+            night_light_enabled: false,
         }
     }
 }
@@ -142,6 +148,79 @@ fn foreground_app() -> String {
     String::new()
 }
 
+#[cfg(windows)]
+fn display_brightness() -> i32 {
+    use windows::Win32::Devices::Display::{
+        GetPhysicalMonitorsFromHMONITOR, GetMonitorBrightness, DestroyPhysicalMonitor,
+        PHYSICAL_MONITOR,
+    };
+    use windows::Win32::Graphics::Gdi::MonitorFromWindow;
+    use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
+
+    unsafe {
+        let hwnd = GetDesktopWindow();
+        let hmon = MonitorFromWindow(hwnd, windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTOPRIMARY);
+        // First call: get the count by passing a zero-length slice.
+        let mut probe = [PHYSICAL_MONITOR::default(); 0];
+        if GetPhysicalMonitorsFromHMONITOR(hmon, &mut probe).is_err() {
+            return -1;
+        }
+        // Allocate and fetch one physical monitor (primary).
+        let mut monitors = vec![PHYSICAL_MONITOR::default(); 1];
+        if GetPhysicalMonitorsFromHMONITOR(hmon, &mut monitors).is_err() {
+            return -1;
+        }
+        let mut min_bright: u32 = 0;
+        let mut cur_bright: u32 = 0;
+        let mut max_bright: u32 = 0;
+        let ok = GetMonitorBrightness(monitors[0].hPhysicalMonitor, &mut min_bright, &mut cur_bright, &mut max_bright);
+        let result = if ok == 0 {
+            -1
+        } else {
+            let range = max_bright.saturating_sub(min_bright);
+            if range > 0 {
+                ((cur_bright.saturating_sub(min_bright) * 100) / range) as i32
+            } else {
+                cur_bright as i32
+            }
+        };
+        for m in &monitors {
+            let _ = DestroyPhysicalMonitor(m.hPhysicalMonitor);
+        }
+        result
+    }
+}
+
+#[cfg(not(windows))]
+fn display_brightness() -> i32 {
+    -1
+}
+
+#[cfg(windows)]
+fn night_light_enabled() -> bool {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let path = r"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate";
+    let key = match hkcu.open_subkey(path) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+    let data: Vec<u8> = match key.get_raw_value("Data") {
+        Ok(v) => v.bytes,
+        Err(_) => return false,
+    };
+    // Byte at offset 18 (0x12) contains the enable flag.
+    // When Night Light is enabled, this byte has bit 0x10 set.
+    data.len() > 18 && (data[18] & 0x10) != 0
+}
+
+#[cfg(not(windows))]
+fn night_light_enabled() -> bool {
+    false
+}
+
 // ── Poller ────────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS: u64 = 30_000;
@@ -199,6 +278,12 @@ pub fn start<R: Runtime>(
             let app_name = tokio::task::spawn_blocking(foreground_app)
                 .await
                 .unwrap_or_default();
+            let brightness = tokio::task::spawn_blocking(display_brightness)
+                .await
+                .unwrap_or(-1);
+            let night_light = tokio::task::spawn_blocking(night_light_enabled)
+                .await
+                .unwrap_or(false);
 
             // Track foreground app switches and hold duration.
             if !prev_app.is_empty() && app_name != prev_app {
@@ -219,6 +304,8 @@ pub fn start<R: Runtime>(
                 guard.window_count = wins;
                 guard.foreground_app = app_name;
                 guard.single_window_hold_ms = hold_ms;
+                guard.display_brightness = brightness;
+                guard.night_light_enabled = night_light;
                 // app_switch_count is updated above and reset by the aggregator
             }
         }

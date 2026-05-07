@@ -66,6 +66,36 @@ function WaveIcon({ size = 28, color = 'currentColor' }: { size?: number; color?
   );
 }
 
+function UsersIcon({ size = 28, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="3" />
+      <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      <circle cx="17" cy="9" r="2.5" opacity="0.5" />
+      <path d="M21 21v-1.5a3 3 0 0 0-2.5-2.96" opacity="0.5" />
+    </svg>
+  );
+}
+
+function StepsIcon({ size = 28, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20h4l1.5-6L8 8l-1-4" />
+      <path d="M14 20h4l1.5-6L18 8l-1-4" opacity="0.5" />
+    </svg>
+  );
+}
+
+function BatteryLowIcon({ size = 28, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="18" height="10" rx="2" />
+      <line x1="22" y1="11" x2="22" y2="13" />
+      <line x1="6" y1="11" x2="6" y2="13" />
+    </svg>
+  );
+}
+
 /* ── Data ── */
 
 interface StudyCard {
@@ -127,6 +157,31 @@ const STUDIES: StudyCard[] = [
     finding: 'The gaps between your bursts of activity follow a pattern. When that pattern breaks, something shifted before you noticed it did.',
     source:  'de Jong et al. (2020) · PLOS ONE',
     Icon:    WaveIcon,
+  },
+  {
+    tag:     'Co-presence',
+    title:   'Someone there changes everything',
+    finding: 'Having another presence nearby while you work — even if they\'re doing nothing — measurably improves performance on familiar tasks. Confirmed across 241 separate studies.',
+    source:  'Zajonc (1965) · Bond & Titus meta-analysis (1983)',
+    Icon:    UsersIcon,
+    rowSpan: 2,
+  },
+  {
+    tag:     'Passive awareness',
+    title:   'Watching changes what you do',
+    stat:    '27%',
+    finding: 'People who wore a pedometer walked that much more per day — without setting any goal. Passive awareness alone shifts behavior.',
+    source:  'Bravata et al. (2007) · Stanford · JAMA',
+    Icon:    StepsIcon,
+    colSpan: 2,
+  },
+  {
+    tag:     'Burnout research',
+    title:   'You can\'t feel your own burnout coming',
+    finding: 'Burnout builds so gradually that people consistently underestimate how exhausted they are. By the time you notice, you\'ve already been declining for a while.',
+    source:  'Maslach (1981+) · UC Berkeley',
+    Icon:    BatteryLowIcon,
+    colSpan: 2,
   },
 ];
 
@@ -250,7 +305,7 @@ export function TheScience() {
                 color:         'var(--fg-3)',
               }}
             >
-              6 STUDIES REFERENCED
+              9 STUDIES REFERENCED
             </span>
           </div>
         </ScrollReveal>

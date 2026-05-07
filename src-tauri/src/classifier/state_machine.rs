@@ -104,6 +104,8 @@ mod tests {
             typing_speed, error_rate, app_switch_rate, mouse_speed,
             mouse_jitter: 0.0, pause_frequency: 0.0,
             single_window_hold, typing_speed_raw,
+            undo_redo_rate: 0.0, key_hold_ms: 0.0, save_rate: 0.0,
+            right_click_rate: 0.0, scroll_depth: 0.0,
         }
     }
 

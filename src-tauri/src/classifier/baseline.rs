@@ -9,6 +9,7 @@ const EMA_ALPHA: f64 = 0.069;
 pub const SIGNAL_NAMES: &[&str] = &[
     "typing_speed", "error_rate", "app_switch_rate",
     "mouse_speed", "mouse_jitter", "pause_frequency", "single_window_hold",
+    "undo_redo_rate", "key_hold_ms", "save_rate", "right_click_rate", "scroll_depth",
 ];
 
 /// Session-averaged values per signal, keyed by signal name.

@@ -4,13 +4,8 @@ use std::collections::HashMap;
 
 /// Z-scores computed from one 60-second behavioral snapshot.
 ///
-/// **Intentionally absent signals:**
-/// - Right-click rate: raw `click_count` includes all buttons; right-click
-///   frequency is not meaningful enough as a standalone behavioral signal.
-/// - Zoom events: not captured at the input layer.
-/// - File-save / screenshot: when these are added as context signals they must
-///   be treated as low-impact context only — they cannot be the sole driver of
-///   an insight on their own. Enforce this in `classify_state` weighting.
+/// Context-only signals (save_rate, right_click_rate) must not be the sole
+/// driver of an insight — enforce this in `classify_state` weighting.
 #[derive(Debug, Clone, Default)]
 pub struct SignalZScores {
     pub typing_speed: f64,
@@ -22,6 +17,12 @@ pub struct SignalZScores {
     pub single_window_hold: f64,
     /// Raw keys/sec — used for absolute rest threshold.
     pub typing_speed_raw: f64,
+    // Phase A context signals
+    pub undo_redo_rate: f64,
+    pub key_hold_ms: f64,
+    pub save_rate: f64,
+    pub right_click_rate: f64,
+    pub scroll_depth: f64,
 }
 
 pub struct PopulationDefault {
@@ -38,6 +39,11 @@ pub fn population_defaults(signal: &str) -> PopulationDefault {
         "mouse_jitter"       => PopulationDefault { mean: 50.0,  std: 40.0  },
         "pause_frequency"    => PopulationDefault { mean: 0.05,  std: 0.04  },
         "single_window_hold" => PopulationDefault { mean: 120.0, std: 180.0 },
+        "undo_redo_rate"     => PopulationDefault { mean: 0.02,  std: 0.03  },
+        "key_hold_ms"        => PopulationDefault { mean: 80.0,  std: 40.0  },
+        "save_rate"          => PopulationDefault { mean: 0.01,  std: 0.02  },
+        "right_click_rate"   => PopulationDefault { mean: 0.01,  std: 0.02  },
+        "scroll_depth"       => PopulationDefault { mean: 5.0,   std: 4.0   },
         _                    => PopulationDefault { mean: 0.0,   std: 1.0   },
     }
 }
@@ -81,6 +87,24 @@ pub fn compute_z_scores(
     };
     let single_window_hold_secs = snap.single_window_hold_ms as f64 / 1000.0;
 
+    let undo_redo_rate = if window_secs > 0.0 {
+        (snap.undo_count + snap.redo_count) as f64 / window_secs
+    } else {
+        0.0
+    };
+    let key_hold_val = snap.avg_key_hold_ms as f64;
+    let save_rate = if window_secs > 0.0 {
+        snap.save_count as f64 / window_secs
+    } else {
+        0.0
+    };
+    let right_click_rate = if window_secs > 0.0 {
+        snap.right_click_count as f64 / window_secs
+    } else {
+        0.0
+    };
+    let scroll_depth_val = snap.scroll_depth_y as f64;
+
     let (ts_mean,  ts_var)  = get("typing_speed");
     let (er_mean,  er_var)  = get("error_rate");
     let (asr_mean, asr_var) = get("app_switch_rate");
@@ -88,6 +112,11 @@ pub fn compute_z_scores(
     let (mj_mean,  mj_var)  = get("mouse_jitter");
     let (pf_mean,  pf_var)  = get("pause_frequency");
     let (swh_mean, swh_var) = get("single_window_hold");
+    let (ur_mean,  ur_var)  = get("undo_redo_rate");
+    let (kh_mean,  kh_var)  = get("key_hold_ms");
+    let (sr_mean,  sr_var)  = get("save_rate");
+    let (rc_mean,  rc_var)  = get("right_click_rate");
+    let (sd_mean,  sd_var)  = get("scroll_depth");
 
     SignalZScores {
         typing_speed:       z_score(snap.typing_speed,        ts_mean,  ts_var),
@@ -98,6 +127,11 @@ pub fn compute_z_scores(
         pause_frequency:    z_score(pause_frequency,          pf_mean,  pf_var),
         single_window_hold: z_score(single_window_hold_secs,  swh_mean, swh_var),
         typing_speed_raw:   snap.typing_speed,
+        undo_redo_rate:     z_score(undo_redo_rate,           ur_mean,  ur_var),
+        key_hold_ms:        z_score(key_hold_val,             kh_mean,  kh_var),
+        save_rate:          z_score(save_rate,                sr_mean,  sr_var),
+        right_click_rate:   z_score(right_click_rate,         rc_mean,  rc_var),
+        scroll_depth:       z_score(scroll_depth_val,         sd_mean,  sd_var),
     }
 }
 
@@ -115,6 +149,9 @@ mod tests {
             on_battery: false, window_count: 5,
             foreground_app: "code.exe".to_string(),
             app_switch_count: 3, single_window_hold_ms: 120_000,
+            undo_count: 0, redo_count: 0, save_count: 0,
+            avg_key_hold_ms: 0, right_click_count: 0, scroll_depth_y: 0,
+            display_brightness: -1, night_light_enabled: false,
         }
     }
 

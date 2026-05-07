@@ -10,16 +10,18 @@ pub enum MouseButton {
 
 /// The set of raw input events captured from the input monitor subprocess.
 ///
-/// Intentionally excluded signals:
-/// - Right-click disambiguation: `MouseButton::Right` is tracked for raw click
-///   count only; right-click-specific behavior is not a behavioral signal.
-/// - Zoom / scroll-to-zoom: zoom events conflate scroll and keyboard input in
-///   ways that pollute both signals. They are not collected.
-/// - File-save and screenshot: reserved as future low-impact context signals.
-///   They must never be the sole trigger for an insight when added.
+/// Context-only signals (file-save, right-click rate) must never be the sole
+/// trigger for an insight — enforce this in `classify_state` weighting.
 #[derive(Debug, Clone)]
 pub enum RawInputEvent {
-    KeyDown { ts_ms: u64, is_deletion: bool },
+    KeyDown {
+        ts_ms: u64,
+        is_deletion: bool,
+        is_undo: bool,
+        is_redo: bool,
+        is_save: bool,
+    },
+    KeyHold { ts_ms: u64, duration_ms: u64 },
     KeyUp { ts_ms: u64 },
     MouseMove { x: f64, y: f64, ts_ms: u64 },
     MouseClick { button: MouseButton, ts_ms: u64 },
@@ -30,6 +32,7 @@ impl RawInputEvent {
     pub fn ts_ms(&self) -> u64 {
         match self {
             RawInputEvent::KeyDown { ts_ms, .. } => *ts_ms,
+            RawInputEvent::KeyHold { ts_ms, .. } => *ts_ms,
             RawInputEvent::KeyUp { ts_ms } => *ts_ms,
             RawInputEvent::MouseMove { ts_ms, .. } => *ts_ms,
             RawInputEvent::MouseClick { ts_ms, .. } => *ts_ms,
@@ -93,7 +96,7 @@ impl RingBuffer {
                 RawInputEvent::MouseClick { .. } => counts.clicks += 1,
                 RawInputEvent::Scroll { .. } => counts.scrolls += 1,
                 RawInputEvent::MouseMove { .. } => counts.moves += 1,
-                RawInputEvent::KeyUp { .. } => {}
+                RawInputEvent::KeyHold { .. } | RawInputEvent::KeyUp { .. } => {}
             }
         }
         counts
@@ -105,7 +108,7 @@ mod tests {
     use super::*;
 
     fn key_down(ts: u64) -> RawInputEvent {
-        RawInputEvent::KeyDown { ts_ms: ts, is_deletion: false }
+        RawInputEvent::KeyDown { ts_ms: ts, is_deletion: false, is_undo: false, is_redo: false, is_save: false }
     }
 
     #[test]
@@ -177,9 +180,9 @@ mod tests {
     #[test]
     fn pending_counts_tracks_by_type() {
         let mut buf = RingBuffer::new(20);
-        buf.push(RawInputEvent::KeyDown { ts_ms: 1, is_deletion: false });
-        buf.push(RawInputEvent::KeyDown { ts_ms: 2, is_deletion: false });
-        buf.push(RawInputEvent::KeyDown { ts_ms: 3, is_deletion: true });
+        buf.push(key_down(1));
+        buf.push(key_down(2));
+        buf.push(RawInputEvent::KeyDown { ts_ms: 3, is_deletion: true, is_undo: false, is_redo: false, is_save: false });
         buf.push(RawInputEvent::MouseClick { button: MouseButton::Left, ts_ms: 4 });
         buf.push(RawInputEvent::MouseClick { button: MouseButton::Right, ts_ms: 5 });
         buf.push(RawInputEvent::Scroll { delta_x: 0, delta_y: -3, ts_ms: 6 });

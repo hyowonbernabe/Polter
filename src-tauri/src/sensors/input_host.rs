@@ -8,7 +8,17 @@ use tokio::process::Command;
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum IpcEvent {
-    KeyDown { ts: u64, is_deletion: bool },
+    KeyDown {
+        ts: u64,
+        is_deletion: bool,
+        #[serde(default)]
+        is_undo: bool,
+        #[serde(default)]
+        is_redo: bool,
+        #[serde(default)]
+        is_save: bool,
+    },
+    KeyHold { ts: u64, hold_ms: u64 },
     KeyUp { ts: u64 },
     MouseMove { x: f64, y: f64, ts: u64 },
     MouseClick { button: u8, ts: u64 },
@@ -37,8 +47,11 @@ fn monitor_binary_path() -> PathBuf {
 
 fn ipc_to_raw(ipc: IpcEvent) -> RawInputEvent {
     match ipc {
-        IpcEvent::KeyDown { ts, is_deletion } => {
-            RawInputEvent::KeyDown { ts_ms: ts, is_deletion }
+        IpcEvent::KeyDown { ts, is_deletion, is_undo, is_redo, is_save } => {
+            RawInputEvent::KeyDown { ts_ms: ts, is_deletion, is_undo, is_redo, is_save }
+        }
+        IpcEvent::KeyHold { ts, hold_ms } => {
+            RawInputEvent::KeyHold { ts_ms: ts, duration_ms: hold_ms }
         }
         IpcEvent::KeyUp { ts } => RawInputEvent::KeyUp { ts_ms: ts },
         IpcEvent::MouseMove { x, y, ts } => RawInputEvent::MouseMove { x, y, ts_ms: ts },
@@ -76,8 +89,8 @@ pub fn start(ring: Arc<Mutex<RingBuffer>>) {
                     let mut reader = BufReader::new(stdout).lines();
                     while let Ok(Some(line)) = reader.next_line().await {
                         if let Ok(ipc) = serde_json::from_str::<IpcEvent>(&line) {
-                            // KeyUp events are buffered but never consumed by the
-                            // aggregator — skip them to preserve ring buffer capacity.
+                            // KeyUp events are replaced by KeyHold (which carries
+                            // duration). Drop bare KeyUp to preserve ring buffer capacity.
                             if matches!(ipc, IpcEvent::KeyUp { .. }) {
                                 continue;
                             }
@@ -101,12 +114,39 @@ mod tests {
 
     #[test]
     fn ipc_key_down_maps_to_raw() {
-        let ipc = IpcEvent::KeyDown { ts: 12345, is_deletion: true };
+        let ipc = IpcEvent::KeyDown { ts: 12345, is_deletion: true, is_undo: false, is_redo: false, is_save: false };
         let raw = ipc_to_raw(ipc);
         match raw {
-            RawInputEvent::KeyDown { ts_ms, is_deletion } => {
+            RawInputEvent::KeyDown { ts_ms, is_deletion, .. } => {
                 assert_eq!(ts_ms, 12345);
                 assert!(is_deletion);
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn ipc_key_hold_maps_to_raw() {
+        let ipc = IpcEvent::KeyHold { ts: 5000, hold_ms: 120 };
+        let raw = ipc_to_raw(ipc);
+        match raw {
+            RawInputEvent::KeyHold { ts_ms, duration_ms } => {
+                assert_eq!(ts_ms, 5000);
+                assert_eq!(duration_ms, 120);
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn ipc_key_down_undo_flag() {
+        let ipc = IpcEvent::KeyDown { ts: 100, is_deletion: false, is_undo: true, is_redo: false, is_save: false };
+        let raw = ipc_to_raw(ipc);
+        match raw {
+            RawInputEvent::KeyDown { is_undo, is_redo, is_save, .. } => {
+                assert!(is_undo);
+                assert!(!is_redo);
+                assert!(!is_save);
             }
             _ => panic!("wrong variant"),
         }

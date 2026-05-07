@@ -184,6 +184,22 @@ impl DailySummaryAccumulator {
             }).collect()));
         m.insert("single_window_hold".into(),
             avg(self.snapshots.iter().map(|s| s.single_window_hold_ms as f64 / 1000.0).collect()));
+        m.insert("undo_redo_rate".into(),
+            avg(self.snapshots.iter().map(|s| {
+                if window_secs > 0.0 { (s.undo_count + s.redo_count) as f64 / window_secs } else { 0.0 }
+            }).collect()));
+        m.insert("key_hold_ms".into(),
+            avg(self.snapshots.iter().map(|s| s.avg_key_hold_ms as f64).collect()));
+        m.insert("save_rate".into(),
+            avg(self.snapshots.iter().map(|s| {
+                if window_secs > 0.0 { s.save_count as f64 / window_secs } else { 0.0 }
+            }).collect()));
+        m.insert("right_click_rate".into(),
+            avg(self.snapshots.iter().map(|s| {
+                if window_secs > 0.0 { s.right_click_count as f64 / window_secs } else { 0.0 }
+            }).collect()));
+        m.insert("scroll_depth".into(),
+            avg(self.snapshots.iter().map(|s| s.scroll_depth_y as f64).collect()));
         m
     }
 }
@@ -278,6 +294,9 @@ mod tests {
             battery_percent: 80, on_battery: false, window_count: 4,
             foreground_app: "code.exe".into(), app_switch_count: 6,
             single_window_hold_ms: 60_000,
+            undo_count: 0, redo_count: 0, save_count: 0,
+            avg_key_hold_ms: 0, right_click_count: 0, scroll_depth_y: 0,
+            display_brightness: -1, night_light_enabled: false,
         };
         let mut snap2 = snap1.clone();
         snap2.typing_speed = 4.0;

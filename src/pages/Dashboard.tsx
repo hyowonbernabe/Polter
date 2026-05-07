@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import StateHeader from "../components/dashboard/StateHeader";
 import TodayGlance from "../components/dashboard/TodayGlance";
 import ActivityChart from "../components/dashboard/ActivityChart";
@@ -84,23 +83,12 @@ export default function Dashboard() {
   const [justUpdated, setJustUpdated] = useState(false);
   const [tier2Permissions, setTier2Permissions] = useState<Tier2Permissions>({ screen: false, clipboard: false, calendar: false });
   const containerRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current !== null) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
 
   const handleClose = useCallback(() => {
-    cancelClose();
     setVisible(false);
-    closeTimerRef.current = setTimeout(() => {
-      closeTimerRef.current = null;
-      invoke("close_dashboard").catch(console.error);
-    }, 240);
-  }, [cancelClose]);
+    // Hide after CSS animation finishes — single timer, no focus-loss race.
+    setTimeout(() => invoke("close_dashboard").catch(console.error), 240);
+  }, []);
 
   // 500ms polling for live buffer stats and monitor status
   useEffect(() => {
@@ -158,38 +146,25 @@ export default function Dashboard() {
     return () => { unlisten?.(); };
   }, []);
 
-  // Consolidate visibility and data fetching logic
+  // Show handler — fetch fresh data and reveal
   useEffect(() => {
-    const win = getCurrentWebviewWindow();
-    let unlistenFocus: (() => void) | undefined;
     let unlistenShow: (() => void) | undefined;
 
     const showHandler = () => {
-      cancelClose();
       invoke<DashboardData>("get_dashboard_data").then(setData).catch(console.error);
       invoke<CurrentStateInfo>("get_current_state_info").then(setStateInfo).catch(console.error);
       invoke<Tier2Permissions>("get_tier2_permissions").then(setTier2Permissions).catch(console.error);
       requestAnimationFrame(() => setVisible(true));
     };
 
-    win.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
-        showHandler();
-      } else {
-        handleClose();
-      }
-    }).then(fn => { unlistenFocus = fn; });
-
+    // Backend emits this when tray/command opens the window
     listen("window_show", showHandler).then(fn => { unlistenShow = fn; });
 
-    // Initial mount show
+    // Initial mount
     showHandler();
 
-    return () => {
-      unlistenFocus?.();
-      unlistenShow?.();
-    };
-  }, [handleClose, cancelClose]);
+    return () => { unlistenShow?.(); };
+  }, []);
 
   // Derive countdown from last_snapshot_ms whenever liveStatus changes
   useEffect(() => {

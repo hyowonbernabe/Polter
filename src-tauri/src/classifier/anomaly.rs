@@ -50,6 +50,11 @@ impl AnomalyDetector {
             ("mouse_jitter",       z.mouse_jitter),
             ("pause_frequency",    z.pause_frequency),
             ("single_window_hold", z.single_window_hold),
+            ("undo_redo_rate",     z.undo_redo_rate),
+            ("key_hold_ms",        z.key_hold_ms),
+            ("save_rate",          z.save_rate),
+            ("right_click_rate",   z.right_click_rate),
+            ("scroll_depth",       z.scroll_depth),
         ];
 
         let mut fired = Vec::new();

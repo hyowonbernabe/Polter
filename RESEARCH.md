@@ -142,7 +142,33 @@ Practical rule:
 
 ---
 
+## Why a desktop companion works
+
+These studies support the core product concept: that a quiet, passive presence that watches your patterns (without reading content) can change how you work.
+
+| Concept | What the research found | Where it can mislead | Evidence | Source |
+|---|---|---|---|---|
+| Social facilitation (co-presence) | People perform better on practiced or familiar tasks when another entity is present, even if that entity does nothing. Confirmed across 241 studies. | Complex or unfamiliar tasks can get worse under observation. Polter should avoid adding pressure during learning-mode work. | High | Zajonc (1965) · Science; Bond & Titus (1983) · Psychological Bulletin |
+| Passive self-monitoring | Wearing a pedometer without setting a goal increased daily walking by ~27% (~2,000 extra steps). Passive awareness alone drives behavior change. | The effect fades if the feedback becomes ignorable or routine. Polter must vary its observations to avoid habituation. | High | Bravata et al. (2007) · Stanford · JAMA |
+| Burnout self-awareness | Burnout develops gradually. People consistently underestimate their own exhaustion. By the time someone notices, they have usually been declining for a while. | Self-report tools can undercount burnout, but external signals can also overcount it (bad day vs real burnout). Polter should track trends, not single bad sessions. | High (for concept) | Maslach (1981+) · UC Berkeley · Maslach Burnout Inventory |
+| Digital creature bonding | People form genuine emotional attachments to virtual pets and digital creatures. Older adults interacting with a robot pet showed reduced loneliness comparable to a live dog. | Attachment can become obligation. Polter should never guilt the user for ignoring it or being away. | Medium-High | Banks et al. (2008) · Saint Louis University · JAMDA |
+| Workplace pets and stress | Employees who brought dogs to work had measurably lower cortisol (stress hormone) levels throughout the day compared to those who did not. | The effect was measured with real animals, not digital ones. Transfer to a screen companion is plausible but not directly proven. | High | Barker et al. (2012) · Virginia Commonwealth University · IJWHM |
+
+Practical rule:
+- Polter is a passive presence, not a coach. It should feel like company, not supervision.
+- Social facilitation works best when the observer is non-judgmental. Polter should never feel like it is grading the user.
+
+---
+
 ## Source list (most important papers and reviews)
+
+### Companion presence, passive monitoring, and burnout
+- [Zajonc (1965) - Social facilitation](https://doi.org/10.1126/science.149.3681.269)
+- [Bond and Titus (1983) - Social facilitation: A meta-analysis of 241 studies](https://doi.org/10.1037/0033-2909.93.2.265)
+- [Bravata et al. (2007) - Using pedometers to increase physical activity](https://doi.org/10.1001/jama.298.19.2296)
+- [Maslach and Jackson (1981) - The measurement of experienced burnout](https://doi.org/10.1002/job.4030020205)
+- [Banks et al. (2008) - Animal-assisted therapy and loneliness in nursing homes](https://doi.org/10.1016/j.jamda.2007.09.007)
+- [Barker et al. (2012) - Preliminary investigation of employee stress in dogs at workplace](https://doi.org/10.1108/17538351211215366)
 
 ### Keyboard and mouse behavior
 - [Giancardo et al. (2016) - Computer keyboard interaction as indicator of early Parkinson's disease](https://doi.org/10.1038/srep34468)

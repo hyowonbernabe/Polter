@@ -128,6 +128,11 @@ pub async fn tick_voice<R: tauri::Runtime>(
         ("mouse_jitter".to_string(),    z_scores.mouse_jitter),
         ("pause_frequency".to_string(), z_scores.pause_frequency),
         ("app_switch_rate".to_string(), z_scores.app_switch_rate),
+        ("undo_redo_rate".to_string(),  z_scores.undo_redo_rate),
+        ("key_hold_ms".to_string(),     z_scores.key_hold_ms),
+        ("save_rate".to_string(),       z_scores.save_rate),
+        ("right_click_rate".to_string(), z_scores.right_click_rate),
+        ("scroll_depth".to_string(),    z_scores.scroll_depth),
     ];
 
     // ── Fix: query actual prior_occurrences from DB ──────────────────────────

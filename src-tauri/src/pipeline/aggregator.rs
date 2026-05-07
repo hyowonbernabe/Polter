@@ -6,7 +6,7 @@ use crate::classifier::{
     state_machine::StateMachine,
     is_cold_start, local_time_parts, time_of_day_bucket,
 };
-use crate::pipeline::ring_buffer::{RawInputEvent, RingBuffer};
+use crate::pipeline::ring_buffer::{MouseButton, RawInputEvent, RingBuffer};
 use crate::sensors::system::SystemSnapshot;
 use crate::storage::{DbPools, queries::get_first_session_ms};
 use std::sync::{Arc, Mutex, RwLock};
@@ -33,6 +33,16 @@ pub struct BehavioralSnapshot {
     pub foreground_app: String,
     pub app_switch_count: i32,
     pub single_window_hold_ms: i64,
+    // Phase A signals
+    pub undo_count: i32,
+    pub redo_count: i32,
+    pub save_count: i32,
+    pub avg_key_hold_ms: i64,
+    pub right_click_count: i32,
+    pub scroll_depth_y: i64,
+    // Phase B signals
+    pub display_brightness: i32,
+    pub night_light_enabled: bool,
 }
 
 // ── Pure computation ──────────────────────────────────────────────────────────
@@ -47,14 +57,35 @@ pub fn compute_snapshot(
     // Keyboard
     let mut total_keys: i32 = 0;
     let mut deletions: i32 = 0;
+    let mut undo_count: i32 = 0;
+    let mut redo_count: i32 = 0;
+    let mut save_count: i32 = 0;
     for e in events {
-        if let RawInputEvent::KeyDown { is_deletion, .. } = e {
+        if let RawInputEvent::KeyDown { is_deletion, is_undo, is_redo, is_save, .. } = e {
             total_keys += 1;
-            if *is_deletion {
-                deletions += 1;
-            }
+            if *is_deletion { deletions += 1; }
+            if *is_undo { undo_count += 1; }
+            if *is_redo { redo_count += 1; }
+            if *is_save { save_count += 1; }
         }
     }
+
+    // Key hold duration (average across all KeyHold events in window)
+    let hold_durations: Vec<u64> = events
+        .iter()
+        .filter_map(|e| {
+            if let RawInputEvent::KeyHold { duration_ms, .. } = e {
+                Some(*duration_ms)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let avg_key_hold_ms = if !hold_durations.is_empty() {
+        (hold_durations.iter().sum::<u64>() / hold_durations.len() as u64) as i64
+    } else {
+        0
+    };
     let typing_speed = if window_duration_secs > 0.0 {
         total_keys as f64 / window_duration_secs
     } else {
@@ -117,10 +148,24 @@ pub fn compute_snapshot(
         .iter()
         .filter(|e| matches!(e, RawInputEvent::MouseClick { .. }))
         .count() as i32;
+    let right_click_count = events
+        .iter()
+        .filter(|e| matches!(e, RawInputEvent::MouseClick { button: MouseButton::Right, .. }))
+        .count() as i32;
     let scroll_count = events
         .iter()
         .filter(|e| matches!(e, RawInputEvent::Scroll { .. }))
         .count() as i32;
+    let scroll_depth_y: i64 = events
+        .iter()
+        .filter_map(|e| {
+            if let RawInputEvent::Scroll { delta_y, .. } = e {
+                Some((*delta_y).abs())
+            } else {
+                None
+            }
+        })
+        .sum();
 
     BehavioralSnapshot {
         session_id,
@@ -140,6 +185,14 @@ pub fn compute_snapshot(
         foreground_app: system.foreground_app.clone(),
         app_switch_count: system.app_switch_count,
         single_window_hold_ms: system.single_window_hold_ms,
+        undo_count,
+        redo_count,
+        save_count,
+        avg_key_hold_ms,
+        right_click_count,
+        scroll_depth_y,
+        display_brightness: system.display_brightness,
+        night_light_enabled: system.night_light_enabled,
     }
 }
 
@@ -303,31 +356,26 @@ mod tests {
     #[test]
     fn typing_speed_computed_correctly() {
         let events: Vec<RawInputEvent> = (0..30)
-            .map(|i| RawInputEvent::KeyDown { ts_ms: i * 2000, is_deletion: false })
+            .map(|i| RawInputEvent::KeyDown { ts_ms: i * 2000, is_deletion: false, is_undo: false, is_redo: false, is_save: false })
             .collect();
         let snap = compute_snapshot(&events, &sys(), 1, 60_000, 60.0);
         assert!((snap.typing_speed - 0.5).abs() < 0.01);
     }
 
+    fn kd(ts: u64, del: bool) -> RawInputEvent {
+        RawInputEvent::KeyDown { ts_ms: ts, is_deletion: del, is_undo: false, is_redo: false, is_save: false }
+    }
+
     #[test]
     fn error_rate_computed_correctly() {
-        let events = vec![
-            RawInputEvent::KeyDown { ts_ms: 100, is_deletion: false },
-            RawInputEvent::KeyDown { ts_ms: 200, is_deletion: true },
-            RawInputEvent::KeyDown { ts_ms: 300, is_deletion: true },
-            RawInputEvent::KeyDown { ts_ms: 400, is_deletion: false },
-        ];
+        let events = vec![kd(100, false), kd(200, true), kd(300, true), kd(400, false)];
         let snap = compute_snapshot(&events, &sys(), 1, 60_000, 60.0);
         assert!((snap.error_rate - 0.5).abs() < 0.01);
     }
 
     #[test]
     fn pause_count_detects_gaps() {
-        let events = vec![
-            RawInputEvent::KeyDown { ts_ms: 1000, is_deletion: false },
-            RawInputEvent::KeyDown { ts_ms: 4000, is_deletion: false },
-            RawInputEvent::KeyDown { ts_ms: 4500, is_deletion: false },
-        ];
+        let events = vec![kd(1000, false), kd(4000, false), kd(4500, false)];
         let snap = compute_snapshot(&events, &sys(), 1, 60_000, 60.0);
         assert_eq!(snap.pause_count, 1);
     }

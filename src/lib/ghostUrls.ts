@@ -1,4 +1,5 @@
 export const GHOST_URLS: Record<string, string> = {
+  // Directional sprites
   'back-left.png':   new URL('../assets/sprites/ghost/back-left.png',   import.meta.url).href,
   'back-right.png':  new URL('../assets/sprites/ghost/back-right.png',  import.meta.url).href,
   'back.png':        new URL('../assets/sprites/ghost/back.png',        import.meta.url).href,
@@ -7,4 +8,40 @@ export const GHOST_URLS: Record<string, string> = {
   'front.png':       new URL('../assets/sprites/ghost/front.png',       import.meta.url).href,
   'left.png':        new URL('../assets/sprites/ghost/left.png',        import.meta.url).href,
   'right.png':       new URL('../assets/sprites/ghost/right.png',       import.meta.url).href,
+
+  // Mood sprites
+  'calm.png':        new URL('../assets/sprites/ghost/calm.png',        import.meta.url).href,
+  'focused.png':     new URL('../assets/sprites/ghost/focused.png',     import.meta.url).href,
+  'quiet.png':       new URL('../assets/sprites/ghost/quiet.png',       import.meta.url).href,
+  'excited.png':     new URL('../assets/sprites/ghost/excited.png',     import.meta.url).href,
+  'overworked.png':  new URL('../assets/sprites/ghost/overworked.png',  import.meta.url).href,
+  'tired.png':       new URL('../assets/sprites/ghost/tired.png',       import.meta.url).href,
+  'sleeping.png':    new URL('../assets/sprites/ghost/sleeping.png',    import.meta.url).href,
+
+  // Throw animation frames
+  'thrown.png':      new URL('../assets/sprites/ghost/thrown.png',      import.meta.url).href,
+  'thrown-2.png':    new URL('../assets/sprites/ghost/thrown-2.png',    import.meta.url).href,
+  'thrown-3.png':    new URL('../assets/sprites/ghost/thrown-3.png',    import.meta.url).href,
+  'thrown-4.png':    new URL('../assets/sprites/ghost/thrown-4.png',    import.meta.url).href,
+
+  // State sprites
+  'grab.png':        new URL('../assets/sprites/ghost/grab.png',        import.meta.url).href,
+  'dizzy.png':       new URL('../assets/sprites/ghost/dizzy.png',       import.meta.url).href,
+  'jumpscared.png':  new URL('../assets/sprites/ghost/jumpscared.png',  import.meta.url).href,
+  'replying.png':    new URL('../assets/sprites/ghost/replying.png',    import.meta.url).href,
+  'thinking.png':    new URL('../assets/sprites/ghost/thinking.png',    import.meta.url).href,
+  'listening.png':   new URL('../assets/sprites/ghost/listening.png',   import.meta.url).href,
+  'celebrate.png':   new URL('../assets/sprites/ghost/celebrate.png',   import.meta.url).href,
+
+  // Falling sprites
+  'falling-1.png':   new URL('../assets/sprites/ghost/falling-1.png',   import.meta.url).href,
+  'falling-2.png':   new URL('../assets/sprites/ghost/falling-2.png',   import.meta.url).href,
+  'falling-3.png':   new URL('../assets/sprites/ghost/falling-3.png',   import.meta.url).href,
+
+  // Fun / easter egg sprites
+  'reading.png':     new URL('../assets/sprites/ghost/reading.png',     import.meta.url).href,
+  'kid.png':         new URL('../assets/sprites/ghost/kid.png',         import.meta.url).href,
+  'umbrella.png':    new URL('../assets/sprites/ghost/umbrella.png',    import.meta.url).href,
+  'box.png':         new URL('../assets/sprites/ghost/box.png',         import.meta.url).href,
+  'sleepy.png':      new URL('../assets/sprites/ghost/sleepy.png',      import.meta.url).href,
 };

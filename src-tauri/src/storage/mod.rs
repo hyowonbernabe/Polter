@@ -47,6 +47,23 @@ pub async fn init(db_path: &str) -> Result<DbPools, sqlx::Error> {
         .execute(&write)
         .await?;
 
+    // Phase A + B signals — individual ALTER TABLEs to handle re-runs gracefully.
+    let new_snapshot_columns = [
+        // Phase A
+        "ALTER TABLE behavioral_snapshots ADD COLUMN undo_count          INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN redo_count          INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN save_count          INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN avg_key_hold_ms     INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN right_click_count   INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN scroll_depth_y      INTEGER NOT NULL DEFAULT 0",
+        // Phase B
+        "ALTER TABLE behavioral_snapshots ADD COLUMN display_brightness  INTEGER NOT NULL DEFAULT -1",
+        "ALTER TABLE behavioral_snapshots ADD COLUMN night_light_enabled INTEGER NOT NULL DEFAULT 0",
+    ];
+    for stmt in &new_snapshot_columns {
+        let _ = sqlx::raw_sql(stmt).execute(&write).await;
+    }
+
     // ALTER TABLE ADD COLUMN is not idempotent in SQLite, so we attempt each
     // column addition individually and ignore "duplicate column" errors.
     let daily_summary_columns = [
