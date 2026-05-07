@@ -1,6 +1,6 @@
-# Wisp — Feature Reference
+# Polter — Feature Reference
 
-Every feature Wisp has or will have, organized by surface. Phase markers indicate when each feature ships.
+Every feature Polter has or will have, organized by surface. Phase markers indicate when each feature ships.
 
 **Phase key:**
 - `V1` — Hackathon build (Windows)
@@ -78,20 +78,20 @@ The creature is a physical object on the screen. It responds to how the user han
   - Dismiss current bubble (if one is showing)
   - Open dashboard (via tray)
   - Settings
-  - Quit Wisp
+  - Quit Polter
 
 ---
 
 ## 3. Insights — Chat Bubbles
 
-Insights are things Wisp says. They appear as speech bubbles originating from the creature — not floating cards, not notifications. The tail of the bubble points to Wisp.
+Insights are things Polter says. They appear as speech bubbles originating from the creature — not floating cards, not notifications. The tail of the bubble points to Polter.
 
 ### Bubble Appearance
-- `V1` Chat bubble blooms in from the creature's position — a frosted glass panel with a directional tail pointing toward Wisp
+- `V1` Chat bubble blooms in from the creature's position — a frosted glass panel with a directional tail pointing toward Polter
 - `V1` Bubble positioning is intelligent — it always appears on whichever side has more screen space, never clips off the edge
 - `V1` If the creature is near the top of the screen, bubble appears below. Near the bottom, it appears above.
 - `V1` Bubble contains: state pip, "noticed" pixel label, the insight sentence, a timestamp, and two actions
-- `V1` Insight text is written in Wisp's voice — lowercase, second person, observational, specific, never prescriptive
+- `V1` Insight text is written in Polter's voice — lowercase, second person, observational, specific, never prescriptive
 - `V1` Bubble fades in over 600ms with a slight upward drift
 - `V1` Bubble auto-dismisses after 45 seconds if the user does not interact with it
 - `V1` Auto-dismiss is smooth — fades out gently, creature gives a small shrug animation
@@ -103,11 +103,11 @@ Insights are things Wisp says. They appear as speech bubbles originating from th
 
 ### Insight Generation Rules
 - `V1` Insights only generate after a minimum of 5 minutes of active behavioral data — never on sparse readings
-- `V1` No daily cap on bubbles. Wisp decides each tick whether to produce an insight or a mutter. Deduplication prevents repetition of the same insight type.
+- `V1` No daily cap on bubbles. Polter decides each tick whether to produce an insight or a mutter. Deduplication prevents repetition of the same insight type.
 - `V1` Insights do not appear during sleep mode
 - `V1` Insights queue — if one is generated while a bubble is already showing, it waits. Bubbles never stack.
 - `V1` Insights generated while the user is AFK surface when activity resumes, but only if they are still relevant (recent enough)
-- `V1` The very first insight ever is distinct — Wisp has been watching long enough to say something true for the first time. The bubble has a slightly longer pause before appearing, the creature glows more intensely.
+- `V1` The very first insight ever is distinct — Polter has been watching long enough to say something true for the first time. The bubble has a slightly longer pause before appearing, the creature glows more intensely.
 
 ### Types of Insights
 - `V1` **Flow detection** — "you've held one window for forty-three minutes. that's the longest you've gone all week."
@@ -125,7 +125,7 @@ Insights are things Wisp says. They appear as speech bubbles originating from th
 - `V2` **Streak acknowledgment** — "you've been consistent for two weeks. your average focus block has grown by eight minutes."
 
 ### Insight Deduplication
-- `V1` Wisp tracks the last 10 insight topics surfaced. It will not repeat the same theme within 48 hours.
+- `V1` Polter tracks the last 10 insight topics surfaced. It will not repeat the same theme within 48 hours.
 - `V1` Insights are scored for novelty before surfacing — a well-established pattern is only mentioned again if it changes
 
 ---
@@ -147,14 +147,14 @@ Accessed exclusively through the system tray. Not triggered by clicking the crea
 - `V1` **Personal bests** — longest focus session ever, best single day this week (most focus time)
 - `V1` **State distribution this week** — how much time in each state, shown as a horizontal bar breakdown
 - `V1` **Insight history** — all past bubbles in reverse chronological order, with timestamps. Scrollable. Tapping one re-reads it in full.
-- `V1` **"What Wisp knows right now"** — plain language summary: "In the last hour, Wisp has recorded your typing rhythm, mouse movement, and which apps have been open. It has not read any content. Here is what it has inferred..."
-- `V1` **Day-one empty state** — when there is no history, the chart shows a calm empty state with a message: "wisp is watching. come back tomorrow."
+- `V1` **"What Polter knows right now"** — plain language summary: "In the last hour, Polter has recorded your typing rhythm, mouse movement, and which apps have been open. It has not read any content. Here is what it has inferred..."
+- `V1` **Day-one empty state** — when there is no history, the chart shows a calm empty state with a message: "polter is watching. come back tomorrow."
 - `V2` **Weekly patterns view** — heatmap or chart showing which days and time-of-day slots are consistently your best and worst
 - `V2` **Trend lines** — is your average focus block getting longer or shorter over time?
 
 ### Dashboard Controls
 - `V1` Settings button (gear icon) — opens settings panel
-- `V1` Sleep button (moon icon) — puts Wisp to sleep from the dashboard
+- `V1` Sleep button (moon icon) — puts Polter to sleep from the dashboard
 - `V1` Close button (×)
 
 ---
@@ -165,7 +165,7 @@ Accessed from the dashboard or from the system tray right-click menu.
 
 ### Inference
 - `V1` **Inference mode badge** — always visible at the top of settings. Shows "local" (Ollama running) or "cloud" (OpenRouter). Not a setting — just always shown.
-- `V1` **OpenRouter API key** — text input. If Ollama is not running and no key is entered, Wisp shows a "no AI" state where the creature still reflects behavior but no bubble insights are generated.
+- `V1` **OpenRouter API key** — text input. If Ollama is not running and no key is entered, Polter shows a "no AI" state where the creature still reflects behavior but no bubble insights are generated.
 - `V1` **Preferred model** — dropdown to select which Ollama model or OpenRouter model to use (for advanced users)
 
 ### Data Collection
@@ -175,7 +175,7 @@ Accessed from the dashboard or from the system tray right-click menu.
 - `V1` **Active sensors indicator** — small list showing every signal currently being collected, in plain language
 
 ### Insights
-- `V2` **Insight frequency** — slider: adjust how often Wisp speaks (reserved for future tuning)
+- `V2` **Insight frequency** — slider: adjust how often Polter speaks (reserved for future tuning)
 - `V1` **Sound** — toggle: a soft chime plays when a bubble appears (off by default)
 
 ### Creature
@@ -185,7 +185,7 @@ Accessed from the dashboard or from the system tray right-click menu.
 
 ### System
 - `V1` **Launch at startup** — toggle. On by default.
-- `V1` **Sleep schedule** — set a time range for Wisp to sleep automatically (e.g. after 11pm, before 7am)
+- `V1` **Sleep schedule** — set a time range for Polter to sleep automatically (e.g. after 11pm, before 7am)
 
 ### Data and Privacy
 - `V1` **Clear raw data** — deletes all behavioral snapshots. Keeps insight history. Irreversible — confirmation required.
@@ -197,17 +197,17 @@ Accessed from the dashboard or from the system tray right-click menu.
 
 ## 6. System Tray
 
-The tray icon is Wisp's background presence when the creature is not visible or the user is not looking at it.
+The tray icon is Polter's background presence when the creature is not visible or the user is not looking at it.
 
-- `V1` Tray icon is the Wisp creature icon, small
+- `V1` Tray icon is the Polter creature icon, small
 - `V1` Tray icon reflects current state color — shifts between blue, amber, grey to match creature
 - `V1` Left-click tray icon — shows/hides the creature overlay
 - `V1` Right-click tray menu:
   - Open dashboard
-  - Sleep / Wake Wisp
+  - Sleep / Wake Polter
   - Privacy mode (pause collection)
   - Settings
-  - Quit Wisp
+  - Quit Polter
 - `V1` Tray icon gets a subtle indicator dot when a new insight is waiting (for when the creature is hidden or covered)
 
 ---
@@ -216,10 +216,10 @@ The tray icon is Wisp's background presence when the creature is not visible or 
 
 The first-run experience. Everything here builds trust before a single byte of data is collected.
 
-- `V1` **Welcome screen** — what Wisp is in two short paragraphs. No technical language. No bullet points. A statement of intent.
-- `V1` **What Wisp watches** — a simple screen showing Tier 1 signals in plain language: "Wisp watches how you type and move your mouse. Not what you type — how you do it." Shown before collection starts.
+- `V1` **Welcome screen** — what Polter is in two short paragraphs. No technical language. No bullet points. A statement of intent.
+- `V1` **What Polter watches** — a simple screen showing Tier 1 signals in plain language: "Polter watches how you type and move your mouse. Not what you type — how you do it." Shown before collection starts.
 - `V1` **Tier 2 opt-ins** — three separate screens, one per signal: screen content, clipboard, calendar. Each has: what it collects, what it does NOT collect, and a yes/no toggle. User can skip all three.
-- `V1` **Summary screen** — shows exactly what Wisp will and will not collect based on choices just made. A confirmation, not a re-ask.
+- `V1` **Summary screen** — shows exactly what Polter will and will not collect based on choices just made. A confirmation, not a re-ask.
 - `V1` **Creature introduction** — the creature appears on screen for the first time at the end of onboarding. It starts in a calm state, breathes, and the user sees it settle into the corner. No instruction needed — it just appears.
 - `V1` **"Still learning" acknowledgment** — the creature shows its learning visual, and a one-time bubble appears: "give me a few days. i'll tell you something when i know something."
 - `V1` **Settings reminder** — a small note at the end: "you can change any of this in settings, any time."
@@ -233,25 +233,25 @@ The first-run experience. Everything here builds trust before a single byte of d
 These are features visible to the user — not just policy statements.
 
 - `V1` **Inference mode badge** — visible in settings and optionally as a tiny label near the creature when hovered. Shows "local" or "cloud" at all times.
-- `V1` **"What Wisp knows" panel** — inside the dashboard. Plain language. "Here is everything Wisp has collected in the last hour and what it has inferred from it."
+- `V1` **"What Polter knows" panel** — inside the dashboard. Plain language. "Here is everything Polter has collected in the last hour and what it has inferred from it."
 - `V1` **Active sensor list** — in settings, a live list of which signals are currently running
-- `V1` **Zero transmission statement** — visible in the "what Wisp knows" panel: "none of this has left your device."
-- `V1` **Cloud inference consent** — if Wisp attempts to use OpenRouter and the user has not explicitly acknowledged that behavioral descriptions will leave the device, it asks first. One time, stored. Not asked again unless the setting changes.
+- `V1` **Zero transmission statement** — visible in the "what Polter knows" panel: "none of this has left your device."
+- `V1` **Cloud inference consent** — if Polter attempts to use OpenRouter and the user has not explicitly acknowledged that behavioral descriptions will leave the device, it asks first. One time, stored. Not asked again unless the setting changes.
 - `V1` **Privacy mode** — instantly pauses all collection. Creature enters a distinct "paused" state (greyed out, wings tucked differently from sleep). No data is collected while paused. Easily visible to the user that collection is stopped.
-- `V1` **No account required** — Wisp functions entirely without a login. Stated on the welcome screen.
+- `V1` **No account required** — Polter functions entirely without a login. Stated on the welcome screen.
 - `V1` **Data deletion** — one-tap clear of all raw behavioral data. Confirmation dialog with plain language about what gets deleted vs what stays (insight text).
 
 ---
 
 ## 9. "No AI" State
 
-When neither Ollama nor OpenRouter is available, Wisp degrades gracefully.
+When neither Ollama nor OpenRouter is available, Polter degrades gracefully.
 
 - `V1` The creature still runs and reflects behavioral state — state machine uses rule-based logic, no AI needed
 - `V1` The creature's mood still updates in real time based on collected signals
-- `V1` No chat bubbles are generated — Wisp goes quiet. It watches but does not speak.
+- `V1` No chat bubbles are generated — Polter goes quiet. It watches but does not speak.
 - `V1` A small indicator (in the tray or on hover) shows that insights are currently unavailable
-- `V1` When Ollama becomes available mid-session (user installs it), Wisp detects it within 60 seconds and resumes insight generation without restart
+- `V1` When Ollama becomes available mid-session (user installs it), Polter detects it within 60 seconds and resumes insight generation without restart
 - `V1` The dashboard still shows the activity chart and state history — just no insight text
 
 ---

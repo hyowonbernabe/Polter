@@ -1,10 +1,10 @@
-# Wisp Permissions and Insight Flow Design Spec
+# Polter Permissions and Insight Flow Design Spec
 
 Status: Draft for execution (do not commit)
 
 Date: 2026-05-05
 
-Owner: Wisp product and engineering
+Owner: Polter product and engineering
 
 ## Why this work exists
 
@@ -49,7 +49,7 @@ Out of scope for this cycle:
 
 ## Source of truth contract
 
-Create one shared shape for persisted user choices inside `wisp-settings.json`.
+Create one shared shape for persisted user choices inside `polter-settings.json`.
 
 Required fields:
 
@@ -76,7 +76,7 @@ Use this checklist in order. Do not skip.
 
 ### A. Baseline safety and mapping
 
-- [ ] Confirm current saved keys in `wisp-settings.json` are still readable.
+- [ ] Confirm current saved keys in `polter-settings.json` are still readable.
 - [ ] Add a migration-safe loader that fills missing fields with safe defaults.
 - [ ] Define one shared TypeScript type and one shared Rust type for tier choices.
 - [ ] Confirm defaults remain opt-in off for Tier 2 choices.

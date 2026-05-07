@@ -148,7 +148,7 @@ pub async fn tick_voice<R: tauri::Runtime>(
     // Recent daily summaries (last 3 days, excluding today)
     let recent_days = build_recent_day_contexts(pools, dow as u32).await;
 
-    // Wisp's recent observations (last 7 days)
+    // Polter's recent observations (last 7 days)
     let recent_memories = build_memory_contexts(pools, now_ms).await;
 
     // Weekly context (last 2 weekly summaries)

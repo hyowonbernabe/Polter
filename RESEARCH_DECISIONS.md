@@ -1,8 +1,8 @@
-# Wisp Research Decisions
+# Polter Research Decisions
 
 This file turns `RESEARCH.md` into product rules.
 
-Goal: decide what Wisp should collect, how strongly each signal should matter, and when Wisp is allowed to speak with confidence.
+Goal: decide what Polter should collect, how strongly each signal should matter, and when Polter is allowed to speak with confidence.
 
 ## 1) Collection defaults
 
@@ -98,9 +98,9 @@ Rule:
 
 ---
 
-## 3) Minimum evidence before Wisp speaks
+## 3) Minimum evidence before Polter speaks
 
-Wisp should only show an insight bubble when all rules below pass.
+Polter should only show an insight bubble when all rules below pass.
 
 ### Baseline rule
 

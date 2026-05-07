@@ -1,4 +1,4 @@
-# Wisp — Open Architecture Questions
+# Polter — Open Architecture Questions
 
 This document is a parking lot for unresolved decisions. Questions get resolved here and their answers get written into `docs/ARCHITECTURE.md`.
 
@@ -39,7 +39,7 @@ All of the following were answered during the architecture brainstorming session
 | Q21 | App update mechanism | Tauri updater plugin + GitHub Releases + tauri-action for manifest generation. |
 | Q22 | Creature position and dragging | Work area used everywhere. Position saved as percentage. Creature roams freely across all monitors. Always-on-top; exclusive fullscreen apps push it behind — acceptable. |
 | Q23 | System tray menu | State label (read-only), Open Dashboard, Sleep/Wake, Privacy Mode/Resume, Settings, Launch at Startup toggle, Quit. |
-| Q24 | Dashboard on day one | Full dashboard shown with calm empty states per section. Wisp voice messages for each empty area. |
+| Q24 | Dashboard on day one | Full dashboard shown with calm empty states per section. Polter voice messages for each empty area. |
 | Q25 | Dashboard data queries | Pre-aggregated daily_summaries table. Dashboard never queries raw snapshots. |
 | Q26 | Creature positioning across DPI/resolutions | Position saved as percentage of work area, not raw pixels. Clamped to safe zone on launch. |
 | Q27 | Taskbar handling | Work area used everywhere — taskbar always subtracted from positioning space. |
@@ -51,7 +51,7 @@ All of the following were answered during the architecture brainstorming session
 | Q33 | Sleep vs privacy mode | Both grayscale. Sleep = timer-based or scheduled. Privacy = manual only, manual end. Both tray-only, no hotkey. |
 | Q34 | Bubble positioning | Quadrant-based, always opens toward screen center. Safety check to keep fully within work area. |
 | Q35 | System wake handling | System wake = session boundary. 4+ hour absence triggers returning user animation. |
-| Q36 | Multiple user accounts | %APPDATA%\Wisp\ is isolated per Windows account automatically. |
+| Q36 | Multiple user accounts | %APPDATA%\Polter\ is isolated per Windows account automatically. |
 | Q37 | Self-throttling | Deferred — build first, measure under real conditions, set thresholds from profiled data. |
 | Q38 | Fullscreen and DND | Migrate to free monitor if available. Queue if all monitors fullscreen. DND respect is opt-in setting, off by default. |
 | Q39 | First launch vs returning launch | onboarding_completed flag in Tauri store. Single instance via tauri-plugin-single-instance. |

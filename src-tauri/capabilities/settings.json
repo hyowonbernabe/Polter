@@ -1,6 +1,6 @@
 {
   "identifier": "settings",
-  "description": "Capabilities for the Wisp settings window",
+  "description": "Capabilities for the Polter settings window",
   "windows": ["settings"],
   "permissions": [
     "core:default",

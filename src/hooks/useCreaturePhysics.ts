@@ -881,19 +881,7 @@ export function useCreaturePhysics(): PhysicsOutput {
       setSpriteSizeR(sz);
     }).then(unlisten => { unlistenScale = unlisten; });
 
-    let unlistenFullscreen: (() => void) | null = null;
-    listen('polter://fullscreen-detected', () => {
-      // Block only if already fleeing or in a user-interaction state.
-      const cur = stateRef.current;
-      const blocked: PhysicsState[] = ['flee', 'tether_grab', 'thrown', 'stunned', 'recovering', 'goal_interrupted'];
-      if (blocked.includes(cur)) return;
-      console.log('[polter] fullscreen-detected → triggering flee from state:', cur);
-      goalDestRef.current = null;
-      fleeStartRef.current = performance.now();
-      fleePhaseRef.current = 'startled';
-      fleeTargetRef.current = null;
-      transitionTo('flee');
-    }).then(unlisten => { unlistenFullscreen = unlisten; });
+    // Fullscreen flee disabled — caused teleport glitches.
 
     let unlistenDevGoal: (() => void) | null = null;
     listen('dev_trigger_goal', () => {
@@ -978,7 +966,6 @@ export function useCreaturePhysics(): PhysicsOutput {
       window.removeEventListener('pointerup', onWindowPointerUp);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (reactSyncTimerRef.current) clearTimeout(reactSyncTimerRef.current);
-      unlistenFullscreen?.();
       unlistenDevGoal?.();
       unlistenReady?.();
       unlistenScale?.();

@@ -1,6 +1,6 @@
-# Wisp — Tech Stack Reference
+# Polter — Tech Stack Reference
 
-This document covers every technology choice in Wisp, why it was chosen, what it replaces, and which build phase it belongs to.
+This document covers every technology choice in Polter, why it was chosen, what it replaces, and which build phase it belongs to.
 
 ---
 
@@ -84,7 +84,7 @@ Listens to global keyboard and mouse events on Windows without requiring elevate
 
 **Why rdevin and not rdev:** rdev has a confirmed bug in Tauri 2 on Windows where all keyboard events silently stop firing whenever the Tauri window holds focus. rdevin is an actively maintained fork that addresses this. Additionally, the input listener runs in a **separate child process** spawned via `std::process::Command` — not a thread inside the Tauri process. This process isolation eliminates the focus-driven event drop entirely. The child process communicates events back to the main process via stdin/stdout.
 
-**What Wisp captures per event:**
+**What Polter captures per event:**
 - Keyboard: timestamp when key went down, timestamp when key came back up. Nothing else. No key identity, no content.
 - Mouse: position (x, y) + timestamp on move events. Click type + timestamp on clicks.
 
@@ -122,11 +122,11 @@ System signals are polled on a background Rust thread every **30 seconds**. Inpu
 
 ## AI Inference
 
-Wisp uses a **local-first, cloud-fallback** inference architecture. Every inference call routes through a single Rust function — the rest of the app does not need to know which backend is active.
+Polter uses a **local-first, cloud-fallback** inference architecture. Every inference call routes through a single Rust function — the rest of the app does not need to know which backend is active.
 
 ### Local — Ollama + Gemma 4
 
-**Ollama** is a free, open-source tool that runs AI models locally on the user's machine and exposes them via a REST API on `localhost:11434`. Wisp does not bundle Ollama — it detects whether it is already installed and uses it if present.
+**Ollama** is a free, open-source tool that runs AI models locally on the user's machine and exposes them via a REST API on `localhost:11434`. Polter does not bundle Ollama — it detects whether it is already installed and uses it if present.
 
 **Model: Gemma 4 26B A4B Q4_K_M**
 
@@ -149,7 +149,7 @@ Fallback model: **Gemma 4 E4B Q4_K_M** — the 4B edge-optimized variant. Faster
 **Default cloud model: DeepSeek V4 Flash** or **Gemini 2.5 Flash-Lite** — both optimized for low latency and low cost, ideal for short constrained generation (~300 tokens). Model is a configurable string so it can be swapped without a release.
 **Backup:** any OpenRouter-compatible model the user specifies in settings.
 
-**Privacy:** OpenRouter does not store prompts by default. Zero Data Retention is enforced per-request via the `zdr: true` parameter. However, underlying model providers have their own policies — Wisp surfaces this clearly in the UI with a "running locally" vs "using cloud" badge. The user always knows which mode is active.
+**Privacy:** OpenRouter does not store prompts by default. Zero Data Retention is enforced per-request via the `zdr: true` parameter. However, underlying model providers have their own policies — Polter surfaces this clearly in the UI with a "running locally" vs "using cloud" badge. The user always knows which mode is active.
 
 **Rust integration:** `openrouter-rs` crate — type-safe async client. Raw `reqwest` is a valid fallback since OpenRouter is just HTTP.
 
@@ -174,7 +174,7 @@ The UI always shows the current mode. The user can force a mode switch from sett
 
 ### What the AI Actually Does
 
-Wisp does not run inference continuously. It batches signals on a configurable interval (default: every 15 minutes, or on significant state change) and sends a structured prompt to the active inference backend.
+Polter does not run inference continuously. It batches signals on a configurable interval (default: every 15 minutes, or on significant state change) and sends a structured prompt to the active inference backend.
 
 The prompt includes: current signal readings, trends over the last hour, current time of day, day of week, and any context modifiers (calendar event proximity if enabled, headphone state, power source). The model returns a short insight — one to three sentences — and a mood score that updates the pet's expression.
 
@@ -196,7 +196,7 @@ V1 uses simple rule-based scoring to drive the pet's mood state. ONNX models are
 
 **SQLite** via the `rusqlite` crate (or `sqlx` with SQLite driver).
 
-All signal data is stored locally on the user's machine. No cloud database. The database file lives in the OS app data directory (`%APPDATA%\Wisp\` on Windows).
+All signal data is stored locally on the user's machine. No cloud database. The database file lives in the OS app data directory (`%APPDATA%\Polter\` on Windows).
 
 Schema design priorities:
 - Time-series optimized: signal readings stored as timestamped rows, not wide columns
@@ -217,7 +217,7 @@ Schema design priorities:
 ## Project Structure
 
 ```
-wisp/
+polter/
 ├── src-tauri/              # Rust backend (Tauri)
 │    ├── src/
 │    │    ├── main.rs           # App entry, Tauri builder, plugin registration
@@ -286,7 +286,7 @@ wisp/
 | Microphone access (V1) | Deferred to V3 — `cpal` Rust crate is the plan when ready |
 | Webcam / rPPG (V1) | Deferred to V2 — yarppg + MediaPipe is the plan when ready |
 | ONNX Runtime (V1) | Deferred to V2 — rule-based scoring is sufficient for the hackathon |
-| Any cloud database | Everything is local. No server. No account required to use Wisp. |
+| Any cloud database | Everything is local. No server. No account required to use Polter. |
 | Unity / Godot | Correct for a pure game/pet, overkill here — canvas handles 2D sprites fine |
 
 ---

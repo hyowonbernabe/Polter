@@ -1,4 +1,4 @@
-# Wisp — Creature Design and Behavior Reference
+# Polter — Creature Design and Behavior Reference
 
 This document covers the full design of the creature's sprites, animation, physics, and interaction systems. Read this before touching anything in `useCreaturePhysics`, `useCreatureAnimation`, `Creature.tsx`, or any file that affects how the creature moves or looks.
 
@@ -15,7 +15,7 @@ The creature's behavior layers from bottom to top:
 1. **Physics loop** — position, velocity, collision, simplex-noise wander (runs at 60fps)
 2. **Physics state machine** — what the creature is *doing* (wander, grabbed, thrown, etc.)
 3. **Sprite selector** — reads physics state + mood state and picks the correct PNG
-4. **Mood modifier** — the creature's Wisp mental state tunes physics parameters and determines which mood sprite is shown when idle
+4. **Mood modifier** — the creature's Polter mental state tunes physics parameters and determines which mood sprite is shown when idle
 
 ---
 
@@ -222,7 +222,7 @@ Priority (highest first):
 8. direction       → front / front-right / right / back-right / back / back-left / left / front-left
 ```
 
-When in `wander`, `glide`, `hover`, or `cruise` with no overriding condition: show the mood sprite if a Wisp state is active, or the direction sprite if no mood is dominant.
+When in `wander`, `glide`, `hover`, or `cruise` with no overriding condition: show the mood sprite if a Polter state is active, or the direction sprite if no mood is dominant.
 
 Direction sprite selection from velocity vector:
 
@@ -319,9 +319,9 @@ A timer runs while the creature is in `wander` or `settled` with no user interac
 
 ## Mood Modifier System
 
-The creature's Wisp mental state tunes physics parameters. It does not change the FSM — it changes how the FSM behaves. The mood sprite replaces the direction sprite during idle wander.
+The creature's Polter mental state tunes physics parameters. It does not change the FSM — it changes how the FSM behaves. The mood sprite replaces the direction sprite during idle wander.
 
-| Wisp State | Sprite | Flight feel |
+| Polter State | Sprite | Flight feel |
 |---|---|---|
 | `focus` | `focused.png` | `MAX_SPEED * 1.0` (baseline), regular rhythm |
 | `calm` | `calm.png` | `MAX_SPEED * 0.7`, longer coasts, more settle time |

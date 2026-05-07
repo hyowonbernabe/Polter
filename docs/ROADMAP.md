@@ -1,4 +1,4 @@
-# Wisp — Roadmap
+# Polter — Roadmap
 
 A feature-by-feature build guide. This is not an implementation plan — it describes what gets built and in what order, not how. Check off each item as it is completed.
 
@@ -80,7 +80,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 - [x] Wake animation — creature unfurls and resumes when woken from sleep
 - [x] Privacy mode — instant full pause distinct from sleep, creature shows a dedicated paused visual
 - [x] Sleep and privacy mode accessible from system tray menu
-- [x] Auto-sleep schedule — user can set quiet hours during which Wisp sleeps automatically
+- [x] Auto-sleep schedule — user can set quiet hours during which Polter sleeps automatically
 
 ---
 
@@ -140,7 +140,7 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 - [x] State distribution this week — breakdown of time spent in each state
 - [x] Insight history log — all past bubbles in reverse chronological order, full text readable
 - [x] Personal bests — longest focus session ever recorded, best day this week
-- [x] "What Wisp knows" panel — plain language summary of what has been collected and inferred this session
+- [x] "What Polter knows" panel — plain language summary of what has been collected and inferred this session
 - [x] Day-one empty state — chart and history sections show a calm, informative message when no data exists yet
 
 ---
@@ -170,12 +170,12 @@ Progress is tracked by group. A group is not "done" until every item in it is ch
 ## Group 10 — Onboarding
 *The app welcomes.*
 
-- [x] Welcome screen — what Wisp is, in plain language, no jargon
+- [x] Welcome screen — what Polter is, in plain language, no jargon
 - [x] Tier 1 disclosure screen — exactly what is collected automatically, before collection starts
 - [x] Screen content opt-in screen — what it is, what it is not, yes or no
 - [x] Clipboard activity opt-in screen — what it is, what it is not, yes or no
 - [x] Calendar context opt-in screen — what it is, what it is not, yes or no
-- [x] Summary screen — shows exactly what Wisp will and will not collect based on the choices just made
+- [x] Summary screen — shows exactly what Polter will and will not collect based on the choices just made
 - [x] Creature appears on screen for the first time at the end of onboarding
 - [x] First bubble appears — "give me a few days. i'll tell you something when i know something."
 - [x] Settings reminder — user is told they can change any of this at any time

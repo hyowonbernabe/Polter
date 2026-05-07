@@ -42,12 +42,12 @@ pub fn start<R: Runtime>(
                 let _ = window.set_ignore_cursor_events(!inside);
             }
 
-            // Detect fullscreen exclusive — emit only on the rising edge
-            let now_fullscreen = is_fullscreen_exclusive();
-            if now_fullscreen && !was_fullscreen {
-                let _ = app.emit("polter://fullscreen-detected", ());
-            }
-            was_fullscreen = now_fullscreen;
+            // Fullscreen flee disabled — caused teleport glitches.
+            // let now_fullscreen = is_fullscreen_exclusive();
+            // if now_fullscreen && !was_fullscreen {
+            //     let _ = app.emit("polter://fullscreen-detected", ());
+            // }
+            // was_fullscreen = now_fullscreen;
 
             std::thread::sleep(Duration::from_millis(16));
         }

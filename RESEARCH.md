@@ -1,6 +1,6 @@
-# Wisp Research Evidence (2010 to May 2026)
+# Polter Research Evidence (2010 to May 2026)
 
-This file explains why Wisp collects each signal, what that signal can tell us, and where it can mislead us.
+This file explains why Polter collects each signal, what that signal can tell us, and where it can mislead us.
 
 This review uses:
 - peer reviewed papers first,
@@ -10,7 +10,7 @@ This review uses:
 
 Important ground rule:
 - These signals can show patterns, not medical diagnosis.
-- Wisp should always compare a person against their own normal pattern over time.
+- Polter should always compare a person against their own normal pattern over time.
 - One signal alone should almost never drive a strong claim.
 
 ## How to read this file
@@ -113,7 +113,7 @@ These should stay because they combine multiple weak signals into stronger patte
 
 ---
 
-## Nearby signals to improve Wisp later (no content collection)
+## Nearby signals to improve Polter later (no content collection)
 
 Ranked by expected value vs privacy cost:
 
@@ -220,7 +220,7 @@ Practical rule:
 
 ## Final product guidance from research
 
-If Wisp wants accurate and trustworthy insights:
+If Polter wants accurate and trustworthy insights:
 
 1. Keep core behavior signals that have strong support.
 2. Keep weak signals only as light context modifiers.

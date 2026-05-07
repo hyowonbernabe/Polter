@@ -1,8 +1,8 @@
-# Wisp — Architecture Reference
+# Polter — Architecture Reference
 
-Wisp is a passive desktop companion for Windows. A pixel art creature (a winged ball) lives as a transparent, always-on-top overlay. It silently watches your keyboard, mouse, and system behavior, builds a personal baseline of your normal patterns over time, classifies your current mental state using a rule-based engine, and occasionally shows AI-generated psychological observations through chat bubbles that appear to come from the creature — like a small, silent presence that notices things about you.
+Polter is a passive desktop companion for Windows. A pixel art creature (a ghost) lives as a transparent, always-on-top overlay. It silently watches your keyboard, mouse, and system behavior, builds a personal baseline of your normal patterns over time, classifies your current mental state using a rule-based engine, and occasionally shows AI-generated psychological observations through chat bubbles that appear to come from the creature — like a small, silent presence that notices things about you.
 
-This document covers every architectural decision made for Wisp, organized by layer.
+This document covers every architectural decision made for Polter, organized by layer.
 
 ---
 
@@ -75,7 +75,7 @@ Performance throttling (CPU/memory caps) is deferred. The plan is to build first
 
 ### Personal Baseline
 
-Wisp learns what "normal" looks like for each user individually. It uses an **Exponential Moving Average (EMA)** with a 14-day decay window — recent behavior counts for more, and data older than roughly 6 weeks becomes nearly irrelevant.
+Polter learns what "normal" looks like for each user individually. It uses an **Exponential Moving Average (EMA)** with a 14-day decay window — recent behavior counts for more, and data older than roughly 6 weeks becomes nearly irrelevant.
 
 The baseline is updated once per day, at the end of the last session of the day.
 
@@ -172,7 +172,7 @@ All of the following must be true before an inference call is made:
 ### What Gets Sent to the AI
 
 **System prompt** (sent once per session):
-- Wisp's voice rules: lowercase, second person, observational, never prescriptive, no "you should", no health claims
+- Polter's voice rules: lowercase, second person, observational, never prescriptive, no "you should", no health claims
 - The 7 state definitions
 - Output JSON schema
 - Hard rules on insight quality
@@ -190,7 +190,7 @@ All of the following must be true before an inference call is made:
 ```json
 {
   "state": "burn",
-  "insight": "one to two sentence bubble text in Wisp's voice",
+  "insight": "one to two sentence bubble text in Polter's voice",
   "extended": "two to three sentence expansion for tell me more",
   "type": "fatigue_signal"
 }
@@ -242,7 +242,7 @@ The last 10 insight types are tracked with timestamps and occurrence counts in S
 
 ### Database
 
-SQLite, single file at `%APPDATA%\Wisp\wisp.db`.
+SQLite, single file at `%APPDATA%\Polter\polter.db`.
 
 **V1 has no encryption.** Behavioral metadata (typing rhythm, mouse speed) has no sensitive content. The Windows user account boundary prevents other accounts from reading the file. DPAPI encryption is planned for V2.
 
@@ -267,7 +267,7 @@ Tauri store plugin handles key-value settings, stored in a separate file from SQ
 
 ### Data Directory
 
-All files written to `%APPDATA%\Wisp\`. This directory is isolated per Windows user account automatically. Nothing is ever written to `%ProgramData%` or any shared system location.
+All files written to `%APPDATA%\Polter\`. This directory is isolated per Windows user account automatically. Nothing is ever written to `%ProgramData%` or any shared system location.
 
 ### Retention
 
@@ -291,7 +291,7 @@ Single-instance enforcement uses `tauri-plugin-single-instance` (official Tauri 
 
 ### First Launch vs. Returning Launch
 
-On every launch, Wisp checks the `onboarding_completed` flag in the Tauri store.
+On every launch, Polter checks the `onboarding_completed` flag in the Tauri store.
 
 - Missing or false → run onboarding flow
 - True → normal startup sequence
@@ -319,7 +319,7 @@ Steps execute in this order:
 
 ### System Wake Handling
 
-Wisp listens for Windows power events via windows-rs.
+Polter listens for Windows power events via windows-rs.
 
 - On wake: close the current session, reset the state machine, start fresh
 - If the machine was asleep for **4+ hours**: trigger the "returning user" animation on the creature
@@ -449,14 +449,14 @@ Both modes render the creature in full grayscale — no color, indicating nothin
 | How it starts | Manually triggered or scheduled (quiet hours) | Manually triggered only |
 | How it ends | Automatically on schedule, or manual wake | Manually ended only — no timer |
 | Data collection | Paused immediately | Paused immediately |
-| Tray label | "Wake Wisp" | "Resume" |
+| Tray label | "Wake Polter" | "Resume" |
 | Access | System tray only — no keyboard shortcut | System tray only — no keyboard shortcut |
 
 Both modes immediately end the current session. No audio plays in either mode.
 
 ### Fullscreen and Do Not Disturb Handling
 
-Before showing any bubble, Wisp checks whether the foreground window is fullscreen.
+Before showing any bubble, Polter checks whether the foreground window is fullscreen.
 
 | Scenario | Behavior |
 |---|---|
@@ -482,16 +482,16 @@ After quadrant selection, a safety check verifies the full bubble rectangle fits
 ### Tray Menu
 
 ```
-● Wisp — [state] ([duration])     ← current state, read-only
+● Polter — [state] ([duration])     ← current state, read-only
 ─────────────────────────────
   Open Dashboard
-  Sleep                            ← label becomes "Wake Wisp" when asleep
+  Sleep                            ← label becomes "Wake Polter" when asleep
   Privacy Mode                     ← label becomes "Resume" when active
 ─────────────────────────────
   Settings
   Launch at Startup ✓              ← inline checkmark toggle
 ─────────────────────────────
-  Quit Wisp
+  Quit Polter
 ```
 
 ### Audio

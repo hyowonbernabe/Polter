@@ -1,10 +1,10 @@
-# Wisp — Data Collection Reference
+# Polter — Data Collection Reference
 
-This document covers every signal Wisp can collect, what each one reveals, and what level of user permission is required before collecting it.
+This document covers every signal Polter can collect, what each one reveals, and what level of user permission is required before collecting it.
 
-The guiding principle: **Wisp never collects more than it needs, and it never collects anything without the user understanding what and why.**
+The guiding principle: **Polter never collects more than it needs, and it never collects anything without the user understanding what and why.**
 
-At the end of this document, a **Signal Verdict** table summarizes every signal's useability and whether it belongs in Wisp.
+At the end of this document, a **Signal Verdict** table summarizes every signal's useability and whether it belongs in Polter.
 
 ---
 
@@ -24,13 +24,13 @@ Anything marked **DEFERRED** in this document is fully designed and ready to bui
 
 ## Permission Tiers
 
-Wisp uses three tiers of data collection:
+Polter uses three tiers of data collection:
 
 **Tier 1 — Collected automatically on install.**
-These signals are low-sensitivity, contain no personal content, and are the minimum required for Wisp to function at all. The user is informed about these during onboarding but no additional action is required.
+These signals are low-sensitivity, contain no personal content, and are the minimum required for Polter to function at all. The user is informed about these during onboarding but no additional action is required.
 
 **Tier 2 — Opt-in during onboarding.**
-These signals are more revealing or slightly more sensitive. Wisp asks the user to enable them during the setup flow with a clear explanation of what each one does. The user can skip any or all of them.
+These signals are more revealing or slightly more sensitive. Polter asks the user to enable them during the setup flow with a clear explanation of what each one does. The user can skip any or all of them.
 
 **Tier 3 — Explicit permission required, separately.**
 These signals involve the camera or microphone. They are never collected passively or silently. The user must actively grant permission through a dedicated screen, and they can revoke it at any time from settings. **Tier 3 is fully deferred — not included in V1.**
@@ -57,9 +57,9 @@ These signals involve the camera or microphone. They are never collected passive
 
 **What this reveals:** Cognitive state, stress level, flow vs. fatigue, avoidance behavior, cognitive fitness trends over time. High undo/redo rate signals rethinking and uncertainty. High deletion ratio signals struggle, low confidence, or editing mode. Heavy shortcut use signals expert flow state.
 
-**Why no explicit permission:** Wisp collects timing metadata and action counts only — never the content of what was typed.
+**Why no explicit permission:** Polter collects timing metadata and action counts only — never the content of what was typed.
 
-**User is told:** "Wisp watches how you type — the speed, rhythm, and how often you correct yourself — not what you type. Your words are never seen or stored."
+**User is told:** "Polter watches how you type — the speed, rhythm, and how often you correct yourself — not what you type. Your words are never seen or stored."
 
 **Verdicts for additions:**
 - Undo/redo frequency — **KEEP.** Direct window into indecision and rethinking. Strong signal.
@@ -88,7 +88,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Mouse movement is positional and behavioral data with no content attached.
 
-**User is told:** "Wisp watches how your mouse moves — speed, steadiness, pauses, and scrolling — to understand your energy and focus level."
+**User is told:** "Polter watches how your mouse moves — speed, steadiness, pauses, and scrolling — to understand your energy and focus level."
 
 **Verdicts for additions:**
 - Scroll depth — **KEEP.** Reveals reading vs. skimming behavior. Good signal for focus quality.
@@ -111,7 +111,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Only the application name is captured (e.g., "VS Code", "Slack", "Chrome") — not what is inside it.
 
-**User is told:** "Wisp knows which apps are open and how long you spend in each — like 'you spent 2 hours in your code editor today' — but never what is inside them."
+**User is told:** "Polter knows which apps are open and how long you spend in each — like 'you spent 2 hours in your code editor today' — but never what is inside them."
 
 ---
 
@@ -150,9 +150,9 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Only counts are captured — no titles, no content, no URLs.
 
-**User is told:** "Wisp counts how many windows and tabs you have open as a rough measure of mental load — not what any of them contain."
+**User is told:** "Polter counts how many windows and tabs you have open as a rough measure of mental load — not what any of them contain."
 
-**Wisp verdict: KEEP.** One of the most reliable cognitive load proxies available without content access.
+**Polter verdict: KEEP.** One of the most reliable cognitive load proxies available without content access.
 
 ---
 
@@ -168,7 +168,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Structural behavior only. No content involved.
 
-**Wisp verdict: TRIM.** Adds nuance to the window count signal but is weak on its own. Only useful in combination with other signals — not a primary insight driver.
+**Polter verdict: TRIM.** Adds nuance to the window count signal but is weak on its own. Only useful in combination with other signals — not a primary insight driver.
 
 ---
 
@@ -183,9 +183,9 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Only response latency is captured. No notification content or sender is ever seen.
 
-**User is told:** "Wisp notices how quickly you respond to or dismiss notifications — not what they say — to understand whether you're in a focused state or a reactive one."
+**User is told:** "Polter notices how quickly you respond to or dismiss notifications — not what they say — to understand whether you're in a focused state or a reactive one."
 
-**Wisp verdict: KEEP.** Surprisingly strong signal. Notification response is a real-time measure of distraction susceptibility.
+**Polter verdict: KEEP.** Surprisingly strong signal. Notification response is a real-time measure of distraction susceptibility.
 
 ---
 
@@ -201,9 +201,9 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** System-level settings — no content, no behavior beyond a single numeric value.
 
-**User is told:** "Wisp checks your screen brightness and night mode status to understand if your setup is working with your sleep or against it."
+**User is told:** "Polter checks your screen brightness and night mode status to understand if your setup is working with your sleep or against it."
 
-**Wisp verdict: KEEP.** Cheap to collect, adds a sleep-hygiene insight layer that is both novel and genuinely useful.
+**Polter verdict: KEEP.** Cheap to collect, adds a sleep-hygiene insight layer that is both novel and genuinely useful.
 
 ---
 
@@ -215,13 +215,13 @@ These signals involve the camera or microphone. They are never collected passive
 | Whether headphones or earbuds are connected | |
 | Whether external speakers are in use | |
 
-**What this reveals:** Environment context. Headphones on often means intentional focus mode. High system volume may indicate a noisy environment. This helps Wisp interpret other signals — for example, high typing stress plus headphones on often means someone is concentrating hard, not actually stressed.
+**What this reveals:** Environment context. Headphones on often means intentional focus mode. High system volume may indicate a noisy environment. This helps Polter interpret other signals — for example, high typing stress plus headphones on often means someone is concentrating hard, not actually stressed.
 
 **Why no explicit permission:** System metadata only. Requires no audio access.
 
-**User is told:** "Wisp checks whether your headphones are plugged in and what your volume is set to — not what you're listening to — to understand your focus context."
+**User is told:** "Polter checks whether your headphones are plugged in and what your volume is set to — not what you're listening to — to understand your focus context."
 
-**Wisp verdict: KEEP.** Important context modifier. Changes the interpretation of multiple other signals.
+**Polter verdict: KEEP.** Important context modifier. Changes the interpretation of multiple other signals.
 
 ---
 
@@ -233,13 +233,13 @@ These signals involve the camera or microphone. They are never collected passive
 | Battery percentage trend | Charging history |
 | Rate of battery drain | |
 
-**What this reveals:** Work location context and session intensity. Battery drain rate is a proxy for CPU-intensive work. Switching from plugged to battery often coincides with location change (desk to couch). Wisp can use this to detect informal vs. structured work sessions.
+**What this reveals:** Work location context and session intensity. Battery drain rate is a proxy for CPU-intensive work. Switching from plugged to battery often coincides with location change (desk to couch). Polter can use this to detect informal vs. structured work sessions.
 
 **Why no explicit permission:** System-level hardware state. No personal data.
 
-**User is told:** "Wisp knows whether you're plugged in or on battery to understand whether you're at your desk or working from somewhere else."
+**User is told:** "Polter knows whether you're plugged in or on battery to understand whether you're at your desk or working from somewhere else."
 
-**Wisp verdict: KEEP.** Cheap signal with real interpretive value. Helps separate structured work from casual browsing sessions.
+**Polter verdict: KEEP.** Cheap signal with real interpretive value. Helps separate structured work from casual browsing sessions.
 
 ---
 
@@ -254,7 +254,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Monitor index only. No content or coordinates.
 
-**Wisp verdict: KEEP.** Adds depth to focus analysis for multi-monitor users. Ignored gracefully for single-monitor users.
+**Polter verdict: KEEP.** Adds depth to focus analysis for multi-monitor users. Ignored gracefully for single-monitor users.
 
 ---
 
@@ -270,7 +270,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Activity level only — no packet content, no URLs, no hostnames.
 
-**Wisp verdict: TRIM.** Moderately useful as a context layer but rarely drives a primary insight on its own. Keep as a quiet background signal.
+**Polter verdict: TRIM.** Moderately useful as a context layer but rarely drives a primary insight on its own. Keep as a quiet background signal.
 
 ---
 
@@ -285,9 +285,9 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Key event count only. File names and paths are never accessed.
 
-**User is told:** "Wisp counts how often you save your work — not what you're saving — as a surprising signal for stress level."
+**User is told:** "Polter counts how often you save your work — not what you're saving — as a surprising signal for stress level."
 
-**Wisp verdict: KEEP.** Underrated signal. Compulsive Ctrl+S is a genuine behavioral tell that most people would find fascinating to see surfaced.
+**Polter verdict: KEEP.** Underrated signal. Compulsive Ctrl+S is a genuine behavioral tell that most people would find fascinating to see surfaced.
 
 ---
 
@@ -302,7 +302,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why no explicit permission:** Key event count only. Screenshots are never accessed or stored.
 
-**Wisp verdict: TRIM.** Hard to interpret without more context. Only meaningful when combined with application focus data. Not worth surfacing as a primary signal.
+**Polter verdict: TRIM.** Hard to interpret without more context. Only meaningful when combined with application focus data. Not worth surfacing as a primary signal.
 
 ---
 
@@ -316,11 +316,11 @@ These signals involve the camera or microphone. They are never collected passive
 | Classification of content type on screen | Readable text |
 | Visual context of what kind of work is happening | Passwords or sensitive fields (always excluded) |
 
-**What this reveals:** Whether you are writing, reading, watching, communicating, or browsing. Helps Wisp understand the nature of your work rather than just which application is open. Enables detection of task-switching within a single application.
+**What this reveals:** Whether you are writing, reading, watching, communicating, or browsing. Helps Polter understand the nature of your work rather than just which application is open. Enables detection of task-switching within a single application.
 
 **Why opt-in:** Screenshots, even low-resolution and processed locally, feel more sensitive than metadata.
 
-**How to ask:** "Can Wisp take an occasional blurry snapshot of your screen to better understand what kind of work you are doing? It processes the image locally and never stores the image itself — only a label like 'writing' or 'watching video'."
+**How to ask:** "Can Polter take an occasional blurry snapshot of your screen to better understand what kind of work you are doing? It processes the image locally and never stores the image itself — only a label like 'writing' or 'watching video'."
 
 **User can disable at any time.**
 
@@ -337,7 +337,7 @@ These signals involve the camera or microphone. They are never collected passive
 
 **Why opt-in:** Even though no content is captured, some users may feel uneasy knowing clipboard actions are monitored.
 
-**How to ask:** "Can Wisp track how often you copy and paste — not what, just how often — to understand your research and writing patterns?"
+**How to ask:** "Can Polter track how often you copy and paste — not what, just how often — to understand your research and writing patterns?"
 
 ---
 
@@ -350,15 +350,15 @@ These signals involve the camera or microphone. They are never collected passive
 | Whether the current time slot has a meeting in progress | |
 | Number of meetings in the current week vs. typical week | |
 
-**What this reveals:** Pre-meeting stress spikes are a well-documented phenomenon — keyboard tremor and cursor jitter reliably increase in the 10-20 minutes before a meeting. Meeting-dense days explain sustained fatigue even when keyboard output looks normal. Calendar context lets Wisp explain anomalies it observes rather than misattributing them.
+**What this reveals:** Pre-meeting stress spikes are a well-documented phenomenon — keyboard tremor and cursor jitter reliably increase in the 10-20 minutes before a meeting. Meeting-dense days explain sustained fatigue even when keyboard output looks normal. Calendar context lets Polter explain anomalies it observes rather than misattributing them.
 
 **Why opt-in:** Calendar access feels personal even when no content is read. Reading the structure of someone's schedule (busy vs. free) is meaningfully different from reading file contents, but it still warrants explicit consent.
 
-**How to ask:** "Can Wisp read the rough shape of your calendar — like whether you have a meeting coming up, not what it's about — so it can understand why your stress level might spike before calls?"
+**How to ask:** "Can Polter read the rough shape of your calendar — like whether you have a meeting coming up, not what it's about — so it can understand why your stress level might spike before calls?"
 
 **User can disable at any time.**
 
-**Wisp verdict: KEEP.** Calendar context is a major unlock for the quality of Wisp's insights. Without it, Wisp will regularly misread legitimate meeting-stress as a personal focus problem.
+**Polter verdict: KEEP.** Calendar context is a major unlock for the quality of Polter's insights. Without it, Polter will regularly misread legitimate meeting-stress as a personal focus problem.
 
 ---
 
@@ -381,20 +381,20 @@ These signals involve the camera or microphone. They are never collected passive
 | Whether ambient lighting has changed significantly | |
 | Whether a second person has entered the frame | Identity of that person |
 
-**What this reveals:** Physical stress level, posture and fatigue (distance from screen), sustained attention (looking-away frequency), cognitive engagement (head movement patterns), environmental disturbance (lighting changes, another person present). The "another person visible" signal is especially important — it tells Wisp to suspend behavioral inferences, since presence of another person changes all other signals dramatically.
+**What this reveals:** Physical stress level, posture and fatigue (distance from screen), sustained attention (looking-away frequency), cognitive engagement (head movement patterns), environmental disturbance (lighting changes, another person present). The "another person visible" signal is especially important — it tells Polter to suspend behavioral inferences, since presence of another person changes all other signals dramatically.
 
 **Why explicit permission:** This uses the camera. Regardless of what is captured, activating a camera requires clear, separate consent.
 
-**How to ask:** Dedicated permission screen during setup: "Wisp can estimate your heart rate using your webcam by reading tiny color changes in your face — the same way a pulse oximeter works, but without contact. No images are ever stored. Your camera would only be active while Wisp is running. Enable this for deeper physical wellbeing insights?"
+**How to ask:** Dedicated permission screen during setup: "Polter can estimate your heart rate using your webcam by reading tiny color changes in your face — the same way a pulse oximeter works, but without contact. No images are ever stored. Your camera would only be active while Polter is running. Enable this for deeper physical wellbeing insights?"
 
-**Camera indicator:** A visible indicator in the Wisp interface is always shown when the camera is active. User can disable at any time.
+**Camera indicator:** A visible indicator in the Polter interface is always shown when the camera is active. User can disable at any time.
 
 **Verdicts for additions:**
 - Distance from screen — **KEEP.** Reliable posture and fatigue signal. Leaning in = high focus or strain. Leaning back = relaxed or distracted.
 - Looking-away frequency — **KEEP.** Strong attention signal. High look-away rate correlates with difficulty concentrating.
 - Head movement/nodding — **TRIM.** Interesting but noisy. Nodding can mean thinking or listening to music. Not reliably actionable alone.
 - Lighting changes — **TRIM.** Useful as a "did something change in the environment" trigger but rarely a primary insight on its own.
-- Another person visible — **KEEP.** Critical for data quality. Wisp must know to pause interpretation when the user is not alone.
+- Another person visible — **KEEP.** Critical for data quality. Polter must know to pause interpretation when the user is not alone.
 
 ---
 
@@ -411,25 +411,25 @@ These signals involve the camera or microphone. They are never collected passive
 | Keyboard acoustic patterns (rhythm, not content) | Words or key identity |
 | Duration of complete silence (no typing, no sound) | |
 
-**What this reveals:** Whether you are working in a noisy environment, whether you are on a call (which explains all behavior anomalies during that period), whether music is helping or hurting focus, whether silence is recovery or dissociation. Call detection is particularly valuable — it tells Wisp to suspend all other behavioral inferences during the call.
+**What this reveals:** Whether you are working in a noisy environment, whether you are on a call (which explains all behavior anomalies during that period), whether music is helping or hurting focus, whether silence is recovery or dissociation. Call detection is particularly valuable — it tells Polter to suspend all other behavioral inferences during the call.
 
 **Why explicit permission:** Microphone access requires explicit consent on all operating systems regardless of what is captured.
 
-**How to ask:** "Can Wisp listen for background noise level — not the words, just how loud or quiet your environment is — to better understand what kind of conditions you work in? No audio is ever recorded or stored."
+**How to ask:** "Can Polter listen for background noise level — not the words, just how loud or quiet your environment is — to better understand what kind of conditions you work in? No audio is ever recorded or stored."
 
 **User can disable at any time.**
 
 **Verdicts for additions:**
 - Music detection — **KEEP.** Important context modifier. Music on + typing fast = high focus. Music off + typing slowed = different situation entirely.
-- Call detection — **KEEP.** The most important addition. Call periods must be excluded from all standard behavioral models or Wisp will generate nonsense insights.
+- Call detection — **KEEP.** The most important addition. Call periods must be excluded from all standard behavioral models or Polter will generate nonsense insights.
 - Keyboard acoustics (acoustic rhythm) — **TRIM.** Keyboard dynamics via keystroke timing already captures this better. Acoustic version adds marginal precision at high collection cost.
-- Silence duration — **KEEP.** Extended silence during a work session is either a healthy break or a dissociation/avoidance episode. Wisp can distinguish these using other signals.
+- Silence duration — **KEEP.** Extended silence during a work session is either a healthy break or a dissociation/avoidance episode. Polter can distinguish these using other signals.
 
 ---
 
 ## Derived Signals
 
-These are not directly collected from hardware. They are computed by Wisp from combinations of the signals above. Listed here for completeness and to explain what Wisp infers.
+These are not directly collected from hardware. They are computed by Polter from combinations of the signals above. Listed here for completeness and to explain what Polter infers.
 
 | Derived signal | How it is computed | What it reveals |
 |---|---|---|
@@ -440,17 +440,17 @@ These are not directly collected from hardware. They are computed by Wisp from c
 | Focus session quality score | Combination of: switching frequency, notification response, typing consistency, idle time | Single score for how "in the zone" a given session was |
 | Pre-meeting stress signature | Keyboard jitter and cursor speed 15–20 minutes before a calendar event | Validates the meeting-anxiety effect at an individual level |
 
-**Wisp verdicts:**
-- Error recovery speed — **KEEP.** One of the most psychologically rich derived signals. Unique to Wisp.
+**Polter verdicts:**
+- Error recovery speed — **KEEP.** One of the most psychologically rich derived signals. Unique to Polter.
 - Decision latency — **KEEP.** Subtle but fascinating. Reveals hesitation in a way the user would never self-report.
 - Weekend/weekday pattern — **KEEP.** Directly relevant to burnout risk.
 - End-of-day wind-down — **KEEP.** Important for detecting when someone's relationship with work is unhealthy.
 - Focus quality score — **KEEP.** This is the single number that powers the creature's face. Core to the product.
-- Pre-meeting stress signature — **KEEP.** High narrative value. "You get more anxious before meetings than you realize" is exactly the kind of revelation Wisp exists to surface.
+- Pre-meeting stress signature — **KEEP.** High narrative value. "You get more anxious before meetings than you realize" is exactly the kind of revelation Polter exists to surface.
 
 ---
 
-## What Wisp Will Never Collect
+## What Polter Will Never Collect
 
 Regardless of any permission setting, these are permanently off limits:
 
@@ -468,7 +468,7 @@ Regardless of any permission setting, these are permanently off limits:
 
 ## Signal Verdict Summary
 
-A full reference of every signal, its tier, and whether it belongs in Wisp.
+A full reference of every signal, its tier, and whether it belongs in Polter.
 
 | Signal | Tier | Verdict |
 |---|---|---|
@@ -535,7 +535,7 @@ A full reference of every signal, its tier, and whether it belongs in Wisp.
 | Pre-meeting stress signature | derived | KEEP |
 
 **Verdict key:**
-- **KEEP** — Directly drives Wisp insights. Include in V1.
+- **KEEP** — Directly drives Polter insights. Include in V1.
 - **TRIM** — Adds nuance but is not a primary insight driver. Include passively as a context modifier, do not surface directly.
 - **CUT** — Too sparse, too noisy, or too hard to interpret to justify inclusion.
 - **DEFERRED (V2)** — Designed and ready, not built in V1. Webcam signals.
@@ -545,14 +545,14 @@ A full reference of every signal, its tier, and whether it belongs in Wisp.
 
 ## First-Run Permission Flow
 
-When Wisp is first installed, the user goes through a short setup sequence:
+When Polter is first installed, the user goes through a short setup sequence:
 
 **V1 flow:**
-1. **Welcome screen** — explains what Wisp is and that it runs passively
+1. **Welcome screen** — explains what Polter is and that it runs passively
 2. **Tier 1 disclosure** — shows exactly what is automatically collected and why, with plain language explanations
 3. **Tier 2 opt-ins** — one screen per signal group, each with a simple yes/no (screen analysis, clipboard, calendar)
-4. **Summary screen** — shows exactly what Wisp will and will not collect based on the user's choices
-5. **Settings reminder** — user is told they can change any of this at any time from the Wisp settings panel
+4. **Summary screen** — shows exactly what Polter will and will not collect based on the user's choices
+5. **Settings reminder** — user is told they can change any of this at any time from the Polter settings panel
 
 The user can complete this flow in under two minutes.
 
@@ -564,6 +564,6 @@ The user can complete this flow in under two minutes.
 
 ## Ongoing Transparency
 
-Wisp maintains a visible indicator in its interface showing which sensors are currently active. The user can open a "What Wisp knows" panel at any time to see a plain-language summary of what has been collected in the current session and what it has inferred.
+Polter maintains a visible indicator in its interface showing which sensors are currently active. The user can open a "What Polter knows" panel at any time to see a plain-language summary of what has been collected in the current session and what it has inferred.
 
-Nothing about Wisp's data collection is ever hidden.
+Nothing about Polter's data collection is ever hidden.

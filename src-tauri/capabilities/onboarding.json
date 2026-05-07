@@ -1,6 +1,6 @@
 {
   "identifier": "onboarding",
-  "description": "Capabilities for the Wisp onboarding window",
+  "description": "Capabilities for the Polter onboarding window",
   "windows": ["onboarding"],
   "permissions": [
     "core:default",
