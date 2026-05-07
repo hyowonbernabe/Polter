@@ -35,14 +35,17 @@ export function createWebPlatform(): PlatformInstance {
 
   return {
     getWorkArea(): WorkArea {
+      if (typeof window === 'undefined') return { x: 0, y: 0, width: 1280, height: 800 };
       return { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
     },
 
     savePosition(pct: { x: number; y: number }): void {
+      if (typeof window === 'undefined') return;
       try { localStorage.setItem(POSITION_KEY, JSON.stringify(pct)); } catch { /* quota */ }
     },
 
     loadPosition(): { x: number; y: number } | null {
+      if (typeof window === 'undefined') return null;
       try {
         const raw = localStorage.getItem(POSITION_KEY);
         if (!raw) return null;
