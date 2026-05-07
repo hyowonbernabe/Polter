@@ -78,16 +78,15 @@ export function TheCreature() {
         {/* Right: sprite constellation + product mockup placeholder */}
         <div ref={containerRef} style={{ position: 'relative', height: 420 }}>
           {/* Product mockup placeholder */}
-          <div
+          <img
+            src="https://placehold.co/560x350"
+            alt="app screenshot placeholder"
             style={{
               position:     'absolute',
               bottom:       0,
               right:        0,
               width:        '68%',
-              aspectRatio:  '16/10',
-              background:   'var(--bg-2)',
               borderRadius: 'var(--radius-lg)',
-              border:       '1px solid var(--border-1)',
             }}
           />
           {/* Constellation */}

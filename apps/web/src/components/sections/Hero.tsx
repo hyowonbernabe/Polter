@@ -182,6 +182,12 @@ export function Hero() {
               overflow: 'hidden',
             }}
           >
+            {/* Placeholder image */}
+            <img
+              src="https://placehold.co/800x500"
+              alt="desk / screenshot placeholder"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
             <div
               ref={ghostRef}
               style={{

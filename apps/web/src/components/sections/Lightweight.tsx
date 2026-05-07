@@ -58,7 +58,8 @@ function Metric({ target, label, delay }: MetricProps) {
 export function Lightweight() {
   return (
     <section style={{ background: 'var(--bg-light)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
-      <div style={{ maxWidth: 600 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 'var(--sp-8)', alignItems: 'start', maxWidth: 900 }}>
+      <div>
         <div className="eyebrow mb-4" style={{ color: 'var(--fg-ink-3)' }}>lightweight</div>
         <h2
           style={{
@@ -91,6 +92,13 @@ export function Lightweight() {
           label="aggregation window. raw events are discarded. only the rhythm remains."
           delay={400}
         />
+      </div>
+      {/* Asset #6: feather — tall portrait (~1:2), transparent bg, floats beside metrics */}
+      <img
+        src="https://placehold.co/120x240"
+        alt="feather placeholder"
+        style={{ width: 120, borderRadius: 'var(--radius-md)', marginTop: 'var(--sp-8)', opacity: 0.6 }}
+      />
       </div>
     </section>
   );

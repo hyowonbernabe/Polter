@@ -45,6 +45,7 @@ export function TheScience() {
           gridTemplateColumns: '55fr 45fr',
           gap:                 'var(--sp-8)',
           alignItems:          'start',
+          position:            'relative',
         }}
       >
         {/* Left: findings */}
@@ -75,8 +76,14 @@ export function TheScience() {
           ))}
         </div>
 
-        {/* Right: citations, offset 80px down */}
+        {/* Right: journal image + citations, offset 80px down */}
         <div style={{ marginTop: 80 }}>
+          {/* Asset #5: research journal placeholder — 4:3, floats between columns */}
+          <img
+            src="https://placehold.co/260x195"
+            alt="research journal placeholder"
+            style={{ width: '80%', borderRadius: 'var(--radius-md)', marginBottom: 'var(--sp-6)', opacity: 0.7 }}
+          />
           {CITATIONS.map((cite, i) => (
             <ScrollReveal key={i} delay={i * 100}>
               <div

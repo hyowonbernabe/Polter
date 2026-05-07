@@ -1,9 +1,23 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import { useState, useEffect, Component, type ReactNode } from 'react';
+import CreatureDemo from './CreatureDemo';
 
-const CreatureDemo = dynamic(() => import('./CreatureDemo'), { ssr: false });
+// Catch any creature crash — rest of page stays visible
+class CreatureErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() { return this.state.failed ? null : this.props.children; }
+}
 
+// Render only after mount — prevents SSR/hydration issues without dynamic()
 export default function CreatureDemoLoader() {
-  return <CreatureDemo />;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return (
+    <CreatureErrorBoundary>
+      <CreatureDemo />
+    </CreatureErrorBoundary>
+  );
 }
