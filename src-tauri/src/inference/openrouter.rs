@@ -4,11 +4,12 @@ use serde_json::json;
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Free-tier models on OpenRouter, tried in order. If the first fails, fall back.
 const FREE_MODELS: &[&str] = &[
+    "openai/gpt-oss-120b:free",
     "google/gemma-3-1b-it:free",
     "meta-llama/llama-3.2-3b-instruct:free",
     "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
-pub const DEFAULT_MODEL: &str = "google/gemma-3-1b-it:free";
+pub const DEFAULT_MODEL: &str = "openai/gpt-oss-120b:free";
 const TIMEOUT_SECS: u64 = 10;
 
 const VALID_STATES: &[&str] = &["focus", "calm", "deep", "spark", "burn", "fade", "rest"];
