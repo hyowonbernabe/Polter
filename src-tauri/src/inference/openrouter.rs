@@ -2,7 +2,13 @@ use serde::Deserialize;
 use serde_json::json;
 
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-pub const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite-preview";
+/// Free-tier models on OpenRouter, tried in order. If the first fails, fall back.
+const FREE_MODELS: &[&str] = &[
+    "google/gemma-3-1b-it:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+];
+pub const DEFAULT_MODEL: &str = "google/gemma-3-1b-it:free";
 const TIMEOUT_SECS: u64 = 10;
 
 const VALID_STATES: &[&str] = &["focus", "calm", "deep", "spark", "burn", "fade", "rest"];
@@ -56,18 +62,15 @@ fn extract_json(content: &str) -> &str {
     inner.trim_start_matches('\n').trim_end().trim_end_matches("```").trim()
 }
 
-pub async fn call_openrouter(
+async fn try_model(
+    client: &reqwest::Client,
     api_key: &str,
+    model: &str,
     system_prompt: &str,
     user_message: &str,
-) -> Result<VoiceResponse, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
-        .build()
-        .map_err(|e| e.to_string())?;
-
+) -> Result<String, String> {
     let body = json!({
-        "model": DEFAULT_MODEL,
+        "model": model,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": user_message  }
@@ -90,17 +93,45 @@ pub async fn call_openrouter(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("OpenRouter {status}: {body}"));
+        return Err(format!("OpenRouter {status} ({model}): {body}"));
     }
 
     let chat: ChatResponse = response.json().await.map_err(|e| e.to_string())?;
-    let content = chat
-        .choices
+    chat.choices
         .into_iter()
         .next()
-        .ok_or_else(|| "no choices in response".to_string())?
-        .message
-        .content;
+        .ok_or_else(|| "no choices in response".to_string())
+        .map(|c| c.message.content)
+}
+
+pub async fn call_openrouter(
+    api_key: &str,
+    system_prompt: &str,
+    user_message: &str,
+) -> Result<VoiceResponse, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Try each free model in order until one succeeds.
+    let mut last_err = String::new();
+    let mut content = String::new();
+    for model in FREE_MODELS {
+        match try_model(&client, api_key, model, system_prompt, user_message).await {
+            Ok(c) => {
+                content = c;
+                break;
+            }
+            Err(e) => {
+                eprintln!("[openrouter] {} failed: {}", model, e);
+                last_err = e;
+            }
+        }
+    }
+    if content.is_empty() {
+        return Err(format!("all models failed. last: {last_err}"));
+    }
 
     let raw: serde_json::Value =
         serde_json::from_str(extract_json(&content)).map_err(|e| format!("parse error: {e}"))?;
