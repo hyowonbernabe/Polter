@@ -344,6 +344,7 @@ async fn build_recent_day_contexts(
         .await
         .unwrap_or_default();
 
+    // chrono num_days_from_monday: 0=Monday, 6=Sunday
     let days_of_week = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
     let mut result = Vec::new();
@@ -366,8 +367,9 @@ async fn build_recent_day_contexts(
             let dow_name = date_dow.map(|d| days_of_week[d % 7].to_string())
                 .unwrap_or_else(|| row.date.clone());
 
-            // If it's the same day of week as today, prefix with "last"
-            if date_dow == Some(current_dow as usize % 7) {
+            // Convert Windows dow (0=Sun,1=Mon..6=Sat) to chrono (0=Mon..6=Sun)
+            let current_chrono_dow = if current_dow == 0 { 6 } else { (current_dow - 1) as usize };
+            if date_dow == Some(current_chrono_dow) {
                 format!("last {}", dow_name)
             } else {
                 dow_name

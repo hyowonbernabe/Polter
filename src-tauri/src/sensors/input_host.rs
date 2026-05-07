@@ -28,7 +28,6 @@ enum IpcEvent {
 fn monitor_binary_path() -> PathBuf {
     #[cfg(debug_assertions)]
     {
-        // Respect CARGO_TARGET_DIR if set (e.g. in CI); fall back to workspace default.
         if let Some(target_dir) = option_env!("CARGO_TARGET_DIR") {
             PathBuf::from(target_dir).join("debug/input-monitor.exe")
         } else {
@@ -37,11 +36,19 @@ fn monitor_binary_path() -> PathBuf {
     }
     #[cfg(not(debug_assertions))]
     {
-        std::env::current_exe()
+        // Tauri externalBin sidecar: placed next to the main exe with a target-triple suffix.
+        // Resolve by checking sidecar name first, then bare name as fallback.
+        let exe_dir = std::env::current_exe()
             .unwrap()
             .parent()
             .unwrap()
-            .join("input-monitor.exe")
+            .to_path_buf();
+        let sidecar = exe_dir.join("input-monitor-x86_64-pc-windows-msvc.exe");
+        if sidecar.exists() {
+            sidecar
+        } else {
+            exe_dir.join("input-monitor.exe")
+        }
     }
 }
 

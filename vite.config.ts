@@ -14,6 +14,7 @@ export default defineConfig(async () => ({
     target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    chunkSizeWarningLimit: 700,
   },
   test: {
     environment: "node",

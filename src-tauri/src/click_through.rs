@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Rect {
@@ -25,8 +25,6 @@ pub fn start<R: Runtime>(
     drag_active: Arc<AtomicBool>,
 ) {
     std::thread::spawn(move || {
-        let mut was_fullscreen = false;
-
         loop {
             let inside = if drag_active.load(Ordering::Relaxed) {
                 true
@@ -57,6 +55,7 @@ pub fn start<R: Runtime>(
 /// Returns true if there is a non-Polter popup window covering an entire monitor completely.
 /// This is the signature of fullscreen exclusive mode used by games and media players.
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn is_fullscreen_exclusive() -> bool {
     use windows::Win32::Foundation::RECT;
     use windows::Win32::Graphics::Gdi::{
@@ -113,6 +112,7 @@ fn is_fullscreen_exclusive() -> bool {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 fn is_fullscreen_exclusive() -> bool {
     false
 }

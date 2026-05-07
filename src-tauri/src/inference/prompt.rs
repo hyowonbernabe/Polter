@@ -112,7 +112,8 @@ No markdown. No explanation. Only the JSON object."#
 }
 
 pub fn build_user_message(ctx: &PromptContext) -> String {
-    let days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    // Windows GetLocalTime: 0=Sunday, 1=Monday, ..., 6=Saturday
+    let days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
     let day_name = days.get(ctx.day_of_week as usize).copied().unwrap_or("today");
     let time_label = match ctx.hour {
         5..=8   => "early morning",

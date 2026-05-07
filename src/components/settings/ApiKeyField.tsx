@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export default function ApiKeyField() {
   const [hasKey, setHasKey] = useState(false);
@@ -9,6 +10,12 @@ export default function ApiKeyField() {
 
   useEffect(() => {
     invoke<boolean>("has_api_key").then(setHasKey);
+    // Re-check when key changes (e.g. saved during onboarding)
+    let unlisten: (() => void) | undefined;
+    listen("inference_mode_changed", () => {
+      invoke<boolean>("has_api_key").then(setHasKey);
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
   }, []);
 
   async function handleSave() {
