@@ -4,15 +4,15 @@ import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { GhostSprite } from '@/components/ui/GhostSprite';
 
 const CONSTELLATION = [
-  { name: 'focused.png',    scale: 2 as const, opacity: 0.90, top: '5%',  left: '10%', phase: 0.0,  label: 'focused'    },
-  { name: 'calm.png',       scale: 2 as const, opacity: 0.80, top: '38%', left: '54%', phase: 1.2,  label: 'calm'       },
-  { name: 'excited.png',    scale: 2 as const, opacity: 0.85, top: '2%',  left: '56%', phase: 0.8,  label: 'excited'    },
-  { name: 'overworked.png', scale: 1 as const, opacity: 0.70, top: '60%', left: '5%',  phase: 2.1,  label: 'overworked' },
-  { name: 'sleepy.png',     scale: 1 as const, opacity: 0.60, top: '70%', left: '65%', phase: 1.7,  label: 'sleepy'     },
-  { name: 'sleeping.png',   scale: 1 as const, opacity: 0.40, top: '80%', left: '35%', phase: 3.0,  label: 'sleeping'   },
-  { name: 'grab.png',       scale: 2 as const, opacity: 0.80, top: '40%', left: '22%', phase: 0.5,  label: 'grab'       },
-  { name: 'reading.png',    scale: 2 as const, opacity: 0.75, top: '18%', left: '74%', phase: 2.4,  label: 'reading'    },
-  { name: 'box.png',        scale: 2 as const, opacity: 0.70, top: '58%', left: '46%', phase: 1.0,  label: 'hiding'     },
+  { name: 'focused.png',    scale: 2 as const, opacity: 0.90, top: '5%',  left: '10%', phase: 0.0,  label: 'Focused'    },
+  { name: 'calm.png',       scale: 2 as const, opacity: 0.80, top: '38%', left: '54%', phase: 1.2,  label: 'Calm'       },
+  { name: 'excited.png',    scale: 2 as const, opacity: 0.85, top: '2%',  left: '56%', phase: 0.8,  label: 'Excited'    },
+  { name: 'overworked.png', scale: 1 as const, opacity: 0.70, top: '60%', left: '5%',  phase: 2.1,  label: 'Overworked' },
+  { name: 'sleepy.png',     scale: 1 as const, opacity: 0.60, top: '70%', left: '65%', phase: 1.7,  label: 'Sleepy'     },
+  { name: 'sleeping.png',   scale: 1 as const, opacity: 0.40, top: '80%', left: '35%', phase: 3.0,  label: 'Sleeping'   },
+  { name: 'grab.png',       scale: 2 as const, opacity: 0.80, top: '40%', left: '22%', phase: 0.5,  label: 'Grab'       },
+  { name: 'reading.png',    scale: 2 as const, opacity: 0.75, top: '18%', left: '74%', phase: 2.4,  label: 'Reading'    },
+  { name: 'box.png',        scale: 2 as const, opacity: 0.70, top: '58%', left: '46%', phase: 1.0,  label: 'Hiding'     },
 ];
 
 export function TheCreature() {
@@ -36,7 +36,7 @@ export function TheCreature() {
   }, []);
 
   return (
-    <section style={{ background: 'var(--bg-1)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
+    <section style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
       <div
         className="creature-grid"
         style={{
@@ -49,7 +49,7 @@ export function TheCreature() {
         {/* Left: text */}
         <div>
           <ScrollReveal>
-            <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>the creature</div>
+            <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>The Creature</div>
             <h2
               style={{
                 fontFamily:    'var(--font-serif)',
@@ -59,17 +59,16 @@ export function TheCreature() {
                 lineHeight:    1.15,
                 letterSpacing: '-0.02em',
                 color:         'var(--fg-1)',
-                textTransform: 'lowercase',
                 margin:        '0 0 var(--sp-5)',
               }}
             >
-              the ghost is the product.
+              The ghost is the product.
             </h2>
           </ScrollReveal>
           <ScrollReveal delay={150}>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: 16, lineHeight: 1.65, color: 'var(--fg-2)', margin: 0 }}>
-              its mood mirrors yours. when you&apos;re focused, it&apos;s calm. when you&apos;re rushing,
-              it&apos;s restless. when you&apos;re exhausted, it droops. you understand how you&apos;re doing
+              Its mood mirrors yours. When you&apos;re focused, it&apos;s calm. When you&apos;re rushing,
+              it&apos;s restless. When you&apos;re exhausted, it droops. You understand how you&apos;re doing
               by looking at how it&apos;s doing.
             </p>
           </ScrollReveal>
@@ -96,15 +95,15 @@ export function TheCreature() {
                 <GhostSprite name={sp.name} scale={sp.scale} opacity={sp.opacity} />
                 <span
                   style={{
-                    position:   'absolute',
-                    bottom:     -16,
-                    left:       '50%',
-                    transform:  'translateX(-50%)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize:   10,
+                    position:      'absolute',
+                    bottom:        -16,
+                    left:          '50%',
+                    transform:     'translateX(-50%)',
+                    fontFamily:    'var(--font-mono)',
+                    fontSize:      10,
                     letterSpacing: '0.04em',
-                    color:      'var(--fg-3)',
-                    whiteSpace: 'nowrap',
+                    color:         'var(--fg-3)',
+                    whiteSpace:    'nowrap',
                   }}
                 >
                   {sp.label}

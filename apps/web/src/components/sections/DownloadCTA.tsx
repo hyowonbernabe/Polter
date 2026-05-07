@@ -64,11 +64,10 @@ export function DownloadCTA() {
             lineHeight:    1.1,
             letterSpacing: '-0.02em',
             color:         'var(--fg-1)',
-            textTransform: 'lowercase',
             margin:        '0 0 var(--sp-6)',
           }}
         >
-          let something notice.
+          Let something notice.
         </h2>
       </ScrollReveal>
 
@@ -78,22 +77,22 @@ export function DownloadCTA() {
           target="_blank"
           rel="noreferrer"
           style={{
-            background:    'var(--accent)',
-            color:         '#1a1612',
-            fontFamily:    'var(--font-ui)',
-            fontSize:      15,
-            fontWeight:    500,
-            padding:       '14px 28px',
-            borderRadius:  'var(--radius-md)',
+            background:     'var(--accent)',
+            color:          '#1a1612',
+            fontFamily:     'var(--font-ui)',
+            fontSize:       15,
+            fontWeight:     500,
+            padding:        '14px 28px',
+            borderRadius:   'var(--radius-md)',
             textDecoration: 'none',
-            display:       'inline-block',
-            marginBottom:  'var(--sp-4)',
+            display:        'inline-block',
+            marginBottom:   'var(--sp-4)',
           }}
         >
           View on GitHub
         </a>
         <div className="eyebrow" style={{ color: 'var(--fg-3)', marginTop: 'var(--sp-3)' }}>
-          open source · mit licensed · windows
+          Open source · MIT licensed · Windows
         </div>
       </ScrollReveal>
     </section>

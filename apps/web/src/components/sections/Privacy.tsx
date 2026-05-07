@@ -1,31 +1,31 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 
 const SEES = [
-  'keystroke timing — when, not what',
-  'mouse path and idle gaps',
-  'window switches and focus durations',
-  'time of day and day of week',
+  'Keystroke timing — when, not what',
+  'Mouse path and idle gaps',
+  'Window switches and focus durations',
+  'Time of day and day of week',
 ];
 
 const NEVER_SEES = [
-  'the words you type',
-  'the websites you visit',
-  'the contents of your screen',
-  'anything sent to a server',
+  'The words you type',
+  'The websites you visit',
+  'The contents of your screen',
+  'Anything sent to a server',
 ];
 
 const TIERS = [
   {
     label: 'TIER 1 · AUTOMATIC',
-    desc:  'keystroke timing, mouse behavior, app focus, system activity. collected from install. no content, only patterns.',
+    desc:  'Keystroke timing, mouse behavior, app focus, system activity. Collected from install. No content, only patterns.',
   },
   {
     label: 'TIER 2 · OPT-IN',
-    desc:  "screen content classification, clipboard frequency, calendar proximity. each one asked separately during setup. skip any or all.",
+    desc:  "Screen content classification, clipboard frequency, calendar proximity. Each one asked separately during setup. Skip any or all.",
   },
   {
     label: 'TIER 3 · FUTURE',
-    desc:  "webcam and microphone signals. not in the current release. designed and waiting for when it's ready.",
+    desc:  "Webcam and microphone signals. Not in the current release. Designed and waiting for when it's ready.",
   },
 ];
 
@@ -33,10 +33,10 @@ export function Privacy() {
   return (
     <section
       id="privacy"
-      style={{ background: 'var(--bg-paper)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}
+      style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}
     >
       <ScrollReveal>
-        <div className="eyebrow mb-4" style={{ color: 'var(--fg-ink-3)' }}>privacy</div>
+        <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>Privacy</div>
         <h2
           style={{
             fontFamily:    'var(--font-serif)',
@@ -45,16 +45,14 @@ export function Privacy() {
             fontSize:      'clamp(26px, 3.5vw, 48px)',
             lineHeight:    1.1,
             letterSpacing: '-0.02em',
-            textTransform: 'lowercase',
             margin:        '0 0 var(--sp-8)',
           }}
         >
-          <span style={{ color: 'var(--fg-ink)' }}>everything stays on your machine.</span>{' '}
-          <span style={{ color: 'var(--fg-ink-3)' }}>no account. no upload.</span>
+          <span style={{ color: 'var(--fg-1)' }}>Everything stays on your machine.</span>{' '}
+          <span style={{ color: 'var(--fg-3)' }}>No account. No upload.</span>
         </h2>
       </ScrollReveal>
 
-      {/* Part A: sees / never sees */}
       <div
         className="privacy-sees"
         style={{
@@ -64,7 +62,6 @@ export function Privacy() {
           marginBottom:        'var(--sp-9)',
         }}
       >
-        {/* What it sees */}
         <div>
           <div className="eyebrow mb-4" style={{ color: 'var(--mood-calm)' }}>
             WHAT POLTER SEES
@@ -73,11 +70,11 @@ export function Privacy() {
             <ScrollReveal key={i} delay={i * 80}>
               <div
                 style={{
-                  borderBottom: '1px solid var(--border-light)',
+                  borderBottom: '1px solid var(--border-1)',
                   padding:      'var(--sp-4) 0',
                   fontFamily:   'var(--font-ui)',
                   fontSize:     16,
-                  color:        'var(--fg-ink)',
+                  color:        'var(--fg-1)',
                 }}
               >
                 {item}
@@ -86,7 +83,6 @@ export function Privacy() {
           ))}
         </div>
 
-        {/* What it never sees */}
         <div>
           <div className="eyebrow mb-4" style={{ color: 'var(--danger)' }}>
             WHAT POLTER NEVER SEES
@@ -95,13 +91,13 @@ export function Privacy() {
             <ScrollReveal key={i} delay={i * 80}>
               <div
                 style={{
-                  borderBottom:          '1px solid var(--border-light)',
-                  padding:               'var(--sp-4) 0',
-                  fontFamily:            'var(--font-ui)',
-                  fontSize:              16,
-                  color:                 'var(--fg-ink-2)',
-                  textDecoration:        'line-through',
-                  textDecorationColor:   'rgba(184,106,94,0.5)',
+                  borderBottom:        '1px solid var(--border-1)',
+                  padding:             'var(--sp-4) 0',
+                  fontFamily:          'var(--font-ui)',
+                  fontSize:            16,
+                  color:               'var(--fg-2)',
+                  textDecoration:      'line-through',
+                  textDecorationColor: 'rgba(184,106,94,0.5)',
                 }}
               >
                 {item}
@@ -111,13 +107,12 @@ export function Privacy() {
         </div>
       </div>
 
-      {/* Part B: tiers */}
       <div
         className="privacy-tiers"
         style={{
           display:             'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          borderTop:           '1px solid var(--border-light)',
+          borderTop:           '1px solid var(--border-1)',
           paddingTop:          'var(--sp-7)',
         }}
       >
@@ -125,13 +120,13 @@ export function Privacy() {
           <ScrollReveal key={i} delay={i * 100}>
             <div
               style={{
-                borderRight:  i < 2 ? '1px solid var(--border-light)' : 'none',
+                borderRight:  i < 2 ? '1px solid var(--border-1)' : 'none',
                 paddingRight: i < 2 ? 'var(--sp-6)' : 0,
                 paddingLeft:  i > 0 ? 'var(--sp-6)' : 0,
               }}
             >
-              <div className="eyebrow mb-3" style={{ color: 'var(--fg-ink-3)' }}>{tier.label}</div>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, lineHeight: 1.6, color: 'var(--fg-ink-2)', margin: 0 }}>
+              <div className="eyebrow mb-3" style={{ color: 'var(--fg-3)' }}>{tier.label}</div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, lineHeight: 1.6, color: 'var(--fg-2)', margin: 0 }}>
                 {tier.desc}
               </p>
             </div>
@@ -145,13 +140,13 @@ export function Privacy() {
             fontFamily: 'var(--font-ui)',
             fontSize:   15,
             lineHeight: 1.65,
-            color:      'var(--fg-ink-2)',
+            color:      'var(--fg-2)',
             marginTop:  'var(--sp-8)',
             maxWidth:   '65ch',
           }}
         >
-          polter learns your baseline by watching patterns over weeks. the raw events are discarded.
-          only the rhythm remains. you can delete that rhythm any time.
+          Polter learns your baseline by watching patterns over weeks. The raw events are discarded.
+          Only the rhythm remains. You can delete that rhythm any time.
         </p>
       </ScrollReveal>
 

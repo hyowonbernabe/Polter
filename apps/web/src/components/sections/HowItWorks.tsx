@@ -1,94 +1,289 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { GhostSprite } from '@/components/ui/GhostSprite';
 
+function DownloadIcon() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function BubbleIcon() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)' }}>
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
 const STEPS = [
   {
-    num:    '01',
-    title:  'install it',
-    desc:   "download polter. a small ghost appears on your desktop. that's it.",
-    indent: '0',
-    ghost:  false,
+    num: '01',
+    title: 'Install It',
+    desc: "Download Polter. A small ghost shows up on your desktop. That's it.",
+    detail: 'One installer. No account. No setup wizard.',
+    Icon: DownloadIcon,
   },
   {
-    num:    '02',
-    title:  'forget about it',
-    desc:   'polter watches your patterns silently. keystroke timing, mouse rhythm, app switching. never content.',
-    indent: 'clamp(0px, 8vw, 96px)',
-    ghost:  false,
+    num: '02',
+    title: 'Forget About It',
+    desc: 'It watches your patterns quietly. Keystroke timing, mouse rhythm, app switching. Never what you type.',
+    detail: 'Runs in the background. Uses less than 1% CPU.',
+    Icon: EyeIcon,
   },
   {
-    num:    '03',
-    title:  'it notices',
-    desc:   'when polter sees something worth saying, it tells you. one sentence. maybe two.',
-    indent: 'clamp(0px, 16vw, 192px)',
-    ghost:  true,
+    num: '03',
+    title: 'It Notices',
+    desc: 'When it sees something worth saying, it tells you. One sentence. Maybe two.',
+    detail: 'No dashboard. No charts. Just a quiet observation.',
+    Icon: BubbleIcon,
   },
+];
+
+const PROMISES = [
+  'No signup',
+  'No configuration',
+  'No learning curve',
+  'No data leaves your machine',
 ];
 
 export function HowItWorks() {
   return (
-    <section style={{ background: 'var(--bg-light)', padding: 'var(--sp-9) 0' }}>
-      <div style={{ marginLeft: 'clamp(24px, 8vw, 120px)', marginRight: 24, maxWidth: 680, marginBottom: 'var(--sp-7)' }}>
+    <section
+      style={{
+        background: 'var(--bg-0)',
+        width: '100%',
+        minHeight: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        padding: 'var(--sp-9) 0',
+      }}
+    >
+      <div style={{ padding: '0 5vw', width: '100%' }}>
+        {/* Eyebrow */}
         <ScrollReveal>
-          <div className="eyebrow" style={{ color: 'var(--fg-ink-3)' }}>how it works</div>
+          <div
+            className="eyebrow"
+            style={{
+              color: 'var(--fg-3)',
+              textAlign: 'center',
+              marginBottom: 'var(--sp-5)',
+            }}
+          >
+            How It Works
+          </div>
+        </ScrollReveal>
+
+        {/* Big headline */}
+        <ScrollReveal delay={100}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontStyle: 'italic',
+              fontWeight: 400,
+              fontSize: 'clamp(32px, 4.5vw, 56px)',
+              lineHeight: 1.1,
+              letterSpacing: '-0.02em',
+              color: 'var(--fg-1)',
+              textAlign: 'center',
+              margin: '0 auto var(--sp-9)',
+              maxWidth: 600,
+            }}
+          >
+            Three steps. Nothing else.
+          </h2>
+        </ScrollReveal>
+
+        {/* Cards */}
+        <div
+          className="how-cards"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 'var(--sp-6)',
+            maxWidth: 1200,
+            margin: '0 auto',
+          }}
+        >
+          {STEPS.map((step, i) => (
+            <ScrollReveal key={step.num} delay={150 + i * 150} variant="fade-up">
+              <div
+                style={{
+                  background: 'var(--bg-2)',
+                  border: '1px solid var(--border-1)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--sp-8) var(--sp-6)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  textAlign: 'center',
+                }}
+              >
+                {/* Accent line at top */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 'var(--sp-6)',
+                    right: 'var(--sp-6)',
+                    height: 1,
+                    background: 'var(--accent)',
+                    opacity: 0.3,
+                  }}
+                />
+
+                {/* Large faded step number */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: -10,
+                    right: 16,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 140,
+                    fontWeight: 700,
+                    color: 'var(--fg-1)',
+                    opacity: 0.04,
+                    lineHeight: 1,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {step.num}
+                </div>
+
+                {/* Icon */}
+                <div style={{ marginBottom: 'var(--sp-5)', display: 'inline-block' }}>
+                  <step.Icon />
+                </div>
+
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-ui)',
+                    fontWeight: 600,
+                    fontSize: 22,
+                    color: 'var(--fg-1)',
+                    margin: '0 0 var(--sp-3)',
+                  }}
+                >
+                  {step.title}
+                </h3>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-ui)',
+                    fontSize: 15,
+                    lineHeight: 1.65,
+                    color: 'var(--fg-2)',
+                    margin: '0 0 var(--sp-5)',
+                  }}
+                >
+                  {step.desc}
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--fs-xs)',
+                    letterSpacing: 'var(--ls-mono)',
+                    color: 'var(--fg-3)',
+                    margin: 0,
+                  }}
+                >
+                  {step.detail}
+                </p>
+              </div>
+            </ScrollReveal>
+          ))}
+        </div>
+
+        {/* Floating ghost between sections */}
+        <ScrollReveal delay={700}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              margin: 'var(--sp-8) 0 var(--sp-7)',
+              opacity: 0.25,
+              filter: 'drop-shadow(0 0 20px rgba(245,244,239,0.15))',
+            }}
+          >
+            <GhostSprite name="front.png" scale={2} />
+          </div>
+        </ScrollReveal>
+
+        {/* Promise row */}
+        <ScrollReveal delay={800}>
+          <div
+            className="how-promises"
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 'var(--sp-7)',
+              flexWrap: 'wrap',
+            }}
+          >
+            {PROMISES.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--sp-2)',
+                }}
+              >
+                <div
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    opacity: 0.6,
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-ui)',
+                    fontSize: 14,
+                    color: 'var(--fg-2)',
+                  }}
+                >
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
         </ScrollReveal>
       </div>
 
-      <div style={{ marginTop: 'var(--sp-7)' }}>
-        {STEPS.map((step, i) => (
-          <ScrollReveal key={step.num} delay={i * 150} className="mb-14">
-            <div
-              style={{
-                marginLeft:  step.indent,
-                paddingLeft: 'clamp(24px, 8vw, 120px)',
-                paddingRight: 24,
-                maxWidth:    460,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize:   48,
-                  lineHeight: 1,
-                  color:      'var(--fg-ink-3)',
-                  opacity:    0.4,
-                  marginBottom: 'var(--sp-3)',
-                }}
-              >
-                {step.num}
-              </div>
-              <h3
-                style={{
-                  fontFamily:   'var(--font-ui)',
-                  fontWeight:   600,
-                  fontSize:     20,
-                  color:        'var(--fg-ink)',
-                  margin:       '0 0 var(--sp-2)',
-                }}
-              >
-                {step.title}
-              </h3>
-              <p
-                style={{
-                  fontFamily: 'var(--font-ui)',
-                  fontSize:   16,
-                  lineHeight: 1.6,
-                  color:      'var(--fg-ink-2)',
-                  maxWidth:   '45ch',
-                  margin:     0,
-                }}
-              >
-                {step.desc}
-              </p>
-              {step.ghost && (
-                <div style={{ marginTop: 'var(--sp-4)' }}>
-                  <GhostSprite name="front.png" scale={1} opacity={0.5} />
-                </div>
-              )}
-            </div>
-          </ScrollReveal>
-        ))}
-      </div>
+      <style>{`
+        @media (max-width: 768px) {
+          .how-cards {
+            grid-template-columns: 1fr !important;
+            max-width: 400px !important;
+            margin: 0 auto !important;
+          }
+          .how-promises {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: var(--sp-3) !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

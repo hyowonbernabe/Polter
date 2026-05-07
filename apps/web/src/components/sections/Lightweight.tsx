@@ -29,7 +29,7 @@ function Metric({ target, label, delay }: MetricProps) {
           fontFamily:  'var(--font-mono)',
           fontSize:    64,
           lineHeight:  1,
-          color:       'var(--fg-ink)',
+          color:       'var(--fg-1)',
           opacity:     shown ? 1 : 0,
           transform:   shown ? 'none' : 'translateY(4px)',
           transition:  `opacity 600ms var(--ease-quiet) ${delay}ms, transform 600ms var(--ease-quiet) ${delay}ms`,
@@ -41,7 +41,7 @@ function Metric({ target, label, delay }: MetricProps) {
         style={{
           fontFamily: 'var(--font-ui)',
           fontSize:   15,
-          color:      'var(--fg-ink-2)',
+          color:      'var(--fg-2)',
           marginTop:  'var(--sp-3)',
           maxWidth:   '38ch',
           lineHeight: 1.5,
@@ -57,10 +57,10 @@ function Metric({ target, label, delay }: MetricProps) {
 
 export function Lightweight() {
   return (
-    <section style={{ background: 'var(--bg-light)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
+    <section style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 'var(--sp-8)', alignItems: 'start', maxWidth: 900 }}>
       <div>
-        <div className="eyebrow mb-4" style={{ color: 'var(--fg-ink-3)' }}>lightweight</div>
+        <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>Lightweight</div>
         <h2
           style={{
             fontFamily:    'var(--font-serif)',
@@ -69,31 +69,29 @@ export function Lightweight() {
             fontSize:      'clamp(22px, 2.8vw, 36px)',
             lineHeight:    1.2,
             letterSpacing: '-0.02em',
-            color:         'var(--fg-ink)',
-            textTransform: 'lowercase',
+            color:         'var(--fg-1)',
             margin:        '0 0 var(--sp-8)',
           }}
         >
-          you won&apos;t notice it&apos;s there.
+          You won&apos;t notice it&apos;s there.
         </h2>
 
         <Metric
           target="&lt; 1%"
-          label="cpu usage while running. no impact on gaming, editing, or heavy workloads."
+          label="CPU usage while running. No impact on gaming, editing, or heavy workloads."
           delay={0}
         />
         <Metric
           target="0 bytes"
-          label="sent to any server. ever. all processing happens on your machine."
+          label="Sent to any server. Ever. All processing happens on your machine."
           delay={200}
         />
         <Metric
           target="60 seconds"
-          label="aggregation window. raw events are discarded. only the rhythm remains."
+          label="Aggregation window. Raw events are discarded. Only the rhythm remains."
           delay={400}
         />
       </div>
-      {/* Asset #6: feather — tall portrait (~1:2), transparent bg, floats beside metrics */}
       <img
         src="https://placehold.co/120x240"
         alt="feather placeholder"

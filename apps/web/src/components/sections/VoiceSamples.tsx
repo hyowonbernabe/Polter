@@ -41,34 +41,33 @@ function VoiceCard({ card, delay = 0 }: { card: SampleCard; delay?: number }) {
     <ScrollReveal delay={delay}>
       <div
         style={{
-          background:   'var(--bg-paper)',
-          borderRadius: 'var(--radius-bubble)',
-          border:       '1px solid var(--border-light)',
-          padding:      'var(--sp-6)',
-          display:      'flex',
-          flexDirection: 'column',
+          background:     'var(--bg-2)',
+          borderRadius:   'var(--radius-bubble)',
+          border:         '1px solid var(--border-1)',
+          padding:        'var(--sp-6)',
+          display:        'flex',
+          flexDirection:  'column',
           justifyContent: 'space-between',
-          minHeight:    card.large ? 260 : 170,
-          height:       card.large ? '100%' : undefined,
+          minHeight:      card.large ? 260 : 170,
+          height:         card.large ? '100%' : undefined,
         }}
       >
         <p
           style={{
-            fontFamily:    'var(--font-serif)',
-            fontStyle:     'italic',
-            fontSize:      card.large ? 22 : 18,
-            lineHeight:    1.45,
-            color:         'var(--fg-ink)',
-            textTransform: 'lowercase',
-            margin:        '0 0 var(--sp-5)',
-            flex:          1,
+            fontFamily: 'var(--font-serif)',
+            fontStyle:  'italic',
+            fontSize:   card.large ? 22 : 18,
+            lineHeight: 1.45,
+            color:      'var(--fg-1)',
+            margin:     '0 0 var(--sp-5)',
+            flex:       1,
           }}
         >
           {card.voice}
         </p>
         <div
           style={{
-            borderTop:  '1px solid var(--border-light)',
+            borderTop:  '1px solid var(--border-1)',
             paddingTop: 'var(--sp-3)',
             display:    'flex',
             alignItems: 'center',
@@ -90,7 +89,7 @@ function VoiceCard({ card, delay = 0 }: { card: SampleCard; delay?: number }) {
               fontSize:      10,
               letterSpacing: 'var(--ls-caps)',
               textTransform: 'uppercase',
-              color:         'var(--fg-ink-3)',
+              color:         'var(--fg-3)',
             }}
           >
             {card.time} · {card.moodLabel}
@@ -103,10 +102,10 @@ function VoiceCard({ card, delay = 0 }: { card: SampleCard; delay?: number }) {
 
 export function VoiceSamples() {
   return (
-    <section style={{ background: 'var(--bg-light)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
+    <section style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
       <ScrollReveal>
-        <div className="eyebrow mb-4" style={{ color: 'var(--fg-ink-3)' }}>
-          what it might say
+        <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>
+          What It Might Say
         </div>
         <h2
           style={{
@@ -116,12 +115,11 @@ export function VoiceSamples() {
             fontSize:      'clamp(32px, 4.5vw, 56px)',
             lineHeight:    1.05,
             letterSpacing: '-0.02em',
-            textTransform: 'lowercase',
             margin:        '0 0 var(--sp-8)',
           }}
         >
-          <span style={{ color: 'var(--fg-ink)' }}>one sentence.</span>{' '}
-          <span style={{ color: 'var(--fg-ink-3)' }}>maybe two.</span>
+          <span style={{ color: 'var(--fg-1)' }}>One sentence.</span>{' '}
+          <span style={{ color: 'var(--fg-3)' }}>Maybe two.</span>
         </h2>
       </ScrollReveal>
 

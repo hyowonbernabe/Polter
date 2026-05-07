@@ -96,7 +96,7 @@ export function Hero() {
               marginBottom: 20,
             }}
           >
-            a quiet desktop companion
+            A quiet desktop companion
           </div>
 
           <h1
@@ -108,11 +108,10 @@ export function Hero() {
               lineHeight: 0.95,
               letterSpacing: '-0.03em',
               color: 'var(--ghost)',
-              textTransform: 'lowercase',
               margin: '0 0 32px',
             }}
           >
-            something is watching you work.
+            Something is watching you work.
           </h1>
 
           <p
@@ -125,7 +124,7 @@ export function Hero() {
               margin: '0 0 40px',
             }}
           >
-            a small pixel ghost that lives on your screen. it watches how you
+            A small pixel ghost that lives on your screen. It watches how you
             work, not what you type, and sometimes says what it notices.
           </p>
 
@@ -156,7 +155,7 @@ export function Hero() {
                 padding: '14px 16px',
               }}
             >
-              read more below →
+              Read more below →
             </a>
           </div>
 
@@ -164,7 +163,7 @@ export function Hero() {
             className="eyebrow"
             style={{ color: 'var(--fg-3)', letterSpacing: '0.06em' }}
           >
-            windows · open source · everything stays on your machine
+            Windows · Open source · Everything stays on your machine
           </div>
         </div>
 

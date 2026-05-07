@@ -1,10 +1,10 @@
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 
 const FINDINGS = [
-  'keystroke timing reliably shifts under fatigue — slower rhythm, longer holds, more corrections.',
-  'mouse jitter increases measurably under stress before the person consciously feels it.',
-  'context-switching more than once every three minutes degrades focus recovery by 25%.',
-  'compulsive saving — ctrl+s every few seconds — is a documented behavioral marker for anxiety.',
+  'Keystroke timing reliably shifts under fatigue — slower rhythm, longer holds, more corrections.',
+  'Mouse jitter increases measurably under stress before the person consciously feels it.',
+  'Context-switching more than once every three minutes degrades focus recovery by 25%.',
+  'Compulsive saving — Ctrl+S every few seconds — is a documented behavioral marker for anxiety.',
 ];
 
 const CITATIONS = [
@@ -20,7 +20,7 @@ export function TheScience() {
   return (
     <section style={{ background: 'var(--bg-0)', padding: 'var(--sp-9) clamp(24px, 6vw, 80px)' }}>
       <ScrollReveal>
-        <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>the science</div>
+        <div className="eyebrow mb-4" style={{ color: 'var(--fg-3)' }}>The Science</div>
         <h2
           style={{
             fontFamily:    'var(--font-serif)',
@@ -30,12 +30,11 @@ export function TheScience() {
             lineHeight:    1.1,
             letterSpacing: '-0.02em',
             color:         'var(--fg-1)',
-            textTransform: 'lowercase',
             margin:        '0 0 var(--sp-9)',
             maxWidth:      480,
           }}
         >
-          this isn&apos;t guesswork.
+          This isn&apos;t guesswork.
         </h2>
       </ScrollReveal>
 
@@ -48,7 +47,6 @@ export function TheScience() {
           position:            'relative',
         }}
       >
-        {/* Left: findings */}
         <div>
           {FINDINGS.map((finding, i) => (
             <ScrollReveal key={i} delay={i * 120}>
@@ -76,9 +74,7 @@ export function TheScience() {
           ))}
         </div>
 
-        {/* Right: journal image + citations, offset 80px down */}
         <div style={{ marginTop: 80 }}>
-          {/* Asset #5: research journal placeholder — 4:3, floats between columns */}
           <img
             src="https://placehold.co/260x195"
             alt="research journal placeholder"
