@@ -139,6 +139,9 @@ body {
 
 /* ScrollReveal transitions handled inline via ScrollReveal component */
 
+/* ── Nav link hover ── */
+.nav-link:hover { color: var(--fg-1) !important; }
+
 /* ── Button hover effects ── */
 .btn-primary {
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;

@@ -31,18 +31,18 @@ export function Navbar() {
         </a>
         <div className="flex gap-7">
           {[
-            { label: 'about', href: '#about' },
-            { label: 'privacy', href: '#privacy' },
-            { label: 'github', href: 'https://github.com/hyowonbernabe/Polter' },
+            { label: 'About',   href: '#about' },
+            { label: 'Privacy', href: '#privacy' },
+            { label: 'GitHub',  href: 'https://github.com/hyowonbernabe/Polter' },
           ].map((link) => (
             <a
               key={link.label}
               href={link.href}
-              className="eyebrow hover:opacity-70"
+              className="eyebrow nav-link"
               style={{
                 color: 'var(--fg-2)',
                 textDecoration: 'none',
-                transition: 'opacity var(--dur-quick) var(--ease-quiet)',
+                transition: 'color var(--dur-quick) var(--ease-quiet)',
               }}
               {...(link.href.startsWith('http')
                 ? { target: '_blank', rel: 'noreferrer' }
